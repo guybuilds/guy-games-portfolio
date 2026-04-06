@@ -12,6 +12,7 @@
     let characters = {};
     const charNames = ['IRON_MAN', 'HULK', 'CAPTAIN_AMERICA', 'THOR', 'THANOS', 'GODZILLA', 'CAPTAIN_MARVEL'];
     let bricks = [];
+    let obstacles = [];
     let score = 0;
     let keys = {};
     let abilities = { laser: null, smash: null };
@@ -93,6 +94,7 @@
         };
 
         spawnBricks();
+        spawnObstacles();
 
         // Listeners
         window.addEventListener('resize', onResize);
@@ -289,6 +291,122 @@
         const sash = createBox(0.85, 0.2, 0.45, 0xaa0000);
         sash.position.y = 0.9; group.add(sash);
         return group;
+    }
+
+    function buildObstacle(type, x, z) {
+        const group = new THREE.Group();
+        group.position.set(x, 0, z);
+        group.userData = { type, hp: 1 };
+
+        if (type === 'CRATE') {
+            const body = createBox(1.2, 1.2, 1.2, 0x8b4513);
+            body.position.y = 0.6;
+            group.add(body);
+            // Add some detail (straps)
+            const strap1 = createBox(1.25, 0.2, 1.25, 0x5a2d0c);
+            strap1.position.y = 0.6;
+            group.add(strap1);
+        } else if (type === 'BARREL') {
+            const body = createBox(0.8, 1.2, 0.8, 0xbb5500);
+            body.position.y = 0.6;
+            group.add(body);
+            const rim1 = createBox(0.85, 0.1, 0.85, 0x333333);
+            rim1.position.y = 1.1;
+            group.add(rim1);
+            const rim2 = createBox(0.85, 0.1, 0.85, 0x333333);
+            rim2.position.y = 0.1;
+            group.add(rim2);
+        } else if (type === 'HYDRANT') {
+            const body = createBox(0.6, 1.0, 0.6, 0xcc0000);
+            body.position.y = 0.5;
+            group.add(body);
+            const cap = createBox(0.4, 0.2, 0.4, 0xcc0000);
+            cap.position.y = 1.0;
+            group.add(cap);
+        }
+
+        scene.add(group);
+        obstacles.push(group);
+        return group;
+    }
+
+    function spawnObstacles() {
+        for (let i = 0; i < 50; i++) {
+            const types = ['CRATE', 'BARREL', 'HYDRANT'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            const x = (Math.random() - 0.5) * 160;
+            const z = (Math.random() - 0.5) * 160;
+            // Don't spawn too close to center
+            if (Math.abs(x) < 10 && Math.abs(z) < 10) continue;
+            buildObstacle(type, x, z);
+        }
+    }
+
+    function explodeObstacle(pos) {
+        // LEGO piece eruption!
+        const particles = [];
+        const colors = [0xff0000, 0x0000ff, 0xffff00, 0x00ff00, 0xffffff, 0x8b4513, 0xff7700];
+        
+        for (let i = 0; i < 50; i++) {
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            // Vary the shapes/sizes of lego pieces
+            const w = Math.random() > 0.5 ? 0.3 : 0.2;
+            const h = Math.random() > 0.5 ? 0.15 : 0.3;
+            const d = Math.random() > 0.5 ? 0.3 : 0.2;
+            const p = createBox(w, h, d, color);
+            p.position.copy(pos);
+            p.position.y += 0.5;
+            p.userData = {
+                vel: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.6,
+                    Math.random() * 0.7 + 0.3,
+                    (Math.random() - 0.5) * 0.6
+                ),
+                life: 1.5,
+                rotVel: new THREE.Vector3((Math.random()-0.5)*0.3, (Math.random()-0.5)*0.3, (Math.random()-0.5)*0.3)
+            };
+            scene.add(p);
+            particles.push(p);
+        }
+
+        const animateExplosion = () => {
+            let active = false;
+            particles.forEach((p, idx) => {
+                if (p.userData.life <= 0) return;
+                active = true;
+                p.position.add(p.userData.vel);
+                p.userData.vel.y -= 0.03; // Gravity
+                p.rotation.x += p.userData.rotVel.x;
+                p.rotation.y += p.userData.rotVel.y;
+                p.userData.life -= 0.02;
+                
+                if (p.position.y < 0.1) {
+                    p.position.y = 0.1;
+                    p.userData.vel.set(0, 0, 0);
+                    p.userData.rotVel.set(0, 0, 0);
+                }
+                
+                if (p.userData.life < 0.5) {
+                    p.scale.multiplyScalar(0.9);
+                }
+                
+                if (p.userData.life <= 0) {
+                    scene.remove(p);
+                }
+            });
+            if (active) requestAnimationFrame(animateExplosion);
+        };
+        animateExplosion();
+        playSmashSound();
+    }
+
+    function destroyObstacle(obs, index) {
+        explodeObstacle(obs.position);
+        scene.remove(obs);
+        obstacles.splice(index, 1);
+        score += 100;
+        document.getElementById('bricks').textContent = score;
+        // Maybe spawn it again far away or just keep it gone
     }
 
     function spawnBricks() {
@@ -556,6 +674,53 @@
         const dist = p1Pos.distanceTo(p2Pos);
         const targetCamPos = midPoint.clone().add(new THREE.Vector3(0, Math.max(10, 10 + dist * 0.5), Math.max(20, 15 + dist * 0.8)));
         camera.position.lerp(targetCamPos, 0.1); camera.lookAt(midPoint);
+
+        // Obstacle Destruction via collision/hitting
+        obstacles.forEach((obs, i) => {
+            charNames.forEach(key => {
+                const charMesh = characters[key].mesh;
+                const d = obs.position.distanceTo(charMesh.position);
+                if (d < 2.5) { // Hit distance
+                    destroyObstacle(obs, i);
+                }
+            });
+        });
+
+        // Laser/Ability collisions with obstacles
+        if (abilities.laser) {
+            obstacles.forEach((obs, i) => {
+                // Approximate cylinder-point intersection for laser
+                // Laser is at mesh position, pointing forward (rotation.y)
+                // For simplicity, we can use distance and angle check or just check if it's "in front"
+                // Let's use a simpler approach: check distance in a narrow cone or use actual raycasting if needed.
+                // But since we have many characters, let's just check if it's within range and "looking at" it
+                charNames.forEach(key => {
+                    const char = characters[key];
+                    if (char.mesh.children.includes(abilities.laser)) {
+                        const dist = obs.position.distanceTo(char.mesh.position);
+                        if (dist < 20) {
+                            const toObs = obs.position.clone().sub(char.mesh.position).normalize();
+                            const forward = new THREE.Vector3(Math.sin(char.mesh.rotation.y), 0, Math.cos(char.mesh.rotation.y));
+                            const angle = forward.angleTo(toObs);
+                            if (angle < 0.2) { // 0.2 radians is roughly 11 degrees
+                                destroyObstacle(obs, i);
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        if (abilities.smash) {
+            const smashPos = abilities.smash.position;
+            const smashScale = abilities.smash.scale.x * 3; // ring radius
+            obstacles.forEach((obs, i) => {
+                if (obs.position.distanceTo(smashPos) < smashScale) {
+                    destroyObstacle(obs, i);
+                }
+            });
+        }
+
         bricks.forEach((b, i) => {
             let collected = false; charNames.forEach(key => { if (b.position.distanceTo(characters[key].mesh.position) < 2) collected = true; });
             if (collected) { 
