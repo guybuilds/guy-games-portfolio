@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEGO Marvel Superheroes - Web Edition</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { display: block; }
+        #ui {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 2px solid #ffcc00;
+            user-select: none;
+            text-align: right;
+            z-index: 100;
+        }
+        .controls { font-size: 0.8rem; opacity: 0.8; margin-top: 10px; }
+        .character-name { font-weight: bold; font-size: 1.5rem; color: #ffcc00; text-shadow: 0 0 10px rgba(255, 204, 0, 0.5); }
+        .switch-btn { 
+            background: #ffcc00; border: none; padding: 10px 20px; border-radius: 10px; 
+            font-weight: bold; cursor: pointer; margin-top: 10px; transition: all 0.2s;
+        }
+        .switch-btn:hover { transform: scale(1.05); box-shadow: 0 0 15px #ffcc00; }
+        #stats { position: absolute; bottom: 20px; left: 20px; color: #fff; font-weight: bold; font-size: 1.2rem; }
+        #loading {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; color: #ffcc00; display: flex; justify-content: center; align-items: center;
+            font-size: 2rem; z-index: 1000; transition: opacity 0.5s;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">טוען משחק לגו מרוול...</div>
+
+    <div id="ui">
+        <div id="char-info">
+            <div class="character-name" id="active-char">איירון מן</div>
+            <div class="controls">
+                מקשים: WASD לזוז, רווח לקפוץ/לעוף<br>
+                Shift לרוץ | <b>F או עכבר: יכולת מיוחדת</b>
+            </div>
+            <div id="gamepad-status" style="margin-top: 10px; font-size: 0.8rem; color: #ff3333;">🎮 שלט לא מחובר</div>
+            <button class="switch-btn" id="switch-char-btn">החלף דמות</button>
+        </div>
+    </div>
+    
+    <div id="stats">
+        ניקוד לבנים: <span id="bricks">0</span>
+    </div>
+
+    <!-- Legacy-Friendly Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>

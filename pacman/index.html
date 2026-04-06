@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>פקמן - משחק הקלאסי פרימיום</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="hud">
+            <div class="stat">
+                <span class="label">ניקוד:</span>
+                <span id="score" class="value">000</span>
+            </div>
+            <div class="stat">
+                <span class="label">חיים:</span>
+                <span id="lives" class="value">❤❤❤</span>
+            </div>
+            <div class="stat">
+                <span class="label">שיא:</span>
+                <span id="high-score" class="value">000</span>
+            </div>
+        </div>
+
+        <div id="game-board-wrapper">
+            <canvas id="game-canvas"></canvas>
+            
+            <div id="overlay" class="overlay">
+                <div class="overlay-content">
+                    <h1 id="overlay-title">פקמן פרימיום</h1>
+                    <p id="overlay-msg">לחץ על הכפתור כדי להתחיל</p>
+                    <button id="start-btn">התחל משחק</button>
+                    <div class="instructions">
+                        <p>השתמש בחצים או במקשי WASD כדי לזוז</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
