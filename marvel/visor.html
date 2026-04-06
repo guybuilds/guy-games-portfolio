@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iron Man - Deep Space Visor</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --hud-primary: #38bdf8;
+            --hud-secondary: #f87171;
+            --hud-accent: #fbbf24;
+            --bg-dark: #020617;
+            --space-nebula: radial-gradient(circle at 20% 30%, rgba(30, 58, 138, 0.3) 0%, transparent 50%),
+                            radial-gradient(circle at 80% 70%, rgba(76, 29, 149, 0.2) 0%, transparent 40%),
+                            radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 1) 0%, #020617 100%);
+            --glass: rgba(15, 23, 42, 0.4);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg-dark);
+            font-family: 'Orbitron', sans-serif;
+            color: var(--hud-primary);
+        }
+
+        #nebula {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: var(--space-nebula);
+            background-attachment: fixed;
+            animation: nebula-drift 20s ease-in-out infinite alternate;
+            z-index: 0;
+        }
+
+        @keyframes nebula-drift {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 10% 10%; }
+        }
+
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1; /* Above nebula, below HUD */
+            background: transparent;
+        }
+
+        /* Scanline Overlay */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%,
+                rgba(0, 0, 0, 0.1) 50%
+            );
+            background-size: 100% 4px;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0.15;
+        }
+
+        /* HUD Frame */
+        .hud-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 40px;
+            box-sizing: border-box;
+            z-index: 20;
+        }
+
+        .hud-top, .hud-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .hud-bottom { align-items: flex-end; }
+
+        .hud-panel {
+            background: var(--glass);
+            border: 1px solid var(--hud-primary);
+            padding: 15px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.2), inset 0 0 10px rgba(56, 189, 248, 0.1);
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .hud-panel::before {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px; width: 10px; height: 10px;
+            border-top: 2px solid var(--hud-accent);
+            border-left: 2px solid var(--hud-accent);
+        }
+
+        .hud-panel::after {
+            content: '';
+            position: absolute;
+            bottom: -2px; right: -2px; width: 10px; height: 10px;
+            border-bottom: 2px solid var(--hud-accent);
+            border-right: 2px solid var(--hud-accent);
+        }
+
+        .stat-value {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.5rem;
+            color: #fff;
+            text-shadow: 0 0 10px var(--hud-primary);
+        }
+
+        .stat-label {
+            font-size: 0.6rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        /* Reticle */
+        .reticle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 240px;
+            height: 240px;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.15s cubic-bezier(0.2, 0, 0.2, 1);
+        }
+
+        .reticle::before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            border: 2px solid var(--hud-secondary);
+            border-radius: 50%;
+            box-shadow: 0 0 15px var(--hud-secondary);
+            animation: pulse-red 2s infinite;
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        .reticle .circle-outer {
+            position: absolute;
+            width: 100%; height: 100%;
+            border: 2px dashed var(--hud-primary);
+            border-radius: 50%;
+            animation: rotate-slow 15s linear infinite;
+        }
+
+        .reticle .circle-inner {
+            position: absolute;
+            width: 75%; height: 75%;
+            border: 1px solid var(--hud-accent);
+            border-radius: 50%;
+            opacity: 0.6;
+            animation: rotate-slow 8s linear reverse infinite;
+        }
+
+        @keyframes rotate-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Back to Hub Button */
+        .back-btn {
+            pointer-events: auto;
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid var(--hud-primary);
+            color: var(--hud-primary);
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+        .back-btn:hover {
+            background: var(--hud-primary);
+            color: #000;
+            box-shadow: 0 0 15px var(--hud-primary);
+        }
+
+        #interaction-layer {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 5;
+            cursor: crosshair;
+        }
+
+        .side-bars {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .side-bars.left { left: 40px; }
+        .side-bars.right { right: 40px; }
+
+        .line-segment {
+            width: 40px; height: 3px;
+            background: var(--hud-primary);
+            opacity: 0.3;
+        }
+
+        .line-segment.active {
+            width: 60px;
+            background: var(--hud-accent);
+            opacity: 1;
+            box-shadow: 0 0 12px var(--hud-accent);
+        }
+
+        .scan-laser {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 15px;
+            background: linear-gradient(to bottom, transparent, var(--hud-primary), transparent);
+            opacity: 0.15;
+            pointer-events: none;
+            animation: scan-move 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes scan-move {
+            0% { top: -10%; }
+            50% { top: 110%; }
+            100% { top: -10%; }
+        }
+
+        .compass {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.8rem;
+            opacity: 0.6;
+        }
+
+        /* Hex Shield Overlay */
+        #shield-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                linear-gradient(30deg, rgba(56, 189, 248, 0.05) 12%, transparent 12.5%, transparent 87%, rgba(56, 189, 248, 0.05) 87.5%, rgba(56, 189, 248, 0.05)),
+                linear-gradient(150deg, rgba(56, 189, 248, 0.05) 12%, transparent 12.5%, transparent 87%, rgba(56, 189, 248, 0.05) 87.5%, rgba(56, 189, 248, 0.05)),
+                linear-gradient(30deg, rgba(56, 189, 248, 0.05) 12%, transparent 12.5%, transparent 87%, rgba(56, 189, 248, 0.05) 87.5%, rgba(56, 189, 248, 0.05)),
+                linear-gradient(150deg, rgba(56, 189, 248, 0.05) 12%, transparent 12.5%, transparent 87%, rgba(56, 189, 248, 0.05) 87.5%, rgba(56, 189, 248, 0.05)),
+                linear-gradient(60deg, rgba(129, 140, 248, 0.03) 25%, transparent 25.5%, transparent 75%, rgba(129, 140, 248, 0.03) 75%, rgba(129, 140, 248, 0.03)),
+                linear-gradient(60deg, rgba(129, 140, 248, 0.03) 25%, transparent 25.5%, transparent 75%, rgba(129, 140, 248, 0.03) 75%, rgba(129, 140, 248, 0.03));
+            background-size: 80px 140px;
+            background-position: 0 0, 0 0, 40px 70px, 40px 70px, 0 0, 40px 70px;
+            opacity: 0;
+            transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        #shield-overlay.active { opacity: 0.4; }
+
+    </style>
+</head>
+<body>
+    <div id="nebula"></div>
+    <div class="scanlines"></div>
+    <div class="scan-laser"></div>
+    <div id="shield-overlay"></div>
+    <div id="interaction-layer"></div>
+
+    <div class="hud-container">
+        <div class="hud-top">
+            <div class="hud-panel">
+                <a href="../index.html" class="back-btn">RETURN TO HUB</a>
+                <div class="stat-label">Velocity (Mach)</div>
+                <div class="stat-value" id="velocity">2.41</div>
+            </div>
+            <div class="hud-panel" style="text-align: left;">
+                <div class="stat-label">Orbital Track</div>
+                <div class="stat-value" id="coords">Az: 142.1° El: 12.4°</div>
+            </div>
+        </div>
+
+        <div class="reticle" id="reticle">
+            <div class="circle-outer"></div>
+            <div class="circle-inner"></div>
+        </div>
+
+        <div class="side-bars left">
+            <div class="line-segment"></div>
+            <div class="line-segment active"></div>
+            <div class="line-segment"></div>
+            <div class="line-segment active"></div>
+            <div class="line-segment"></div>
+        </div>
+
+        <div class="side-bars right">
+            <div class="line-segment active"></div>
+            <div class="line-segment"></div>
+            <div class="line-segment active"></div>
+            <div class="line-segment"></div>
+            <div class="line-segment"></div>
+        </div>
+
+        <div class="compass">
+            <span>W [---] NW [---] N [---] NE [---] E</span>
+        </div>
+
+        <div class="hud-bottom">
+            <div class="hud-panel">
+                <div class="stat-label">Fusion Reactor</div>
+                <div class="stat-value" id="power">100%</div>
+                <div style="width: 120px; height: 6px; background: rgba(255,255,255,0.1); margin-top: 8px; border-radius: 3px; overflow: hidden;">
+                    <div id="power-bar" style="width: 100%; height: 100%; background: var(--hud-accent); transition: width 0.3s;"></div>
+                </div>
+            </div>
+            <div class="hud-panel" style="text-align: left;">
+                <div class="stat-label">Space-Time Stability</div>
+                <div class="stat-value" id="integrity" style="color: var(--hud-primary);">NOMINAL</div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const interactionLayer = document.getElementById('interaction-layer');
+        const shieldOverlay = document.getElementById('shield-overlay');
+        const reticle = document.getElementById('reticle');
+        const coordsDisplay = document.getElementById('coords');
+        const integrityDisplay = document.getElementById('integrity');
+        const powerDisplay = document.getElementById('power');
+        const powerBar = document.getElementById('power-bar');
+        const velocityDisplay = document.getElementById('velocity');
+
+        let width, height, centerX, centerY;
+        let stars = [];
+        let particles = [];
+        let asteroids = [];
+        
+        const starCount = 1500;
+        const particleCount = 300;
+        const asteroidCount = 8;
+        
+        const mouse = { x: -100, y: -100, vx: 0, vy: 0, lastX: 0, lastY: 0 };
+        const gravityCenter = { x: 0, y: 0 };
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            centerX = width / 2;
+            centerY = height / 2;
+            gravityCenter.x = centerX;
+            gravityCenter.y = centerY;
+            initSpace();
+        }
+
+        class Star {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = (Math.random() - 0.5) * width;
+                this.y = (Math.random() - 0.5) * height;
+                this.z = Math.random() * width;
+                this.pz = this.z; // Previous Z for trail
+                
+                const colors = ['#ffffff', '#38bdf8', '#fbbf24', '#f87171'];
+                this.color = colors[Math.floor(Math.random() * colors.length)];
+            }
+            update() {
+                this.pz = this.z;
+                this.z -= 15; // Travel speed forward
+                if (this.z <= 1) {
+                    this.reset();
+                    this.pz = this.z;
+                }
+            }
+            draw() {
+                // Current position
+                const sx = ((this.x / this.z) * width) + centerX;
+                const sy = ((this.y / this.z) * height) + centerY;
+
+                // Previous position (for trail)
+                const px = ((this.x / this.pz) * width) + centerX;
+                const py = ((this.y / this.pz) * height) + centerY;
+
+                // Only draw if on screen
+                if (sx < 0 || sx > width || sy < 0 || sy > height) return;
+
+                const opacity = Math.min(1, (width - this.z) / width);
+                ctx.globalAlpha = opacity;
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = Math.max(1, (1 - this.z / width) * 3);
+                
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+                ctx.lineTo(sx, sy);
+                ctx.stroke();
+
+                // Bright core for stars close to viewer
+                if (this.z < width / 3) {
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, ctx.lineWidth / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+            reset(x, y, vx, vy) {
+                this.x = x || Math.random() * width;
+                this.y = y || Math.random() * height;
+                this.vx = vx || (Math.random() - 0.5) * 2;
+                this.vy = vy || (Math.random() - 0.5) * 2;
+                this.size = Math.random() * 2 + 0.5;
+                this.color = Math.random() > 0.2 ? '#38bdf8' : '#fbbf24';
+                this.alpha = Math.random() * 0.5 + 0.2;
+                this.life = Math.random() * 80 + 20;
+            }
+            update() {
+                // Gravity towards mouse or center
+                const target = mouse.x > 0 ? mouse : gravityCenter;
+                const dx = target.x - this.x;
+                const dy = target.y - this.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if (dist < 400) {
+                    const force = (400 - dist) / 5000;
+                    this.vx += dx * force;
+                    this.vy += dy * force;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= 0.99;
+                this.vy *= 0.99;
+                this.life -= 1;
+
+                if (this.life <= 0) {
+                    if (particles.length > particleCount) return; // Cleanup extra particles
+                    this.reset();
+                }
+            }
+            draw() {
+                ctx.globalAlpha = (this.life / 100) * this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        class Asteroid {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.side = Math.floor(Math.random() * 4);
+                if(this.side === 0) { this.x = -50; this.y = Math.random() * height; }
+                else if(this.side === 1) { this.x = width + 50; this.y = Math.random() * height; }
+                else if(this.side === 2) { this.x = Math.random() * width; this.y = -50; }
+                else { this.x = Math.random() * width; this.y = height + 50; }
+
+                this.vx = (Math.random() - 0.5) * 2 + (width/2 - this.x) * 0.005;
+                this.vy = (Math.random() - 0.5) * 2 + (height/2 - this.y) * 0.005;
+                this.size = Math.random() * 30 + 10;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotSpeed = (Math.random() - 0.5) * 0.05;
+                this.points = [];
+                const res = 8;
+                for(let i=0; i<res; i++) {
+                    const angle = (i / res) * Math.PI * 2;
+                    const r = this.size * (0.8 + Math.random() * 0.4);
+                    this.points.push({x: Math.cos(angle)*r, y: Math.sin(angle)*r});
+                }
+            }
+            shatter() {
+                // Create particles at asteroid location
+                for(let i=0; i<15; i++) {
+                    const p = new Particle();
+                    p.reset(this.x, this.y, (Math.random()-0.5)*10, (Math.random()-0.5)*10);
+                    p.color = '#94a3b8'; // Rock color
+                    particles.push(p);
+                }
+                this.reset();
+            }
+            update() {
+                if (mouse.x > 0) {
+                    const dx = mouse.x - this.x;
+                    const dy = mouse.y - this.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < 600) {
+                        const force = (600 - dist) / 10000;
+                        this.vx += dx * force;
+                        this.vy += dy * force;
+                    }
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+                this.rotation += this.rotSpeed;
+
+                if (this.x < -100 || this.x > width + 100 || this.y < -100 || this.y > height + 100) {
+                    this.reset();
+                }
+            }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.fillStyle = 'rgba(30, 41, 59, 0.6)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(this.points[0].x, this.points[0].y);
+                for(let i=1; i<this.points.length; i++) {
+                    ctx.lineTo(this.points[i].x, this.points[i].y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                const distToCenter = Math.sqrt((this.x - width/2)**2 + (this.y - height/2)**2);
+                const distToMouse = Math.sqrt((this.x - mouse.x)**2 + (this.y - mouse.y)**2);
+                
+                if (distToCenter < 300 || distToMouse < 150) {
+                    ctx.rotate(-this.rotation);
+                    ctx.strokeStyle = distToMouse < 150 ? '#f87171' : '#fbbf24';
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(-this.size-5, -this.size-5, this.size*2+10, this.size*2+10);
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = ctx.strokeStyle;
+                    ctx.font = '10px Orbitron';
+                    ctx.fillText(distToMouse < 150 ? 'TARGET:LOCKED' : 'OBJ:TRACKED', this.size+10, -this.size);
+                }
+                ctx.restore();
+            }
+        }
+
+        function initSpace() {
+            stars = [];
+            particles = [];
+            asteroids = [];
+            for (let i = 0; i < starCount; i++) stars.push(new Star());
+            for (let i = 0; i < particleCount; i++) particles.push(new Particle());
+            for (let i = 0; i < asteroidCount; i++) asteroids.push(new Asteroid());
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            
+            stars.forEach(s => { s.update(); s.draw(); });
+            asteroids.forEach(a => { a.update(); a.draw(); });
+            particles.forEach((p, idx) => { 
+                p.update(); 
+                p.draw();
+                // Performance: slice extra particles if any
+                if(p.life <= 0 && particles.length > particleCount + 50) particles.splice(idx, 1);
+            });
+
+            if (mouse.x > 0) {
+                const az = (mouse.x / width * 360).toFixed(1);
+                const el = ((mouse.y / height * 180) - 90).toFixed(1);
+                coordsDisplay.innerText = `Az: ${az}° El: ${el}°`;
+                
+                const rx = (mouse.x - width/2) * 0.08;
+                const ry = (mouse.y - height/2) * 0.08;
+                reticle.style.transform = `translate(calc(-50% + ${rx}px), calc(-50% + ${ry}px))`;
+            }
+
+            if (Math.random() > 0.98) {
+                velocityDisplay.innerText = (2.3 + Math.random() * 0.3).toFixed(2);
+                integrityDisplay.innerText = Math.random() > 0.1 ? 'NOMINAL' : 'GRAV-SURGE';
+                integrityDisplay.style.color = integrityDisplay.innerText === 'NOMINAL' ? '#38bdf8' : '#f87171';
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        interactionLayer.addEventListener('mousemove', (e) => {
+            mouse.vx = (e.clientX - mouse.lastX);
+            mouse.vy = (e.clientY - mouse.lastY);
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            mouse.lastX = e.clientX;
+            mouse.lastY = e.clientY;
+        });
+
+        interactionLayer.addEventListener('mousedown', (e) => {
+            shieldOverlay.classList.add('active');
+            setTimeout(() => shieldOverlay.classList.remove('active'), 400);
+
+            let hit = false;
+            asteroids.forEach(a => {
+                const dx = a.x - e.clientX;
+                const dy = a.y - e.clientY;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < a.size + 20) {
+                    a.shatter();
+                    hit = true;
+                } else if (dist < 400) {
+                    const force = (400 - dist) / 100;
+                    a.vx += dx * force * 0.05;
+                    a.vy += dy * force * 0.05;
+                }
+            });
+
+            particles.forEach(p => {
+                const dx = p.x - e.clientX;
+                const dy = p.y - e.clientY;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < 300) {
+                    const force = (300 - dist) / 50;
+                    p.vx += dx * force;
+                    p.vy += dy * force;
+                    p.color = hit ? '#fbbf24' : '#f87171';
+                    setTimeout(() => p.color = Math.random() > 0.2 ? '#38bdf8' : '#fbbf24', 600);
+                }
+            });
+
+            let pVal = parseInt(powerDisplay.innerText);
+            if (pVal > 15) {
+                pVal -= hit ? 20 : 12; // More power for a hit
+                powerDisplay.innerText = Math.max(0, pVal) + '%';
+                powerBar.style.width = powerDisplay.innerText;
+                powerBar.style.backgroundColor = '#f87171';
+                setTimeout(() => powerBar.style.backgroundColor = '#fbbf24', 200);
+            }
+        });
+
+        setInterval(() => {
+            let pVal = parseInt(powerDisplay.innerText);
+            if (pVal < 100) {
+                pVal += 2;
+                if(pVal > 100) pVal = 100;
+                powerDisplay.innerText = pVal + '%';
+                powerBar.style.width = pVal + '%';
+            }
+        }, 1200);
+
+        window.addEventListener('resize', resize);
+        resize();
+        animate();
+    </script>
+</body>
+</html>

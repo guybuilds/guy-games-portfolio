@@ -6,11 +6,11 @@
     }
 
     let scene, camera, renderer, clock;
-    let ironMan, hulk, captainAmerica, thor, thanos, godzilla;
+    let ironMan, hulk, captainAmerica, thor, thanos, godzilla, captainMarvel;
     let p1Char = 'IRON_MAN';
     let p2Char = 'HULK';
     let characters = {};
-    const charNames = ['IRON_MAN', 'HULK', 'CAPTAIN_AMERICA', 'THOR', 'THANOS', 'GODZILLA'];
+    const charNames = ['IRON_MAN', 'HULK', 'CAPTAIN_AMERICA', 'THOR', 'THANOS', 'GODZILLA', 'CAPTAIN_MARVEL'];
     let bricks = [];
     let score = 0;
     let keys = {};
@@ -66,11 +66,12 @@
         thor = buildThor();
         thanos = buildThanos();
         godzilla = buildGodzilla();
+        captainMarvel = buildCaptainMarvel();
         
-        scene.add(ironMan, hulk, captainAmerica, thor, thanos, godzilla);
+        scene.add(ironMan, hulk, captainAmerica, thor, thanos, godzilla, captainMarvel);
         
         // All visible!
-        [ironMan, hulk, captainAmerica, thor, thanos, godzilla].forEach(m => m.visible = true);
+        [ironMan, hulk, captainAmerica, thor, thanos, godzilla, captainMarvel].forEach(m => m.visible = true);
         
         // Start them apart
         ironMan.position.set(0, 0, 0);
@@ -79,6 +80,7 @@
         thor.position.set(0, 0, -4);
         thanos.position.set(4, 0, -4);
         godzilla.position.set(-4, 0, -4);
+        captainMarvel.position.set(0, 0, 4);
 
         characters = {
             'IRON_MAN': { mesh: ironMan, speed: 0.25, jump: 0.25, gravity: 0.008, yVel: 0, name: "איירון מן" },
@@ -86,7 +88,8 @@
             'CAPTAIN_AMERICA': { mesh: captainAmerica, speed: 0.22, jump: 0.25, gravity: 0.008, yVel: 0, name: "קפטן אמריקה" },
             'THOR': { mesh: thor, speed: 0.20, jump: 0.25, gravity: 0.008, yVel: 0, name: "ת'ור" },
             'THANOS': { mesh: thanos, speed: 0.15, jump: 0.20, gravity: 0.015, yVel: 0, name: "תאנוס" },
-            'GODZILLA': { mesh: godzilla, speed: 0.12, jump: 0.15, gravity: 0.02, yVel: 0, name: "גודזילה" }
+            'GODZILLA': { mesh: godzilla, speed: 0.12, jump: 0.15, gravity: 0.02, yVel: 0, name: "גודזילה" },
+            'CAPTAIN_MARVEL': { mesh: captainMarvel, speed: 0.28, jump: 0.35, gravity: 0.008, yVel: 0, name: "קפטן מרוול" }
         };
 
         spawnBricks();
@@ -263,9 +266,35 @@
         return group;
     }
 
+    function buildCaptainMarvel() {
+        const group = new THREE.Group();
+        // Torso (Dark Blue)
+        const torso = createBox(0.8, 1.2, 0.4, 0x002244);
+        torso.position.y = 1.2; group.add(torso);
+        // Star (Gold)
+        const star = createBox(0.3, 0.3, 0.1, 0xffcc00);
+        star.position.set(0, 1.4, 0.25); group.add(star);
+        // Legs (Red boots, Blue pants)
+        const leftLeg = createBox(0.35, 0.8, 0.35, 0xaa0000);
+        leftLeg.position.set(-0.25, 0.4, 0); group.add(leftLeg);
+        const rightLeg = createBox(0.35, 0.8, 0.35, 0xaa0000);
+        rightLeg.position.set(0.25, 0.4, 0); group.add(rightLeg);
+        // Head
+        const head = createBox(0.6, 0.6, 0.6, 0xffdbac);
+        head.position.y = 2.1; group.add(head);
+        // Hair (Blonde)
+        const hair = createBox(0.7, 0.4, 0.7, 0xeeee00);
+        hair.position.y = 2.5; group.add(hair);
+        // Red Sash/Belt area
+        const sash = createBox(0.85, 0.2, 0.45, 0xaa0000);
+        sash.position.y = 0.9; group.add(sash);
+        return group;
+    }
+
     function spawnBricks() {
-        for(let i=0; i<150; i++) { // Increase to 150 bricks
-            const brick = createBox(0.4, 0.4, 0.4, 0xffd700);
+        for(let i=0; i<300; i++) { // Denser bricks
+            const color = [0xffd700, 0xffffff, 0xaaaaaa][Math.floor(Math.random()*3)]; // Gold, Silver, Bronze
+            const brick = createBox(0.4, 0.4, 0.4, color);
             brick.position.set((Math.random()-0.5)*180, 0.2, (Math.random()-0.5)*180);
             scene.add(brick);
             bricks.push(brick);
@@ -316,6 +345,19 @@
         noise.start();
     }
 
+    function playCollectSound() {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+    }
+
     function updateUI() {
         const p1Status = document.getElementById('active-char');
         const gps = navigator.getGamepads();
@@ -335,28 +377,47 @@
 
     function createCollectEffect(pos) {
         const particles = [];
-        for (let i = 0; i < 8; i++) {
-            const p = createBox(0.1, 0.1, 0.1, 0xffcc00);
+        const ring = new THREE.Mesh(
+            new THREE.TorusGeometry(0.1, 0.02, 16, 50),
+            new THREE.MeshBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.8 })
+        );
+        ring.position.copy(pos);
+        ring.rotation.x = Math.PI / 2;
+        scene.add(ring);
+
+        for (let i = 0; i < 15; i++) {
+            const color = [0xffcc00, 0xffffff, 0x00ccff][Math.floor(Math.random()*3)];
+            const p = createBox(0.15, 0.15, 0.15, color);
             p.position.copy(pos);
             p.userData = {
-                vel: new THREE.Vector3((Math.random()-0.5)*0.2, Math.random()*0.2, (Math.random()-0.5)*0.2),
-                life: 1.0
+                vel: new THREE.Vector3((Math.random()-0.5)*0.3, Math.random()*0.3 + 0.1, (Math.random()-0.5)*0.3),
+                life: 1.0,
+                rotVel: (Math.random()-0.5)*0.2
             };
             scene.add(p);
             particles.push(p);
         }
         
+        let ringScale = 1.0;
         const animateP = () => {
+            ringScale += 0.2;
+            ring.scale.set(ringScale, ringScale, 1);
+            ring.material.opacity -= 0.05;
+            if (ring.material.opacity <= 0) scene.remove(ring);
+
             particles.forEach((p, idx) => {
                 p.position.add(p.userData.vel);
-                p.userData.life -= 0.05;
-                p.scale.multiplyScalar(0.9);
+                p.userData.vel.y -= 0.01; // Gravity on particles
+                p.rotation.x += p.userData.rotVel;
+                p.rotation.y += p.userData.rotVel;
+                p.userData.life -= 0.04;
+                p.scale.multiplyScalar(0.96);
                 if (p.userData.life <= 0) {
                     scene.remove(p);
                     particles.splice(idx, 1);
                 }
             });
-            if (particles.length > 0) requestAnimationFrame(animateP);
+            if (particles.length > 0 || ring.parent) requestAnimationFrame(animateP);
         };
         animateP();
     }
@@ -433,6 +494,17 @@
             abilities.laser = beam; playThunderSound();
             setTimeout(() => { mesh.remove(beam); abilities.laser = null; }, 1200);
             isCooldown = true; setTimeout(() => isCooldown = false, 2000);
+        } else if (activeCharacter === 'CAPTAIN_MARVEL') {
+            // Photon Blast
+            const beam = new THREE.Group();
+            const core = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 30), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            core.rotation.x = Math.PI / 2; core.position.z = 15; beam.add(core);
+            const glow = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 30), new THREE.MeshBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.5 }));
+            glow.rotation.x = Math.PI / 2; glow.position.z = 15; beam.add(glow);
+            mesh.add(beam); beam.position.set(0, 1.5, 0.5);
+            abilities.laser = beam; playLaserSound();
+            setTimeout(() => { mesh.remove(beam); abilities.laser = null; }, 500);
+            isCooldown = true; setTimeout(() => isCooldown = false, 800);
         }
     }
 
@@ -488,8 +560,9 @@
             let collected = false; charNames.forEach(key => { if (b.position.distanceTo(characters[key].mesh.position) < 2) collected = true; });
             if (collected) { 
                 createCollectEffect(b.position);
+                playCollectSound();
                 scene.remove(b); bricks.splice(i, 1); score += 10; document.getElementById('bricks').textContent = score; 
-                if (bricks.length < 50) spawnBricks(); 
+                if (bricks.length < 100) spawnBricks(); 
             }
             b.rotation.y += 0.05;
         });
