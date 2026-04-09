@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LEGO Marvel Co-Op Universe - Web Edition</title>
+    <title>LEGO Marvel Mobile Universe - Web Edition</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         canvas { display: block; }
@@ -68,7 +68,7 @@
             transform: translate(-50%, -50%);
             box-shadow: 0 0 20px rgba(255, 204, 0, 0.3);
             pointer-events: none;
-            display: none; /* Only show when touching */
+            display: none;
         }
         .action-buttons {
             position: absolute;
@@ -103,11 +103,14 @@
         }
         .btn-jump { border-color: rgba(0, 204, 255, 0.5); color: #00ccff; }
         .btn-special { border-color: rgba(255, 51, 0, 0.5); color: #ff3300; }
+        .btn-legion { border-color: rgba(0, 255, 255, 0.5); color: #00ffff; }
 
         @media (max-width: 900px) {
             #mobile-controls { display: block; }
-            #ui { display: none !important; } /* Hard hide on mobile */
-            #stats { font-size: 1rem; top: 10px; left: 10px; }
+            #ui { display: none !important; }
+            #stats { font-size: 1rem; }
+            .action-btn { width: 65px; height: 65px; font-size: 0.9rem; }
+            .action-buttons { gap: 10px; bottom: 20px; right: 20px; }
         }
     </style>
 </head>
@@ -137,6 +140,7 @@
         <div class="action-buttons">
             <button class="action-btn btn-special" id="btn-special">כוח</button>
             <button class="action-btn btn-jump" id="btn-jump">קפיצה</button>
+            <button class="action-btn btn-legion" id="btn-legion">👑</button>
             <button class="action-btn" id="btn-switch">החלף</button>
         </div>
     </div>

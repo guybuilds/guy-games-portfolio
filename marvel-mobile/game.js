@@ -162,6 +162,7 @@
         const btnJump = document.getElementById('btn-jump');
         const btnSpecial = document.getElementById('btn-special');
         const btnSwitch = document.getElementById('btn-switch');
+        const btnLegion = document.getElementById('btn-legion');
 
         if (!joystickZone) return;
 
@@ -196,27 +197,19 @@
         };
 
         joystickZone.addEventListener('pointerdown', (e) => {
-            // Support both touch and mouse in DevTools
             joystickActive = true;
             joystickStart = { x: e.clientX, y: e.clientY };
-            
             joystickKnob.style.display = 'block';
             joystickKnob.style.left = `${joystickStart.x}px`;
             joystickKnob.style.top = `${joystickStart.y}px`;
-            
             mobileInput.x = 0;
             mobileInput.z = 0;
-
             window.addEventListener('pointermove', handlePointerMove);
             window.addEventListener('pointerup', handlePointerUp);
         });
 
-        // Action Buttons - use both pointer and touch just in case
         const setupButton = (btn, actionDown, actionUp) => {
-            btn.addEventListener('pointerdown', (e) => {
-                e.preventDefault();
-                actionDown();
-            });
+            btn.addEventListener('pointerdown', (e) => { e.preventDefault(); actionDown(); });
             if (actionUp) {
                 btn.addEventListener('pointerup', actionUp);
                 btn.addEventListener('pointerleave', actionUp);
@@ -225,6 +218,7 @@
 
         setupButton(btnJump, () => mobileInput.jump = true, () => mobileInput.jump = false);
         setupButton(btnSpecial, () => performAction(p1Char));
+        setupButton(btnLegion, () => toggleLegionMode());
         setupButton(btnSwitch, () => {
             const idx1 = charNames.indexOf(p1Char);
             p1Char = charNames[(idx1 + 1) % charNames.length];
@@ -232,18 +226,15 @@
             updateUI();
         });
 
-        // Aggressive mobile detection and forced display
         const checkMobile = () => {
             const isSmall = window.innerWidth < 1000 || window.innerHeight < 600;
             const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-            
             if (isSmall || isTouch) {
                 document.getElementById('mobile-controls').style.display = 'block';
                 const uiPanel = document.getElementById('ui');
                 if (uiPanel) uiPanel.style.display = 'none';
             }
         };
-
         window.addEventListener('resize', checkMobile);
         checkMobile();
     }
@@ -583,7 +574,8 @@
         const gps = navigator.getGamepads();
         const gp1 = gps[0] ? '🎮' : '⌨️';
         const gp2 = gps[1] ? '🎮' : '⌨️';
-        p1Status.textContent = `שחקן 1 (${gp1}): ${characters[p1Char].name} | שחקן 2 (${gp2}): ${characters[p2Char].name}`;
+        p1Status.innerText = `שחקן 1 (${gp1}): ${characters[p1Char].name} | שחקן 2 (${gp2}): ${characters[p2Char].name}`;
+        
         const gpStatus = document.getElementById('gamepad-status');
         const connectedCount = gps.filter(g => g).length;
         if (connectedCount > 0) {
@@ -594,23 +586,23 @@
             gpStatus.style.color = legionMode ? '#ffcc00' : '#ff3333';
         }
         
-        const info = document.getElementById('active-char');
         if (legionMode) {
-            info.style.color = '#00ffff';
-            info.innerHTML += ' <span style="color:#ffcc00">[👑 שליט הקבוצה]</span>';
+            p1Status.style.color = '#00ffff';
+            p1Status.innerHTML += ' <span style="color:#ffcc00">[👑 שליט הקבוצה]</span>';
+        } else {
+            p1Status.style.color = '#ffcc00';
         }
     }
 
     function toggleLegionMode() {
         legionMode = !legionMode;
-        playThunderSound(); // Cool sound for activation
+        playThunderSound();
         
         charNames.forEach(name => {
             const char = characters[name];
             if (!char) return;
             
             if (legionMode) {
-                // Add crown if not exists
                 if (!crowns[name]) {
                     const crownGroup = new THREE.Group();
                     const ring = new THREE.Mesh(
@@ -707,20 +699,22 @@
         return line;
     }
 
+    let legionActionInProgress = false;
     function performAction(charKey) {
-        if (isCooldown) return;
+        if (isCooldown && !legionActionInProgress) return;
+
+        if (legionMode && !legionActionInProgress) {
+            legionActionInProgress = true;
+            charNames.forEach(name => {
+                if (name !== charKey) performAction(name);
+            });
+            legionActionInProgress = false;
+        }
+
         const charState = characters[charKey];
+        if (!charState) return;
         const mesh = charState.mesh;
         const activeCharacter = charKey;
-
-        if (legionMode && charKey === p1Char) {
-            // Everyone performs the action!
-            charNames.forEach(name => {
-                if (name !== p1Char) {
-                    performAction(name);
-                }
-            });
-        }
 
         if (activeCharacter === 'IRON_MAN') {
             if (abilities.laser) scene.remove(abilities.laser);
@@ -817,10 +811,19 @@
             if (p.position.y <= 0) { 
                 p.position.y = 0; 
                 pState.yVel = 0; 
-                if (keys[isP1 ? 'Space' : 'ControlRight'] || (isP1 && mobileInput.jump)) pState.yVel = pState.jump; 
+                if (keys[isP1 ? 'Space' : 'ControlRight'] || (isP1 && mobileInput.jump)) {
+                    pState.yVel = pState.jump;
+                    // Trigger jump for EVERYONE in Legion Mode
+                    if (legionMode && isP1) {
+                        charNames.forEach(name => {
+                            if (name !== charKey) {
+                                characters[name].yVel = characters[name].jump;
+                            }
+                        });
+                    }
+                }
             }
 
-            // Mobile specific movement for P1
             if (isP1 && joystickActive) {
                 p.position.x += mobileInput.x * pState.speed;
                 p.position.z += mobileInput.z * pState.speed;
@@ -841,22 +844,29 @@
             const p1Mesh = characters[p1Char].mesh;
             
             if (legionMode) {
-                // Mimic P1 exactly but with offsets
+                // Wide Grid Formation (Screen distribution)
                 const offsetIdx = charNames.indexOf(key);
-                const angle = (offsetIdx / charNames.length) * Math.PI * 2;
-                const targetX = p1Mesh.position.x + Math.cos(angle) * 3;
-                const targetZ = p1Mesh.position.z + Math.sin(angle) * 3;
+                const cols = 3;
+                const spacingX = 15; // wide horizontal distribution
+                const spacingZ = 12; // deep vertical distribution
                 
+                const col = offsetIdx % cols;
+                const row = Math.floor(offsetIdx / cols);
+                
+                // Position relative to P1 in a centered grid
+                const targetX = p1Mesh.position.x + (col - 1) * spacingX;
+                const targetZ = p1Mesh.position.z + (row - 1) * spacingZ;
+                
+                // Smooth interpolation for "moving in similar direction" feel
                 comp.position.x = THREE.MathUtils.lerp(comp.position.x, targetX, 0.1);
                 comp.position.z = THREE.MathUtils.lerp(comp.position.z, targetZ, 0.1);
                 comp.rotation.y = p1Mesh.rotation.y;
                 
-                // Jumping synchronization
-                if (p1Mesh.position.y > 0.1 && comp.position.y <= 0) {
-                    compState.yVel = compState.jump;
+                // Sync jumping
+                if (Math.abs(p1Mesh.position.y - comp.position.y) > 0.5 && p1Mesh.position.y > 0.5 && comp.position.y <= 0) {
+                    compState.yVel = compState.jump * (0.8 + Math.random() * 0.4); // slightly varied jumps for organic feel
                 }
             } else {
-                // Original following logic
                 const targetPos = p1Mesh.position.clone().add(new THREE.Vector3(-3, 0, 3));
                 if (comp.position.distanceTo(targetPos) > 2) {
                     const dir = new THREE.Vector3().subVectors(targetPos, comp.position).normalize();
@@ -868,14 +878,12 @@
             compState.yVel -= compState.gravity; comp.position.y += compState.yVel;
             if (comp.position.y <= 0) { comp.position.y = 0; compState.yVel = 0; }
             
-            // Crown animation
             if (legionMode && crowns[key]) {
                 crowns[key].rotation.y += 0.05;
                 crowns[key].position.y += Math.sin(Date.now() * 0.005) * 0.002;
             }
         });
         
-        // P1 Crown animation if exists
         if (legionMode && crowns[p1Char]) {
             crowns[p1Char].rotation.y += 0.05;
             crowns[p1Char].position.y += Math.sin(Date.now() * 0.005) * 0.002;
@@ -900,11 +908,6 @@
         // Laser/Ability collisions with obstacles
         if (abilities.laser) {
             obstacles.forEach((obs, i) => {
-                // Approximate cylinder-point intersection for laser
-                // Laser is at mesh position, pointing forward (rotation.y)
-                // For simplicity, we can use distance and angle check or just check if it's "in front"
-                // Let's use a simpler approach: check distance in a narrow cone or use actual raycasting if needed.
-                // But since we have many characters, let's just check if it's within range and "looking at" it
                 charNames.forEach(key => {
                     const char = characters[key];
                     if (char.mesh.children.includes(abilities.laser)) {

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ninja Fruits - חותך הפירות</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="ui-layer">
+            <div class="stats">
+                <div class="score-container">
+                    <span class="label">ניקוד:</span>
+                    <span id="score">0</span>
+                </div>
+                <div class="lives-container">
+                    <span id="lives">❤️❤️❤️</span>
+                </div>
+            </div>
+            
+            <div id="start-screen" class="overlay">
+                <h1>NINJA FRUITS</h1>
+                <p>חתוך את הפירות, הימנע מהפצצות!</p>
+                <button id="start-btn">התחל משחק</button>
+            </div>
+
+            <div id="game-over-screen" class="overlay hidden">
+                <h1>המשחק נגמר</h1>
+                <p>הניקוד שלך: <span id="final-score">0</span></p>
+                <button id="restart-btn">נסה שוב</button>
+            </div>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>

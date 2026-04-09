@@ -1,0 +1,144 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap');
+
+:root {
+    --primary-font: 'Outfit', sans-serif;
+    --bg-dark: #0a0a0c;
+    --accent: #ff004c;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+}
+
+body {
+    background-color: var(--bg-dark);
+    font-family: var(--primary-font);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, #1a1a2e 0%, #0a0a0c 100%);
+    overflow: hidden;
+}
+
+#gameCanvas {
+    display: block;
+    cursor: crosshair;
+}
+
+#ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.stats {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: none;
+}
+
+.score-container {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 10px 25px;
+    border-radius: 50px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.label {
+    opacity: 0.6;
+    margin-right: 10px;
+    font-size: 1rem;
+    text-transform: uppercase;
+}
+
+#lives {
+    font-size: 2rem;
+    filter: drop-shadow(0 0 10px rgba(255, 0, 76, 0.5));
+}
+
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    pointer-events: all;
+    backdrop-filter: blur(8px);
+}
+
+.overlay h1 {
+    font-size: 5rem;
+    color: white;
+    font-weight: 900;
+    letter-spacing: 10px;
+    margin-bottom: 10px;
+    background: linear-gradient(45deg, #ff004c, #ff6b00);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 20px rgba(255, 0, 76, 0.3));
+}
+
+.overlay p {
+    color: white;
+    font-size: 1.2rem;
+    margin-bottom: 30px;
+    opacity: 0.8;
+}
+
+button {
+    background: linear-gradient(45deg, #ff004c, #ff6b00);
+    border: none;
+    color: white;
+    padding: 15px 45px;
+    font-size: 1.2rem;
+    font-weight: 800;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 10px 30px rgba(255, 0, 76, 0.4);
+    text-transform: uppercase;
+}
+
+button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 15px 40px rgba(255, 0, 76, 0.6);
+}
+
+.hidden {
+    display: none !important;
+}
+
+@media (max-width: 600px) {
+    .overlay h1 { font-size: 3rem; }
+}
