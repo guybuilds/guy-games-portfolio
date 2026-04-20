@@ -1338,31 +1338,23 @@
         const overlay = document.createElement('div');
         overlay.id = 'extreme-confirm-overlay';
         overlay.style.cssText = `
-            position: fixed; bottom: 30px; left: 30px; width: 280px; 
-            background: rgba(15, 23, 42, 0.9); border: 2px solid #38bdf8; border-radius: 12px;
-            display: flex; flex-direction: column; padding: 20px;
-            z-index: 10000; color: #38bdf8; font-family: 'Orbitron', sans-serif; text-align: left;
-            box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+            position: fixed; bottom: 10px; left: 10px; width: auto; 
+            background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 4px;
+            display: flex; flex-direction: column; padding: 5px 10px;
+            z-index: 10000; color: #38bdf8; font-family: 'Orbitron', sans-serif; 
+            cursor: pointer; transition: all 0.3s;
             pointer-events: auto;
         `;
         
         overlay.innerHTML = `
-            <div style="font-size: 0.8rem; color: #fbbf24; margin-bottom: 10px; letter-spacing: 1px;">POTENTIAL MAGNITUDE DETECTED</div>
-            <div style="font-size: 1rem; margin-bottom: 15px; line-height: 1.4;">UNLOCK SUPER MAX? <br><span style="font-size: 0.7rem; opacity: 0.7;">(PLANETARY GROWTH)</span></div>
-            <div style="display: flex; gap: 10px;">
-                <button id="confirm-yes" style="flex: 1; padding: 10px; background: #38bdf8; border: none; color: #000; font-weight: bold; cursor: pointer; font-family: 'Orbitron'; font-size: 0.8rem; border-radius: 6px;">UNLOCK (Y)</button>
-                <button id="confirm-no" style="padding: 10px; background: transparent; border: 1px solid #64748b; color: #64748b; cursor: pointer; border-radius: 6px;">✕</button>
-            </div>
+            <div id="confirm-yes" style="font-size: 0.6rem; opacity: 0.5; letter-spacing: 2px;">Γ-MAX UNLOCK</div>
         `;
         
         document.body.appendChild(overlay);
         
-        document.getElementById('confirm-yes').onclick = confirmExtreme;
-        document.getElementById('confirm-no').onclick = () => {
-            isShowingConfirm = false;
-            document.body.removeChild(overlay);
-            hulkTargetScale = 8.9; 
-        };
+        overlay.onclick = confirmExtreme;
+        overlay.onmouseover = () => overlay.style.opacity = '1';
+        overlay.onmouseout = () => overlay.style.opacity = '0.5';
     }
 
     function confirmExtreme() {
