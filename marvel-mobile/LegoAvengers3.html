@@ -634,7 +634,7 @@
             }
 
             // Performance Optimized Collection - STOP BRICKS AT LARGE SCALE
-            if (char === 'ULTRON' && d.sizeIndex >= 2) return; 
+            if (p1Char === 'ULTRON' && d.sizeCurrent > 15) return; 
 
             const collDist = d.isGiant ? (d.sizeCurrent * 1.5) : 2.5; 
             const attractRange = d.isGiant ? Math.max(22, d.sizeCurrent * 5) : 22;
@@ -651,9 +651,6 @@
                     else { score += b.userData.value; playPop(); }
                     scene.remove(b); bricks.splice(i, 1); updateHUD(); spawnFlash(m.position);
                     if (bricks.length < 3000) spawnBrick(Math.random() * 0.05); 
-                } 
-            }
-
                 } 
             }
         }

@@ -1049,7 +1049,7 @@
 
         // Handle Confirmation Input
         if (isShowingConfirm) {
-            if (keys['Enter'] || (gp && gp.buttons[0].pressed)) {
+            if (keys['KeyY'] || (gp && gp.buttons[0].pressed)) {
                 confirmExtreme();
             }
         }
@@ -1332,26 +1332,26 @@
     }
     function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
     function showExtremeConfirm() {
-        if (isShowingConfirm) return;
+        if (isShowingConfirm || hulkExtremeUnlocked) return;
         isShowingConfirm = true;
         
         const overlay = document.createElement('div');
         overlay.id = 'extreme-confirm-overlay';
         overlay.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px);
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 10000; color: #38bdf8; font-family: 'Orbitron', sans-serif; text-align: center;
+            position: fixed; bottom: 30px; left: 30px; width: 280px; 
+            background: rgba(15, 23, 42, 0.9); border: 2px solid #38bdf8; border-radius: 12px;
+            display: flex; flex-direction: column; padding: 20px;
+            z-index: 10000; color: #38bdf8; font-family: 'Orbitron', sans-serif; text-align: left;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+            pointer-events: auto;
         `;
         
         overlay.innerHTML = `
-            <div style="padding: 40px; border: 2px solid #38bdf8; border-radius: 10px; background: rgba(15, 23, 42, 0.9); box-shadow: 0 0 50px #38bdf8;">
-                <h2 style="color: #fbbf24; margin-bottom: 20px;">CRITICAL MAGNITUDE DETECTED</h2>
-                <p style="margin-bottom: 30px; font-size: 1.2rem;">Hulk is reaching planetary proportions. <br> Continue growing to Extreme Scale?</p>
-                <div style="display: flex; gap: 20px; justify-content: center;">
-                    <button id="confirm-yes" style="padding: 15px 40px; background: #38bdf8; border: none; color: #000; font-weight: bold; cursor: pointer; font-family: 'Orbitron'; font-size: 1rem; border-radius: 5px;">APPROVE (ENTER)</button>
-                    <button id="confirm-no" style="padding: 15px 40px; background: transparent; border: 2px solid #f87171; color: #f87171; font-weight: bold; cursor: pointer; font-family: 'Orbitron'; font-size: 1rem; border-radius: 5px;">ABORT</button>
-                </div>
+            <div style="font-size: 0.8rem; color: #fbbf24; margin-bottom: 10px; letter-spacing: 1px;">POTENTIAL MAGNITUDE DETECTED</div>
+            <div style="font-size: 1rem; margin-bottom: 15px; line-height: 1.4;">UNLOCK SUPER MAX? <br><span style="font-size: 0.7rem; opacity: 0.7;">(PLANETARY GROWTH)</span></div>
+            <div style="display: flex; gap: 10px;">
+                <button id="confirm-yes" style="flex: 1; padding: 10px; background: #38bdf8; border: none; color: #000; font-weight: bold; cursor: pointer; font-family: 'Orbitron'; font-size: 0.8rem; border-radius: 6px;">UNLOCK (Y)</button>
+                <button id="confirm-no" style="padding: 10px; background: transparent; border: 1px solid #64748b; color: #64748b; cursor: pointer; border-radius: 6px;">✕</button>
             </div>
         `;
         
