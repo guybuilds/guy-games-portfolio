@@ -7,13 +7,19 @@
 
     let scene, camera, renderer, clock;
     let ironMan, hulk, captainAmerica, thor, thanos, godzilla, captainMarvel;
-    let p1Char = 'IRON_MAN';
-    let p2Char = 'HULK';
+    let p1Char = 'HULK';
+    let p2Char = 'IRON_MAN';
     let characters = {};
     const charNames = ['IRON_MAN', 'HULK', 'CAPTAIN_AMERICA', 'THOR', 'THANOS', 'GODZILLA', 'CAPTAIN_MARVEL'];
     let bricks = [];
     let obstacles = [];
+    let enemies = [];
     let score = 0;
+    let ultronBoss = null;
+    let ultronScale = 1.0;
+    let ultronTargetScale = 1.0;
+    let hulkScale = 5.0; // Current scale
+    let hulkTargetScale = 5.0; // Target to lerp towards
     let keys = {};
     let abilities = { laser: null, smash: null };
     let isCooldown = false;
@@ -24,50 +30,85 @@
     let joystickStart = { x: 0, y: 0 };
     let legionMode = false;
     let crowns = {};
+    let stars = null;
+    let cameraShake = 0;
+    let growthHoldTime = 0;
+    let hulkExtremeUnlocked = false;
+    let isShowingConfirm = false;
 
     function init() {
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb);
+        scene.background = new THREE.Color(0x7dd3fc); // Brighter Sky Blue
+        scene.fog = new THREE.FogExp2(0x7dd3fc, 0.002); // Add depth with fog
 
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 10, 20);
 
         renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
         document.body.appendChild(renderer.domElement);
 
         clock = new THREE.Clock();
 
         // Lights
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); // Brighter
         scene.add(ambientLight);
+        
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5);
+        scene.add(hemiLight);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
-        dirLight.position.set(20, 50, 20);
+        const dirLight = new THREE.DirectionalLight(0xfffae6, 1.2); // Warm Sunlight
+        dirLight.position.set(100, 200, 100);
         dirLight.castShadow = true;
-        dirLight.shadow.mapSize.width = 1024;
-        dirLight.shadow.mapSize.height = 1024;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.camera.left = -200;
+        dirLight.shadow.camera.right = 200;
+        dirLight.shadow.camera.top = 200;
+        dirLight.shadow.camera.bottom = -200;
         scene.add(dirLight);
 
-        // Floor (LEGO Green Board)
-        const floorGeo = new THREE.PlaneGeometry(200, 200);
-        const floorMat = new THREE.MeshPhongMaterial({ color: 0x3d8e3d, side: THREE.DoubleSide });
+        // Floor (Much larger cityscape)
+        const floorGeo = new THREE.PlaneGeometry(10000, 10000, 20, 20);
+        // Add a slight curvature to the floor for Earth effect
+        const pos = floorGeo.attributes.position;
+        for(let i=0; i<pos.count; i++) {
+            const x = pos.getX(i);
+            const z = pos.getZ(i);
+            const dist = Math.sqrt(x*x + z*z);
+            pos.setY(i, -Math.pow(dist, 2) * 0.0001); // Subtle curve
+        }
+        
+        const floorMat = new THREE.MeshPhongMaterial({ color: 0x334155, side: THREE.DoubleSide });
         const floor = new THREE.Mesh(floorGeo, floorMat);
         floor.rotation.x = -Math.PI / 2;
         floor.receiveShadow = true;
         scene.add(floor);
 
-        // Grid (Small blocks look)
-        const grid = new THREE.GridHelper(200, 40, 0x000000, 0x000000);
-        grid.material.transparent = true;
-        grid.material.opacity = 0.1;
-        grid.position.y = 0.01;
+        // City Buildings
+        buildCity();
+        
+        // Trees
+        buildTrees();
+
+        // Grid (Asphalt lines look)
+        const grid = new THREE.GridHelper(2000, 100, 0x1e293b, 0x1e293b);
+        grid.position.y = 0.05;
         scene.add(grid);
+
+        // Clouds
+        spawnClouds();
+        
+        // Stars (Initial invisible)
+        spawnStars();
 
         // Build Characters
         ironMan = buildIronMan();
         hulk = buildHulk();
+        hulk.scale.set(hulkScale, hulkScale, hulkScale);
         captainAmerica = buildCaptainAmerica();
         thor = buildThor();
         thanos = buildThanos();
@@ -90,7 +131,7 @@
 
         characters = {
             'IRON_MAN': { mesh: ironMan, speed: 0.25, jump: 0.25, gravity: 0.008, yVel: 0, name: "איירון מן" },
-            'HULK': { mesh: hulk, speed: 0.18, jump: 0.45, gravity: 0.015, yVel: 0, name: "ענק ירוק" },
+            'HULK': { mesh: hulk, speed: 0.18, jump: 0.45, gravity: 0.015, yVel: 0, name: "ענק ירוק", baseSpeed: 0.18, baseJump: 0.45 },
             'CAPTAIN_AMERICA': { mesh: captainAmerica, speed: 0.22, jump: 0.25, gravity: 0.008, yVel: 0, name: "קפטן אמריקה" },
             'THOR': { mesh: thor, speed: 0.20, jump: 0.25, gravity: 0.008, yVel: 0, name: "ת'ור" },
             'THANOS': { mesh: thanos, speed: 0.15, jump: 0.20, gravity: 0.015, yVel: 0, name: "תאנוס" },
@@ -99,13 +140,15 @@
         };
 
         spawnBricks();
-        spawnObstacles();
+        spawnEnemies();
+        spawnUltron();
 
         // Listeners
         window.addEventListener('resize', onResize);
         
         window.addEventListener('keydown', (e) => {
             keys[e.code] = true;
+            // Digit toggles and actions
             if (e.code === 'KeyF') performAction(p1Char);
             if (e.code === 'Enter') performAction(p2Char);
             if (e.code === 'Digit1') toggleLegionMode();
@@ -119,17 +162,8 @@
             updateUI();
         };
 
-        const switch2 = document.createElement('button');
-        switch2.className = 'switch-btn';
-        switch2.textContent = 'החלף שחקן 2';
-        switch2.style.marginRight = '10px';
-        switch2.onclick = () => {
-            const idx2 = charNames.indexOf(p2Char);
-            p2Char = charNames[(idx2 + 1) % charNames.length];
-            if (p2Char === p1Char) p2Char = charNames[(idx2 + 2) % charNames.length];
-            updateUI();
-        };
-        document.getElementById('char-info').appendChild(switch2);
+        const btnLegion = document.getElementById('btn-legion');
+        if (btnLegion) btnLegion.onclick = toggleLegionMode;
 
         window.addEventListener("gamepadconnected", (e) => {
             console.log("Gamepad connected at index %d: %s. %d buttons, %d axes.",
@@ -149,6 +183,7 @@
         setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
 
         updateUI();
+        onResize(); // Force a resize check to ensure canvas is correct size
 
         // Mobile Controls Initialization
         initMobileControls();
@@ -231,6 +266,8 @@
             if (p1Char === p2Char) p1Char = charNames[(idx1 + 2) % charNames.length];
             updateUI();
         });
+        const btnLegionMob = document.getElementById('btn-legion');
+        if (btnLegionMob) setupButton(btnLegionMob, toggleLegionMode);
 
         // Aggressive mobile detection and forced display
         const checkMobile = () => {
@@ -395,53 +432,168 @@
         return group;
     }
 
-    function buildObstacle(type, x, z) {
-        const group = new THREE.Group();
-        group.position.set(x, 0, z);
-        group.userData = { type, hp: 1 };
+    function spawnClouds() {
+        for (let i = 0; i < 30; i++) {
+            const cloud = new THREE.Group();
+            const count = Math.floor(Math.random() * 5) + 3;
+            for (let j = 0; j < count; j++) {
+                const part = createBox(Math.random() * 10 + 5, Math.random() * 5 + 2, Math.random() * 10 + 5, 0xffffff);
+                part.position.set(j * 5, Math.random() * 2, Math.random() * 5);
+                cloud.add(part);
+            }
+            cloud.userData = { type: 'cloud' }; 
+            cloud.position.set((Math.random() - 0.5) * 800, Math.random() * 50 + 50, (Math.random() - 0.5) * 800);
+            scene.add(cloud);
+        }
+    }
 
-        if (type === 'CRATE') {
-            const body = createBox(1.2, 1.2, 1.2, 0x8b4513);
-            body.position.y = 0.6;
-            group.add(body);
-            // Add some detail (straps)
-            const strap1 = createBox(1.25, 0.2, 1.25, 0x5a2d0c);
-            strap1.position.y = 0.6;
-            group.add(strap1);
-        } else if (type === 'BARREL') {
-            const body = createBox(0.8, 1.2, 0.8, 0xbb5500);
-            body.position.y = 0.6;
-            group.add(body);
-            const rim1 = createBox(0.85, 0.1, 0.85, 0x333333);
-            rim1.position.y = 1.1;
-            group.add(rim1);
-            const rim2 = createBox(0.85, 0.1, 0.85, 0x333333);
-            rim2.position.y = 0.1;
-            group.add(rim2);
-        } else if (type === 'HYDRANT') {
-            const body = createBox(0.6, 1.0, 0.6, 0xcc0000);
-            body.position.y = 0.5;
-            group.add(body);
-            const cap = createBox(0.4, 0.2, 0.4, 0xcc0000);
-            cap.position.y = 1.0;
-            group.add(cap);
+    function spawnStars() {
+        const starGeo = new THREE.BufferGeometry();
+        const starPos = [];
+        for (let i = 0; i < 2000; i++) {
+            starPos.push((Math.random() - 0.5) * 2000, (Math.random() - 0.5) * 2000, (Math.random() - 0.5) * 2000);
+        }
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 2 });
+        stars = new THREE.Points(starGeo, starMat);
+        stars.visible = false;
+        scene.add(stars);
+    }
+
+    function buildCity() {
+        const buildingCount = 100; // More buildings
+        for (let i = 0; i < buildingCount; i++) {
+            const w = Math.random() * 6 + 4;
+            const h = Math.random() * 25 + 10; // Taller buildings
+            const d = Math.random() * 6 + 4;
+            
+            // Grid alignment for streets
+            let x = (Math.floor(Math.random() * 30) - 15) * 12;
+            let z = (Math.floor(Math.random() * 30) - 15) * 12;
+            
+            // Don't spawn buildings at center
+            if (Math.abs(x) < 30 && Math.abs(z) < 30) continue;
+
+            const colors = [0x444444, 0x555555, 0x666666, 0x333333, 0x222222, 0x777777];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const b = createBox(w, h, d, color);
+            b.position.set(x, h/2, z);
+            
+            // Add some "LEGO windows" 
+            const winRows = Math.floor(h / 3);
+            for(let r=0; r<winRows; r++) {
+                for(let side=0; side<4; side++) {
+                    if (Math.random() > 0.3) {
+                        const win = createBox(0.6, 0.6, 0.1, 0xffff66);
+                        const winY = (r * 2) - (h/2) + 2;
+                        if (side === 0) win.position.set((Math.random()-0.5)*w*0.8, winY, d/2 + 0.05);
+                        if (side === 1) { win.position.set((Math.random()-0.5)*w*0.8, winY, -d/2 - 0.05); win.rotation.y = Math.PI; }
+                        if (side === 2) { win.position.set(w/2 + 0.05, winY, (Math.random()-0.5)*d*0.8); win.rotation.y = Math.PI/2; }
+                        if (side === 3) { win.position.set(-w/2 - 0.05, winY, (Math.random()-0.5)*d*0.8); win.rotation.y = -Math.PI/2; }
+                        b.add(win);
+                    }
+                }
+            }
+            
+            scene.add(b);
+            obstacles.push(b);
         }
 
+        // Add Street Lamps
+        for (let i = 0; i < 40; i++) {
+            const x = (Math.random() - 0.5) * 300;
+            const z = (Math.random() - 0.5) * 300;
+            if (Math.abs(x) < 25 && Math.abs(z) < 25) continue;
+
+            const lamp = new THREE.Group();
+            const pole = createBox(0.2, 5, 0.2, 0x333333);
+            pole.position.y = 2.5;
+            lamp.add(pole);
+            const head = createBox(0.6, 0.3, 0.6, 0xffff00);
+            head.position.y = 5;
+            lamp.add(head);
+            lamp.position.set(x, 0, z);
+            scene.add(lamp);
+        }
+    }
+
+    function buildTrees() {
+        const treeCount = 50;
+        for (let i = 0; i < treeCount; i++) {
+            const x = (Math.random() - 0.5) * 300;
+            const z = (Math.random() - 0.5) * 300;
+            
+            // Grid check - trees often in parks or edges
+            if (Math.abs(x) < 25 && Math.abs(z) < 25) continue;
+            
+            const tree = new THREE.Group();
+            const trunk = createBox(0.6, 3, 0.6, 0x5d4037);
+            trunk.position.y = 1.5;
+            tree.add(trunk);
+            
+            const leafLayers = 3;
+            for(let j=0; j<leafLayers; j++) {
+                const leaves = createBox(4 - j, 1.2, 4 - j, 0x2e7d32);
+                leaves.position.y = 3 + j;
+                tree.add(leaves);
+            }
+            
+            tree.position.set(x, 0, z);
+            scene.add(tree);
+            obstacles.push(tree);
+        }
+    }
+
+    function spawnEnemies(count = 30) {
+        for (let i = 0; i < count; i++) {
+            const x = (Math.random() - 0.5) * 300;
+            const z = (Math.random() - 0.5) * 300;
+            if (Math.abs(x) < 20 && Math.abs(z) < 20) continue;
+            buildEnemy('BOT', x, z);
+        }
+    }
+
+    function buildEnemy(type, x, z) {
+        const group = new THREE.Group();
+        group.position.set(x, 0, z);
+        
+        let body;
+        if (type === 'BOT') {
+            body = createBox(1, 1.5, 0.6, 0x888888);
+            body.position.y = 0.75;
+            const eye = createBox(0.8, 0.2, 0.1, 0xff0000);
+            eye.position.set(0, 1.2, 0.35);
+            group.add(body, eye);
+            group.userData = { type: 'BOT', hp: 30, speed: 0.05 + Math.random() * 0.05 };
+        }
+        
         scene.add(group);
-        obstacles.push(group);
+        enemies.push(group);
         return group;
     }
 
-    function spawnObstacles() {
-        for (let i = 0; i < 50; i++) {
-            const types = ['CRATE', 'BARREL', 'HYDRANT'];
-            const type = types[Math.floor(Math.random() * types.length)];
-            const x = (Math.random() - 0.5) * 160;
-            const z = (Math.random() - 0.5) * 160;
-            // Don't spawn too close to center
-            if (Math.abs(x) < 10 && Math.abs(z) < 10) continue;
-            buildObstacle(type, x, z);
-        }
+    function spawnUltron() {
+        ultronBoss = new THREE.Group();
+        // Body
+        const torso = createBox(2, 3, 1, 0xcccccc);
+        torso.position.y = 3;
+        // Head
+        const head = createBox(1.5, 1.5, 1.5, 0xcccccc);
+        head.position.y = 5.25;
+        // Jaw/Mouth area
+        const jaw = createBox(1.2, 0.4, 1.4, 0xaa0000);
+        jaw.position.set(0, 4.6, 0.2);
+        // Eyes
+        const eyeL = createBox(0.3, 0.3, 0.1, 0xff0000);
+        eyeL.position.set(-0.4, 5.5, 0.76);
+        const eyeR = createBox(0.3, 0.3, 0.1, 0xff0000);
+        eyeR.position.set(0.4, 5.5, 0.76);
+        
+        ultronBoss.add(torso, head, jaw, eyeL, eyeR);
+        ultronBoss.position.set(0, 0, -80);
+        ultronBoss.userData = { hp: 1000, maxHp: 1000, state: 'IDLE', timer: 0 };
+        
+        scene.add(ultronBoss);
     }
 
     function explodeObstacle(pos) {
@@ -579,25 +731,26 @@
     }
 
     function updateUI() {
-        const p1Status = document.getElementById('active-char');
+        const p1Status = document.getElementById('p1-display');
         const gps = navigator.getGamepads();
-        const gp1 = gps[0] ? '🎮' : '⌨️';
-        const gp2 = gps[1] ? '🎮' : '⌨️';
-        p1Status.textContent = `שחקן 1 (${gp1}): ${characters[p1Char].name} | שחקן 2 (${gp2}): ${characters[p2Char].name}`;
+        const p1Name = characters[p1Char].name;
+        const p2Name = characters[p2Char].name;
+        
+        p1Status.textContent = p1Name;
+        
         const gpStatus = document.getElementById('gamepad-status');
         const connectedCount = gps.filter(g => g).length;
         if (connectedCount > 0) {
-            gpStatus.textContent = `🎮 ${connectedCount} שלטים מחוברים ${legionMode ? ' | 👑 מצב שליטה פעיל' : ''}`;
-            gpStatus.style.color = '#00ff00';
+            gpStatus.textContent = `CONTROLLER CONNECTED [${connectedCount}]`;
+            gpStatus.style.color = '#4ade80';
         } else {
-            gpStatus.textContent = `🎮 שלטים לא מחוברים ${legionMode ? ' | 👑 מצב שליטה פעיל' : ''}`;
-            gpStatus.style.color = legionMode ? '#ffcc00' : '#ff3333';
+            gpStatus.textContent = 'NO GAMEPAD DETECTED';
+            gpStatus.style.color = '#f87171';
         }
         
-        const info = document.getElementById('active-char');
         if (legionMode) {
-            info.style.color = '#00ffff';
-            info.innerHTML += ' <span style="color:#ffcc00">[👑 שליט הקבוצה]</span>';
+            gpStatus.textContent += ' | LEGION MODE ACTIVE';
+            gpStatus.style.color = '#fbbf24';
         }
     }
 
@@ -631,7 +784,9 @@
                         crownGroup.add(spike);
                     }
                     
-                    crownGroup.position.y = (name === 'HULK' || name === 'GODZILLA') ? 4.5 : 3.0;
+                    if (name === 'HULK') crownGroup.position.y = 4 + (hulkScale * 3.5);
+                    else if (name === 'GODZILLA') crownGroup.position.y = 6;
+                    else crownGroup.position.y = 3.0;
                     char.mesh.add(crownGroup);
                     crowns[name] = crownGroup;
                 }
@@ -707,6 +862,28 @@
         return line;
     }
 
+    function createImpactEffect(pos, scale = 1) {
+        const ring = new THREE.Mesh(
+            new THREE.TorusGeometry(scale, 0.1, 16, 100),
+            new THREE.MeshBasicMaterial({ color: 0xff3300, transparent: true, opacity: 0.8 })
+        );
+        ring.position.copy(pos);
+        ring.position.y = 0.1;
+        ring.rotation.x = Math.PI / 2;
+        scene.add(ring);
+        
+        const animateRing = () => {
+            ring.scale.addScalar(0.15);
+            ring.material.opacity -= 0.04;
+            if (ring.material.opacity <= 0) {
+                scene.remove(ring);
+            } else {
+                requestAnimationFrame(animateRing);
+            }
+        };
+        animateRing();
+    }
+
     function performAction(charKey) {
         if (isCooldown) return;
         const charState = characters[charKey];
@@ -736,9 +913,18 @@
             setTimeout(() => { mesh.remove(group); abilities.laser = null; }, 400);
         } else if (activeCharacter === 'HULK') {
             playSmashSound();
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(3, 0.05, 16, 100), new THREE.MeshBasicMaterial({ color: 0x550088 }));
+            const currentScale = activeCharacter === 'HULK' ? hulkScale : 1.0;
+            const smashScale = 3 * currentScale; 
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(smashScale, 0.1 * currentScale, 16, 100), new THREE.MeshBasicMaterial({ color: 0x550088 }));
             ring.rotation.x = Math.PI / 2; ring.position.copy(mesh.position);
             scene.add(ring); abilities.smash = ring;
+            
+            // Screen Shake
+            cameraShake = Math.min(10, currentScale * 0.5);
+            
+            // Bonus: Visual Impact for Giant Hulk
+            if (currentScale > 5) createImpactEffect(mesh.position, smashScale * 1.5);
+            
             setTimeout(() => { scene.remove(ring); abilities.smash = null; }, 300);
         } else if (activeCharacter === 'THOR') {
             playThunderSound();
@@ -787,8 +973,90 @@
     }
 
     function animate() {
-        requestAnimationFrame(animate);
         const gps = navigator.getGamepads();
+        const gp = gps[0]; 
+        
+        // Update Hulk Dynamic Scale & Stats
+        hulkScale = THREE.MathUtils.lerp(hulkScale, hulkTargetScale, 0.05);
+        characters['HULK'].mesh.scale.set(hulkScale, hulkScale, hulkScale);
+        
+        // Speed scaling (diminishing returns but faster)
+        characters['HULK'].speed = characters['HULK'].baseSpeed * (1 + Math.pow(hulkScale, 0.6));
+        characters['HULK'].jump = characters['HULK'].baseJump * (1 + Math.log2(hulkScale + 1));
+        
+        // Performance Optimization: Hide tiny things when Mountain Sized
+        if (hulkScale > 60) {
+            bricks.forEach(b => b.visible = false);
+            enemies.forEach(e => e.visible = false);
+            obstacles.forEach(o => o.visible = o.scale.x > 5); // Hide small obstacles
+        } else {
+            bricks.forEach(b => b.visible = true);
+            enemies.forEach(e => e.visible = true);
+            obstacles.forEach(o => o.visible = true);
+        }
+
+        // Update Hulk Scale HUD
+        const hulkScaleHUD = document.getElementById('scale-hud');
+        if (hulkScaleHUD) {
+            hulkScaleHUD.style.display = hulkScale > 1.2 ? 'flex' : 'none';
+            document.getElementById('hulk-scale-val').textContent = hulkScale.toFixed(1) + 'x';
+        }
+        
+        // Atmosphere Transition (To Space) & Fog Adjustment
+        if (hulkScale > 40) {
+            const spaceFactor = Math.min(1.0, (hulkScale - 40) / 200);
+            const skyColor = new THREE.Color(0x7dd3fc).lerp(new THREE.Color(0x020617), spaceFactor);
+            scene.background = skyColor;
+            scene.fog.color = skyColor;
+            // Clearer fog as he grows to keep him visible
+            scene.fog.density = 0.002 / (1 + (hulkScale - 40) * 0.1); 
+            
+            if (hulkScale > 100) {
+                if (stars) stars.visible = true;
+                scene.background = new THREE.Color(0x000000); // Pure Space
+                scene.fog.density = 0.0001; // Almost no fog in space
+            }
+        } else {
+            scene.background = new THREE.Color(0x7dd3fc);
+            scene.fog.color = new THREE.Color(0x7dd3fc);
+            scene.fog.density = 0.002;
+            if (stars) stars.visible = false;
+        }
+
+        // --- Continuous Growth with Acceleration ---
+        const isGrowing = keys['KeyQ'] || (gp && gp.buttons[7].pressed);
+        const isShrinking = keys['KeyE'] || (gp && gp.buttons[6].pressed);
+
+        if (isGrowing && !isShowingConfirm) {
+            growthHoldTime += 0.016;
+            const accel = 1 + growthHoldTime * 5; 
+            const limit = hulkExtremeUnlocked ? 1000.0 : 9.0;
+            const nextScale = hulkTargetScale * (1 + 0.01 * accel);
+            
+            if (!hulkExtremeUnlocked && nextScale > 9.0 && hulkTargetScale < 9.0) {
+                hulkTargetScale = 9.0;
+                showExtremeConfirm();
+            } else {
+                hulkTargetScale = Math.min(limit, nextScale);
+            }
+        } else if (isShrinking) {
+            growthHoldTime += 0.032; // Shrink slightly faster
+            const accel = 1 + growthHoldTime * 5;
+            hulkTargetScale = Math.max(0.2, hulkTargetScale / (1 + 0.01 * accel));
+        } else {
+            growthHoldTime = 0;
+        }
+
+        // Handle Confirmation Input
+        if (isShowingConfirm) {
+            if (keys['Enter'] || (gp && gp.buttons[0].pressed)) {
+                confirmExtreme();
+            }
+        }
+
+        requestAnimationFrame(animate);
+        // PS5 Controller Mapping handled in Growth section above
+
         const updatePlayer = (charKey, isP1) => {
             const pState = characters[charKey];
             const p = pState.mesh;
@@ -815,6 +1083,9 @@
             if (moveX !== 0 || moveZ !== 0) p.rotation.y = Math.atan2(moveX, moveZ);
             pState.yVel -= pState.gravity; p.position.y += pState.yVel;
             if (p.position.y <= 0) { 
+                if (p.position.y < 0 && pState.yVel < -0.2 && charKey === 'HULK') {
+                    performAction('HULK'); // Auto smash on LAND
+                }
                 p.position.y = 0; 
                 pState.yVel = 0; 
                 if (keys[isP1 ? 'Space' : 'ControlRight'] || (isP1 && mobileInput.jump)) pState.yVel = pState.jump; 
@@ -880,54 +1151,168 @@
             crowns[p1Char].rotation.y += 0.05;
             crowns[p1Char].position.y += Math.sin(Date.now() * 0.005) * 0.002;
         }
+
+        // --- ENEMY AI ---
+        enemies.forEach((enemy, i) => {
+            const target = characters[p1Char].mesh.position;
+            const dist = enemy.position.distanceTo(target);
+            if (dist < 30) {
+                const dir = target.clone().sub(enemy.position).normalize();
+                enemy.position.x += dir.x * enemy.userData.speed;
+                enemy.position.z += dir.z * enemy.userData.speed;
+                enemy.rotation.y = Math.atan2(dir.x, dir.z);
+            }
+        });
+
+        // --- ULTRON BOSS AI & SIZE SHIFTING ---
+        if (ultronBoss) {
+            ultronBoss.userData.timer -= 0.016;
+            if (ultronBoss.userData.timer <= 0) {
+                // Decision point
+                const rand = Math.random();
+                if (rand < 0.4) {
+                    ultronTargetScale = 12.0; // COLOSSUS
+                    ultronBoss.userData.timer = 5 + Math.random() * 5;
+                } else if (rand < 0.8) {
+                    ultronTargetScale = 1.5; // MINI
+                    ultronBoss.userData.timer = 5 + Math.random() * 5;
+                } else {
+                    ultronTargetScale = 4.0; // NORMAL
+                    ultronBoss.userData.timer = 3 + Math.random() * 2;
+                }
+                
+                // Summon more minions when changing state
+                if (enemies.length < 50) {
+                    spawnEnemies(10);
+                }
+            }
+
+            // Smooth scale transition
+            ultronScale = THREE.MathUtils.lerp(ultronScale, ultronTargetScale, 0.02);
+            ultronBoss.scale.set(ultronScale, ultronScale, ultronScale);
+
+            // Move towards player
+            const target = characters[p1Char].mesh.position;
+            const toPlayer = target.clone().sub(ultronBoss.position);
+            const dist = toPlayer.length();
+            if (dist > 5 * ultronScale) {
+                const dir = toPlayer.normalize();
+                const speed = ultronScale > 8 ? 0.02 : (ultronScale < 2 ? 0.15 : 0.08);
+                ultronBoss.position.x += dir.x * speed;
+                ultronBoss.position.z += dir.z * speed;
+                ultronBoss.rotation.y = Math.atan2(dir.x, dir.z);
+            }
+            
+            // Stomp logic for Colossus
+            if (ultronScale > 10 && Math.sin(Date.now() * 0.002) > 0.98) {
+                playSmashSound();
+                createImpactEffect(ultronBoss.position, ultronScale * 2);
+            }
+        }
+
         const p1Pos = characters[p1Char].mesh.position; const p2Pos = characters[p2Char].mesh.position;
         const midPoint = new THREE.Vector3().addVectors(p1Pos, p2Pos).multiplyScalar(0.5);
-        const dist = p1Pos.distanceTo(p2Pos);
-        const targetCamPos = midPoint.clone().add(new THREE.Vector3(0, Math.max(10, 10 + dist * 0.5), Math.max(20, 15 + dist * 0.8)));
-        camera.position.lerp(targetCamPos, 0.1); camera.lookAt(midPoint);
+        const playerDist = p1Pos.distanceTo(p2Pos);
+        
+        // Adjust camera for Extreme Proportions
+        const bossBonus = ultronBoss ? (ultronScale * 2) : 0;
+        const hulkBonus = (hulkScale * 8); // Significantly more zoom for mountains
+        const targetCamPos = midPoint.clone().add(new THREE.Vector3(0, Math.max(10, 10 + playerDist * 0.5 + bossBonus + hulkBonus), Math.max(20, 15 + playerDist * 0.8 + bossBonus * 1.5 + hulkBonus * 1.8)));
+        
+        // Far clipping adjustment
+        camera.far = Math.max(2000, hulkScale * 20);
+        camera.updateProjectionMatrix();
+
+        camera.position.lerp(targetCamPos, 0.1); 
+        
+        // Apply Camera Shake
+        if (cameraShake > 0) {
+            camera.position.x += (Math.random() - 0.5) * cameraShake;
+            camera.position.y += (Math.random() - 0.5) * cameraShake;
+            camera.position.z += (Math.random() - 0.5) * cameraShake;
+            cameraShake *= 0.9; // Decay
+            if (cameraShake < 0.01) cameraShake = 0;
+        }
+
+        camera.lookAt(midPoint);
 
         // Obstacle Destruction via collision/hitting
         obstacles.forEach((obs, i) => {
             charNames.forEach(key => {
                 const charMesh = characters[key].mesh;
                 const d = obs.position.distanceTo(charMesh.position);
-                if (d < 2.5) { // Hit distance
+                const currentScale = (key === 'HULK' ? hulkScale : 1.0);
+                const hitDist = key === 'HULK' ? (2 * currentScale) : (key === 'GODZILLA' ? 6 : 2.5);
+                if (d < hitDist) { // Hit distance
                     destroyObstacle(obs, i);
                 }
             });
         });
 
-        // Laser/Ability collisions with obstacles
+        // Laser/Ability collisions with enemies
         if (abilities.laser) {
-            obstacles.forEach((obs, i) => {
-                // Approximate cylinder-point intersection for laser
-                // Laser is at mesh position, pointing forward (rotation.y)
-                // For simplicity, we can use distance and angle check or just check if it's "in front"
-                // Let's use a simpler approach: check distance in a narrow cone or use actual raycasting if needed.
-                // But since we have many characters, let's just check if it's within range and "looking at" it
+            enemies.forEach((en, i) => {
                 charNames.forEach(key => {
                     const char = characters[key];
                     if (char.mesh.children.includes(abilities.laser)) {
-                        const dist = obs.position.distanceTo(char.mesh.position);
-                        if (dist < 20) {
-                            const toObs = obs.position.clone().sub(char.mesh.position).normalize();
+                        const dist = en.position.distanceTo(char.mesh.position);
+                        if (dist < 25) {
+                            const toEn = en.position.clone().sub(char.mesh.position).normalize();
                             const forward = new THREE.Vector3(Math.sin(char.mesh.rotation.y), 0, Math.cos(char.mesh.rotation.y));
-                            const angle = forward.angleTo(toObs);
-                            if (angle < 0.2) { // 0.2 radians is roughly 11 degrees
-                                destroyObstacle(obs, i);
+                            if (forward.angleTo(toEn) < 0.25) {
+                                en.userData.hp -= 2;
+                                createImpactEffect(en.position, 1);
+                                if (en.userData.hp <= 0) {
+                                    explodeObstacle(en.position); // Re-use lego explosion
+                                    scene.remove(en);
+                                    enemies.splice(i, 1);
+                                    score += 200;
+                                    document.getElementById('bricks').textContent = score;
+                                }
                             }
                         }
                     }
                 });
             });
+            // Hit Ultron
+            if (ultronBoss) {
+                charNames.forEach(key => {
+                    const char = characters[key];
+                    if (char.mesh.children.includes(abilities.laser)) {
+                        const dist = ultronBoss.position.distanceTo(char.mesh.position);
+                        if (dist < 40) {
+                            const toBoss = ultronBoss.position.clone().sub(char.mesh.position).normalize();
+                            const forward = new THREE.Vector3(Math.sin(char.mesh.rotation.y), 0, Math.cos(char.mesh.rotation.y));
+                            if (forward.angleTo(toBoss) < 0.3) {
+                                ultronBoss.userData.hp -= 1;
+                                createImpactEffect(ultronBoss.position, ultronScale);
+                            }
+                        }
+                    }
+                });
+            }
         }
 
         if (abilities.smash) {
             const smashPos = abilities.smash.position;
-            const smashScale = abilities.smash.scale.x * 3; // ring radius
+            const smashScale = abilities.smash.geometry.parameters.radius * abilities.smash.scale.x; 
+            
             obstacles.forEach((obs, i) => {
                 if (obs.position.distanceTo(smashPos) < smashScale) {
                     destroyObstacle(obs, i);
+                }
+            });
+            
+            enemies.forEach((en, i) => {
+                if (en.position.distanceTo(smashPos) < smashScale) {
+                    en.userData.hp -= 10;
+                    if (en.userData.hp <= 0) {
+                        explodeObstacle(en.position);
+                        scene.remove(en);
+                        enemies.splice(i, 1);
+                        score += 200;
+                        document.getElementById('bricks').textContent = score;
+                    }
                 }
             });
         }
@@ -946,5 +1331,47 @@
         renderer.render(scene, camera);
     }
     function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+    function showExtremeConfirm() {
+        if (isShowingConfirm) return;
+        isShowingConfirm = true;
+        
+        const overlay = document.createElement('div');
+        overlay.id = 'extreme-confirm-overlay';
+        overlay.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 10000; color: #38bdf8; font-family: 'Orbitron', sans-serif; text-align: center;
+        `;
+        
+        overlay.innerHTML = `
+            <div style="padding: 40px; border: 2px solid #38bdf8; border-radius: 10px; background: rgba(15, 23, 42, 0.9); box-shadow: 0 0 50px #38bdf8;">
+                <h2 style="color: #fbbf24; margin-bottom: 20px;">CRITICAL MAGNITUDE DETECTED</h2>
+                <p style="margin-bottom: 30px; font-size: 1.2rem;">Hulk is reaching planetary proportions. <br> Continue growing to Extreme Scale?</p>
+                <div style="display: flex; gap: 20px; justify-content: center;">
+                    <button id="confirm-yes" style="padding: 15px 40px; background: #38bdf8; border: none; color: #000; font-weight: bold; cursor: pointer; font-family: 'Orbitron'; font-size: 1rem; border-radius: 5px;">APPROVE (ENTER)</button>
+                    <button id="confirm-no" style="padding: 15px 40px; background: transparent; border: 2px solid #f87171; color: #f87171; font-weight: bold; cursor: pointer; font-family: 'Orbitron'; font-size: 1rem; border-radius: 5px;">ABORT</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+        
+        document.getElementById('confirm-yes').onclick = confirmExtreme;
+        document.getElementById('confirm-no').onclick = () => {
+            isShowingConfirm = false;
+            document.body.removeChild(overlay);
+            hulkTargetScale = 8.9; 
+        };
+    }
+
+    function confirmExtreme() {
+        hulkExtremeUnlocked = true;
+        isShowingConfirm = false;
+        const overlay = document.getElementById('extreme-confirm-overlay');
+        if (overlay) document.body.removeChild(overlay);
+        playThunderSound();
+    }
+
     init();
 })();

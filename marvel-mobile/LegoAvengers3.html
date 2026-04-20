@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEGO Avengers 3: Universe Unleashed</title>
+    <style>
+        :root {
+            --stark-gold: #ffcc00;
+            --stark-red: #aa0000;
+            --stark-blue: #0088ff;
+            --stark-glass: rgba(0, 20, 40, 0.7);
+            --stark-glow: 0 0 15px rgba(0, 204, 255, 0.5);
+        }
+
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #000; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            touch-action: none; 
+            user-select: none; 
+            -webkit-user-select: none; 
+            color: #fff;
+        }
+
+        canvas { display: block; }
+
+        /* HUD - Stark Tech Style */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+            z-index: 100;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .stats-panel {
+            background: var(--stark-glass);
+            backdrop-filter: blur(15px);
+            border-left: 4px solid var(--stark-gold);
+            padding: 15px 25px;
+            border-radius: 0 15px 15px 0;
+            box-shadow: var(--stark-glow);
+            pointer-events: auto;
+        }
+
+        .score-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; color: var(--stark-blue); }
+        .score-value { font-size: 2rem; font-weight: bold; color: var(--stark-gold); font-variant-numeric: tabular-nums; }
+
+        .character-panel {
+            background: var(--stark-glass);
+            backdrop-filter: blur(15px);
+            border-right: 4px solid var(--stark-blue);
+            padding: 15px 25px;
+            border-radius: 15px 0 0 15px;
+            text-align: right;
+            box-shadow: var(--stark-glow);
+            pointer-events: auto;
+            max-width: 300px;
+        }
+
+        .char-name { font-size: 1.4rem; font-weight: bold; color: var(--stark-gold); margin-bottom: 5px; }
+        .char-ability { font-size: 0.75rem; color: #aaa; }
+
+        .switch-btn {
+            margin-top: 10px;
+            background: rgba(255, 204, 0, 0.2);
+            border: 1px solid var(--stark-gold);
+            color: var(--stark-gold);
+            padding: 5px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+        .switch-btn:hover { background: var(--stark-gold); color: #000; }
+
+        #loading {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, #001a33 0%, #000 100%);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 1000; transition: opacity 1s;
+        }
+        .arc-reactor {
+            width: 100px; height: 100px; border-radius: 50%;
+            border: 5px solid var(--stark-blue);
+            box-shadow: 0 0 30px var(--stark-blue), inset 0 0 20px var(--stark-blue);
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0% { opacity: 0.5; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1); } 100% { opacity: 0.5; transform: scale(0.95); } }
+
+        /* Mobile Controls */
+        #mobile-controls {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 200; display: none;
+        }
+        .joystick-zone { position: absolute; bottom: 0; left: 0; width: 50%; height: 50%; pointer-events: auto; }
+        .action-zone { position: absolute; bottom: 30px; right: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; pointer-events: auto; }
+        .btn-round {
+            width: 70px; height: 70px; border-radius: 50%; border: 2px solid rgba(0, 204, 255, 0.5);
+            background: rgba(0, 0, 0, 0.5); color: #fff; font-size: 0.8rem; display: flex; 
+            justify-content: center; align-items: center; backdrop-filter: blur(5px);
+        }
+        .btn-round:active { transform: scale(0.9); background: var(--stark-blue); color: #000; }
+
+        #debug-info { position: absolute; bottom: 10px; left: 10px; font-size: 0.7rem; opacity: 0.5; pointer-events: none; }
+
+        @media (max-width: 900px) {
+            #mobile-controls { display: block; }
+            .hud-top { flex-direction: column; align-items: flex-end; gap: 10px; }
+            .stats-panel { border-radius: 15px; border-left: none; border-bottom: 4px solid var(--stark-gold); }
+            .character-panel { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="arc-reactor"></div>
+        <div style="font-size: 1.5rem; letter-spacing: 5px; color: var(--stark-blue);">AVENGERS ASSEMBLE</div>
+        <div id="load-status" style="margin-top: 10px; font-size: 0.8rem; opacity: 0.7;">Initializing Jarvis...</div>
+    </div>
+
+    <div id="hud">
+        <div class="hud-top">
+            <div class="stats-panel">
+                <div class="score-label">STUD COLLECTION</div>
+                <div class="score-value" id="score">000000</div>
+            </div>
+            <div class="character-panel">
+                <div class="char-name" id="p1-name">IRON MAN</div>
+                <div class="char-ability" id="p1-ability">PRIMARY: UNIBEAM [F]</div>
+                <div id="p2-info" style="margin-top: 10px; opacity: 0.8; font-size: 0.9rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px;">
+                    PLAYER 2: <span id="p2-name">HULK</span>
+                </div>
+                <button class="switch-btn" onclick="game.nextCharacter(1)">SWITCH HERO</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mobile-controls">
+        <div id="joystick-container" class="joystick-zone"></div>
+        <div class="action-zone">
+            <button class="btn-round" id="btn-special" style="border-color: #ff3300; color: #ff3300;">ABL</button>
+            <button class="btn-round" id="btn-jump">JUMP</button>
+            <button class="btn-round" id="btn-grow" style="border-color: #aa00ff; color: #aa00ff; font-weight: bold; font-size: 1.2rem;">+</button>
+            <button class="btn-round" id="btn-shrink" style="border-color: #aa00ff; color: #aa00ff; font-weight: bold; font-size: 1.2rem;">-</button>
+            <button class="btn-round" id="btn-switch" style="width: 50px; height: 50px;">🔁</button>
+            <button class="btn-round" id="btn-legion" style="width: 50px; height: 50px; border-color: var(--stark-gold); color: var(--stark-gold);">👑</button>
+        </div>
+    </div>
+
+    <div id="debug-info">LEGION V3.0 | ENGINE: THREE.JS R128 | STATUS: STABLE</div>
+
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+    /**
+     * LEGO Avengers 3: Universe Unleashed
+     * Core Game Engine - Patch 3.2 (Full Reconstruction)
+     */
+    const game = (function() {
+        if (typeof THREE === 'undefined') {
+            return { init: () => console.error("THREE missing") };
+        }
+
+        let scene, camera, renderer, clock;
+        let p1Char = 'ULTRON', p2Char = 'IRON_MAN';
+        let characters = {};
+        const charRoster = ['ULTRON', 'BLACK_PANTHER', 'IRON_MAN', 'HULK', 'CAPTAIN_AMERICA', 'THOR', 'THANOS', 'GODZILLA', 'CAPTAIN_MARVEL', 'SPIDER_MAN', 'DOCTOR_STRANGE', 'BLACK_WIDOW'];
+        
+        let bricks = [], obstacles = [], buildings = [];
+        let score = 0;
+        let keys = {};
+        let mobileInput = { x: 0, z: 0, jump: false };
+        let joystickDragging = false;
+        let enemies = [];
+        let legionMode = false;
+        let magnetTimer = 0;
+        let enemySpawnTimer = 0;
+        let audioCtx;
+
+        let lastPopTime = 0;
+        function playPop() {
+            if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return; } }
+            const now = Date.now(); if (now - lastPopTime < 30) return; // Audio throttling
+            lastPopTime = now;
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.frequency.setValueAtTime(600 + Math.random() * 400, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function playTransformSound(growing) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.type = 'sawtooth';
+            const startFreq = growing ? 100 : 800;
+            const endFreq = growing ? 800 : 100;
+            osc.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(endFreq, audioCtx.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+        }
+
+        function playSparkle() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(1500, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(3000, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.02, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        const charData = {
+            'ULTRON': { name: "אולטרון", ability: "Extinction Level Event", speed: 0.38, jump: 0.3, color: 0x999999, isGiant: true, sizeLevels: [1, 10, 35, 80, 200], sizeIndex: 1, sizeTarget: 10, sizeCurrent: 10 },
+            'BLACK_PANTHER': { name: "הפנתר השחור", ability: "Kinetic Pulse", speed: 0.35, jump: 0.32, color: 0x111111, canClimb: true },
+            'IRON_MAN': { name: "איירון מן", ability: "Unibeam", speed: 0.28, jump: 0.25, color: 0xaa0000 },
+            'HULK': { name: "הענק הירוק", ability: "Gamma Smash", speed: 0.20, jump: 0.45, color: 0x008800 },
+            'CAPTAIN_AMERICA': { name: "קפטן אמריקה", ability: "Shield Throw", speed: 0.24, jump: 0.25, color: 0x0000aa },
+            'THOR': { name: "ת'ור", ability: "Lightning Strike", speed: 0.22, jump: 0.25, color: 0x555555 },
+            'THANOS': { name: "תאנוס", ability: "Reality Snap", speed: 0.18, jump: 0.20, color: 0x5500aa },
+            'GODZILLA': { name: "גודזילה", ability: "Atomic Breath", speed: 0.15, jump: 0.15, color: 0x2c3e50 },
+            'CAPTAIN_MARVEL': { name: "קפטן מרוול", ability: "Photon Blast", speed: 0.30, jump: 0.40, color: 0x002244 },
+            'SPIDER_MAN': { name: "ספיידרמן", ability: "Web Pull", speed: 0.32, jump: 0.45, color: 0xcc0000 },
+            'DOCTOR_STRANGE': { name: "דוקטור סטריינג'", ability: "Mystic Shield", speed: 0.22, jump: 0.30, color: 0x880000 },
+            'BLACK_WIDOW': { name: "אלמנה שחורה", ability: "Widow's Bite", speed: 0.28, jump: 0.25, color: 0x111111 }
+        };
+
+        function init() {
+            try {
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x87ceeb);
+                scene.fog = new THREE.FogExp2(0x87ceeb, 0.002);
+
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 50000);
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true;
+                document.body.appendChild(renderer.domElement);
+
+                clock = new THREE.Clock();
+
+                setupLights();
+                createEnvironment();
+                createCharacters();
+                setupInput();
+                
+                animate();
+                updateHUD();
+                
+                // Initial Spawn of Mini Ultrons
+                spawnEnemiesInFront(15);
+                
+                document.getElementById('loading').style.opacity = '0';
+                setTimeout(() => document.getElementById('loading').style.display = 'none', 1000);
+            } catch (err) {
+                console.error("Init Error:", err);
+                document.getElementById('load-status').innerText = "Jarvis Error: Check Console";
+            }
+        }
+
+        function setupLights() {
+            const ambient = new THREE.AmbientLight(0xffffff, 0.8); scene.add(ambient);
+            const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+            sun.position.set(100, 300, 100); sun.castShadow = true;
+            sun.shadow.mapSize.width = 2048; sun.shadow.mapSize.height = 2048;
+            scene.add(sun);
+        }
+
+        function createBox(w, h, d, color, isMetal = false, transparent = false) {
+            const mat = new THREE.MeshStandardMaterial({ 
+                color, metalness: isMetal ? 0.8 : 0, roughness: 0.4,
+                transparent: transparent, opacity: transparent ? 0.7 : 1.0
+            });
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            mesh.castShadow = mesh.receiveShadow = true;
+            return mesh;
+        }
+
+        function spawnTree() {
+            const tx = (Math.random()-0.5)*600, tz = (Math.random()-0.5)*600;
+            if(Math.abs(tx) < 50 && Math.abs(tz) < 50) return;
+            const trunk = createBox(1, 4, 1, 0x5d4037); trunk.position.set(tx, 2, tz); scene.add(trunk);
+            const leaves = createBox(4, 4, 4, 0x2e7d32); leaves.position.set(tx, 6, tz); scene.add(leaves);
+            trunk.userData = { type: 'TREE', w:1, h:4, d:1, leaves };
+            obstacles.push(trunk);
+        }
+
+        function createEnvironment() {
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+            floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+            const grid = new THREE.GridHelper(1000, 50, 0x00ccff, 0x222222);
+            grid.material.transparent = true; grid.material.opacity = 0.2; scene.add(grid);
+
+            // Avengers Tower
+            const tower = new THREE.Group();
+            const base = createBox(30, 150, 30, 0x222222, true); base.position.y = 75; tower.add(base);
+            const sign = createBox(10, 10, 2, 0x00ccff); sign.position.set(0, 120, 16); tower.add(sign);
+            tower.position.set(0, 0, -100); scene.add(tower);
+
+            for (let i = 0; i < 150; i++) spawnBuilding();
+            for (let i = 0; i < 100; i++) spawnTree();
+            if (p1Char !== 'ULTRON') {
+                for (let i = 0; i < 5000; i++) spawnBrick();
+            }
+        }
+
+        function spawnBuilding() {
+            const w = 15 + Math.random() * 20, h = 30 + Math.random() * 100, d = 15 + Math.random() * 20;
+            const x = (Math.random() - 0.5) * 1200, z = (Math.random() - 0.5) * 1200;
+            if (Math.abs(x) < 50 && Math.abs(z) < 50) return;
+
+            const b = createBox(w, h, d, 0x1a1a1a, true);
+            b.position.set(x, h/2, z); b.userData = { w, h, d };
+            scene.add(b); obstacles.push(b);
+
+            // Add Windows
+            for(let j=0; j<5; j++) {
+                const win = new THREE.Mesh(new THREE.PlaneGeometry(w-2, 2), new THREE.MeshBasicMaterial({ color: 0x00ccff, transparent: true, opacity: 0.6 }));
+                win.position.set(0, (j-2)* (h/6), d/2 + 0.1); 
+                b.add(win);
+            }
+        }
+
+        function spawnBrick(isMagnet = false) {
+            const isBlue = isMagnet || Math.random() < 0.05;
+            const b = createBox(0.4, 0.4, 0.4, isBlue ? 0xaa00ff : [0xffcc00, 0xffffff, 0x00ccff][Math.floor(Math.random()*3)]);
+            if (isBlue) b.scale.set(1.5, 1.5, 1.5);
+            b.position.set((Math.random()-0.5)*1500, 0.3, (Math.random()-0.5)*1500);
+            b.userData = { value: isBlue ? 100 : 10, magnet: isBlue };
+            scene.add(b); bricks.push(b);
+        }
+
+        function buildEnemy(x, z) {
+            const group = new THREE.Group();
+            group.position.set(x, 0, z);
+            
+            const body = createBox(1, 1.5, 0.6, 0x888888);
+            body.position.y = 0.75;
+            const eye = createBox(0.8, 0.2, 0.1, 0x00ccff); // Friendly Blue Eyes
+            eye.position.set(0, 1.2, 0.35);
+            group.add(body, eye);
+            
+            group.userData = { 
+                type: 'ALLY', 
+                hp: 10, 
+                speed: 0.12 + Math.random() * 0.08, 
+                baseOffset: new THREE.Vector2((Math.random()-0.5)*15, (Math.random()-0.5)*15),
+                rotParam: Math.random() * Math.PI * 2,
+                rotSpeed: (Math.random() - 0.5) * 0.04,
+                scaleShift: Math.random() * 10, // For size fluctuation
+                isSizeShifter: true
+            };
+            scene.add(group);
+            enemies.push(group);
+            return group;
+        }
+
+        function spawnEnemiesInFront(count = 10) {
+            const m = characters[p1Char].mesh;
+            const d = charData[p1Char];
+            const scale = d.sizeCurrent || 1;
+            
+            for (let i = 0; i < count; i++) {
+                // Spawn closer to the character so they are visible immediately
+                const x = m.position.x + (Math.random()-0.5) * 20 * scale;
+                const z = m.position.z + (Math.random()-0.5) * 20 * scale;
+                buildEnemy(x, z);
+            }
+        }
+
+        function buildCharacterMesh(type) {
+            const g = new THREE.Group(); const d = charData[type];
+            const t = createBox(0.8, 1.2, 0.4, d.color); t.position.y = 1.2; g.add(t);
+            const h = createBox(0.6, 0.6, 0.6, d.color); h.position.y = 2.1; g.add(h);
+            const l = createBox(0.4, 0.8, 0.4, d.color); l.position.set(-0.25, 0.4, 0); g.add(l);
+            const r = createBox(0.4, 0.8, 0.4, d.color); r.position.set(0.25, 0.4, 0); g.add(r);
+            
+            g.userData.lLeg = l; g.userData.rLeg = r;
+
+            if (type === 'ULTRON') {
+                const eyeL = createBox(0.1, 0.1, 0.1, 0xff0000); eyeL.position.set(-0.15, 2.2, 0.3); g.add(eyeL);
+                const eyeR = createBox(0.1, 0.1, 0.1, 0xff0000); eyeR.position.set(0.15, 2.2, 0.3); g.add(eyeR);
+                g.scale.set(8.0, 8.0, 8.0);
+            }
+            if (type === 'BLACK_PANTHER') {
+                const necklace = createBox(0.9, 0.1, 0.45, 0x888888); necklace.position.y = 1.7; g.add(necklace);
+            }
+            if (type === 'HULK' || type === 'GODZILLA' || type === 'THANOS') g.scale.set(1.8, 1.8, 1.8);
+            return g;
+        }
+
+        function adjustUltronSize(delta) {
+            if (p1Char !== 'ULTRON') return;
+            const d = charData['ULTRON'];
+            const oldIndex = d.sizeIndex;
+            d.sizeIndex = Math.max(0, Math.min(d.sizeLevels.length - 1, d.sizeIndex + delta));
+            if (d.sizeIndex === oldIndex) return;
+            
+            d.sizeTarget = d.sizeLevels[d.sizeIndex];
+            d.isGiant = (d.sizeIndex > 0);
+            
+            // Auto-hide bricks for performance at scale
+            bricks.forEach(b => b.visible = (d.sizeIndex < 2));
+            
+            playTransformSound(delta > 0);
+            updateHUD();
+        }
+
+        function createCharacters() {
+            charRoster.forEach(type => {
+                const mesh = buildCharacterMesh(type); mesh.visible = false; scene.add(mesh);
+                characters[type] = { mesh, yVel: 0, gravity: 0.015, data: charData[type], jumpCount: 0 };
+            });
+            characters[p1Char].mesh.visible = true;
+            characters[p1Char].mesh.position.set(10, 0, 10);
+        }
+
+        function setupInput() {
+            window.addEventListener('keydown', e => {
+                keys[e.code] = true;
+                if (e.code === 'KeyF') triggerAbility(p1Char);
+                if (e.code === 'KeyV') adjustUltronSize(1);
+                if (e.code === 'KeyC') adjustUltronSize(-1);
+                if (e.code === 'Enter') nextCharacter(1);
+            });
+            window.addEventListener('keyup', e => keys[e.code] = false);
+
+            document.getElementById('btn-special').onclick = () => triggerAbility(p1Char);
+            document.getElementById('btn-jump').onclick = () => { mobileInput.jump = true; if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); };
+            document.getElementById('btn-grow').onclick = () => adjustUltronSize(1);
+            document.getElementById('btn-shrink').onclick = () => adjustUltronSize(-1);
+            document.getElementById('btn-switch').onclick = () => nextCharacter(1);
+            document.getElementById('btn-legion').onclick = () => { legionMode = !legionMode; updateHUD(); };
+
+            const joy = document.getElementById('joystick-container');
+            const stick = document.createElement('div');
+            stick.style.cssText = "width: 100px; height: 100px; background: rgba(0,204,255,0.1); border: 2px solid #5500ff; border-radius: 50%; position: absolute; bottom: 50px; left: 50px;";
+            const k = document.createElement('div');
+            k.style.cssText = "width: 40px; height: 40px; background: #5500ff; border-radius: 50%; position: absolute; top: 30px; left: 30px;";
+            stick.appendChild(k); joy.appendChild(stick);
+
+            const move = (e) => {
+                if (!joystickDragging) return;
+                const p = e.touches ? e.touches[0] : e; const r = stick.getBoundingClientRect();
+                let dx = p.clientX - (r.left + 50), dy = p.clientY - (r.top + 50);
+                const d = Math.sqrt(dx*dx + dy*dy); if (d > 50) { dx *= 50/d; dy *= 50/d; }
+                k.style.transform = `translate(${dx}px, ${dy}px)`;
+                mobileInput.x = dx / 50; mobileInput.z = dy / 50;
+            };
+            stick.onmousedown = stick.ontouchstart = () => { joystickDragging = true; if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); };
+            window.onmouseup = window.ontouchend = () => { joystickDragging = false; k.style.transform = ''; mobileInput.x = mobileInput.z = 0; };
+            window.onmousemove = window.ontouchmove = move;
+        }
+
+        function triggerAbility(char) {
+            const mesh = characters[char].mesh;
+            const s = createBox(3, 3, 3, char === 'BLACK_PANTHER' ? 0xaa00ff : charData[char].color, false, true);
+            s.position.copy(mesh.position); scene.add(s);
+            let sc = 1;
+            const an = () => {
+                sc += 1.2; s.scale.set(sc, sc, sc); s.material.opacity -= 0.04;
+                if (s.material.opacity > 0) requestAnimationFrame(an); else scene.remove(s);
+                obstacles.forEach((o, i) => { if (o.position.distanceTo(mesh.position) < sc*2) { scene.remove(o); obstacles.splice(i, 1); score += 200; updateHUD(); spawnFlash(o.position); } });
+                // Allies don't get destroyed by your special!
+            }; an();
+            playSparkle();
+        }
+
+        function nextCharacter(p) {
+            characters[p1Char].mesh.visible = false;
+            p1Char = charRoster[(charRoster.indexOf(p1Char) + 1) % charRoster.length];
+            characters[p1Char].mesh.visible = true;
+            updateHUD();
+        }
+
+        function updateHUD() {
+            document.getElementById('score').innerText = score.toString().padStart(6, '0');
+            const d = charData[p1Char];
+            let nameStr = d.name;
+            if (p1Char === 'ULTRON') nameStr += ` (LEVEL ${d.sizeIndex + 1})`;
+            if (magnetTimer > 0) nameStr += " [MAGNET!]";
+            document.getElementById('p1-name').innerText = nameStr;
+            const debug = document.getElementById('debug-info');
+            const g = navigator.getGamepads()[0];
+            debug.innerText = g ? "WAKANDA TECH: LINKED" : "WAKANDA TECH: SEARCHING";
+            debug.style.color = g ? "#aa00ff" : "#5500ff";
+        }
+
+        function spawnFlash(pos) {
+            const f = new THREE.PointLight(0xaa00ff, 3, 12);
+            f.position.copy(pos); f.position.y += 2; scene.add(f);
+            setTimeout(() => scene.remove(f), 150);
+        }
+
+        function getCollidedObstacle(nx, nz) {
+            for (const o of obstacles) {
+                const ox = o.position.x, oz = o.position.z;
+                const buffer = 1.8;
+                if (Math.abs(nx - ox) < (o.userData.w/2 + buffer) && Math.abs(nz - oz) < (o.userData.d/2 + buffer)) return o;
+            }
+            return null;
+        }
+
+        function updatePlayer(char, isP1) {
+            const st = characters[char]; const m = st.mesh; const d = st.data;
+            
+            // Proportional speed scaling
+            const currentSpeed = d.speed * (1 + (d.sizeIndex || 0) * 1.5);
+
+            // Slower, smoother scaling
+            if (char === 'ULTRON') {
+                d.sizeCurrent = THREE.MathUtils.lerp(d.sizeCurrent, d.sizeTarget, 0.03);
+                m.scale.set(d.sizeCurrent, d.sizeCurrent, d.sizeCurrent);
+            }
+
+            let mx = 0, mz = 0;
+            if (isP1) {
+                if (keys['KeyW']) mz -= currentSpeed; if (keys['KeyS']) mz += currentSpeed;
+                if (keys['KeyA']) mx -= currentSpeed; if (keys['KeyD']) mx += currentSpeed;
+                if (Math.abs(mobileInput.x) > 0.1 || Math.abs(mobileInput.z) > 0.1) { mx = mobileInput.x * currentSpeed; mz = mobileInput.z * currentSpeed; }
+                
+                // Jump & Double Jump
+                if ((keys['Space'] || mobileInput.jump)) {
+                    if (m.position.y <= 0.1) { st.yVel = d.jump; st.jumpCount = 1; }
+                    else if (st.jumpCount === 1) { st.yVel = d.jump; st.jumpCount = 2; playSparkle(); }
+                    mobileInput.jump = false;
+                }
+            }
+
+            const nx = m.position.x + mx, nz = m.position.z + mz;
+            const obs = getCollidedObstacle(nx, nz);
+            
+            // Interaction logic
+            const destRadius = d.isGiant ? (d.sizeCurrent * 1.2) : 1.8;
+            if (obs && d.isGiant && (mx !== 0 || mz !== 0) && d.sizeCurrent > 4.0) {
+                scene.remove(obs);
+                const idx = obstacles.indexOf(obs); if (idx > -1) obstacles.splice(idx, 1);
+                score += 500; updateHUD(); spawnFlash(obs.position); playPop();
+            }
+
+            if (!obs || (d.isGiant && d.sizeCurrent > 4.0)) {
+                m.position.x = nx; m.position.z = nz;
+            } else {
+                if (d.canClimb && (mx !== 0 || mz !== 0) && m.position.y < obs.userData.h) {
+                    m.position.y += 0.4; st.yVel = 0;
+                }
+                if (!getCollidedObstacle(nx, m.position.z)) m.position.x = nx;
+                else if (!getCollidedObstacle(m.position.x, nz)) m.position.z = nz;
+            }
+
+            // Stride Animation
+            if (mx !== 0 || mz !== 0) {
+                m.rotation.y = Math.atan2(mx, mz);
+                const legSpeed = 0.15 * (d.isGiant ? 1 : 1.5);
+                const wave = Math.sin(Date.now() * legSpeed);
+                if (m.userData.lLeg) m.userData.lLeg.rotation.x = wave * 0.8;
+                if (m.userData.rLeg) m.userData.rLeg.rotation.x = -wave * 0.8;
+                
+                if (d.isGiant) {
+                    m.position.y += Math.abs(wave) * 0.1 * (d.sizeCurrent / 4); 
+                }
+            } else {
+                if (m.userData.lLeg) m.userData.lLeg.rotation.x = 0;
+                if (m.userData.rLeg) m.userData.rLeg.rotation.x = 0;
+            }
+
+            st.yVel -= st.gravity; m.position.y += st.yVel;
+            if (m.position.y < 0) { m.position.y = 0; st.yVel = 0; st.jumpCount = 0; }
+            
+            // SQUAD LOGIC (DYNAMIC CIRCLING)
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const en = enemies[i];
+                const d = charData[char];
+                const scale = d.sizeCurrent || 1;
+                
+                // Dynamic Circling Pattern
+                en.userData.rotParam += en.userData.rotSpeed;
+                const radius = 8 + scale * 2 + Math.sin(en.userData.rotParam * 0.5) * 3;
+                const targetX = m.position.x + Math.cos(en.userData.rotParam) * radius;
+                const targetZ = m.position.z + Math.sin(en.userData.rotParam) * radius;
+                const targetPos = new THREE.Vector3(targetX, 0, targetZ);
+                
+                const distToTarget = en.position.distanceTo(targetPos);
+                if (distToTarget > 0.5) {
+                    const dir = targetPos.sub(en.position).normalize();
+                    const moveSpeed = en.userData.speed * (1 + scale * 0.15);
+                    en.position.x += dir.x * moveSpeed;
+                    en.position.z += dir.z * moveSpeed;
+                    if (moveSpeed > 0.1) en.rotation.y = Math.atan2(dir.x, dir.z);
+                }
+
+                // Size Fluctuation Logic
+                if (en.userData.isSizeShifter) {
+                    en.userData.scaleShift += 0.05;
+                    // Keep scale positive (Math.sin goes from -1 to 1) -> value between 0.5 and 2.0
+                    const fluctuate = 1.25 + Math.sin(en.userData.scaleShift) * 0.75; 
+                    const finalScale = fluctuate * (1 + scale * 0.1); 
+                    en.scale.set(finalScale, finalScale, finalScale);
+                }
+
+                // Smoothly adjust vertical position to current scale
+                en.position.y = THREE.MathUtils.lerp(en.position.y, 0, 0.1);
+
+                // Allies help destroy nearby obstacles
+                const interactDist = 3 + scale * 0.5;
+                obstacles.forEach((obs, oi) => {
+                    if (en.position.distanceTo(obs.position) < interactDist) {
+                        scene.remove(obs); obstacles.splice(oi, 1);
+                        score += 100; updateHUD(); spawnFlash(obs.position); playPop();
+                    }
+                });
+            }
+
+            // Performance Optimized Collection - STOP BRICKS AT LARGE SCALE
+            if (char === 'ULTRON' && d.sizeIndex >= 2) return; 
+
+            const collDist = d.isGiant ? (d.sizeCurrent * 1.5) : 2.5; 
+            const attractRange = d.isGiant ? Math.max(22, d.sizeCurrent * 5) : 22;
+
+            for (let i = bricks.length - 1; i >= 0; i--) {
+                const b = bricks[i];
+                const dist = b.position.distanceTo(m.position);
+                if (magnetTimer > 0 && dist < attractRange) {
+                    b.position.lerp(m.position, 0.3);
+                }
+                
+                if (dist < collDist) { 
+                    if (b.userData.magnet) { magnetTimer = 600; playSparkle(); } 
+                    else { score += b.userData.value; playPop(); }
+                    scene.remove(b); bricks.splice(i, 1); updateHUD(); spawnFlash(m.position);
+                    if (bricks.length < 3000) spawnBrick(Math.random() * 0.05); 
+                } 
+            }
+
+                } 
+            }
+        }
+
+        function updateGamepad() {
+            const gps = navigator.getGamepads(); if (!gps[0]) return;
+            const gp = gps[0];
+            if (Math.abs(gp.axes[0]) > 0.1) mobileInput.x = gp.axes[0];
+            if (Math.abs(gp.axes[1]) > 0.1) mobileInput.z = gp.axes[1];
+            
+            // PS Buttons
+            if (gp.buttons[0].pressed && !keys['gpSizeUp']) { 
+                adjustUltronSize(1); keys['gpSizeUp'] = true;
+            } else if (!gp.buttons[0].pressed) keys['gpSizeUp'] = false;
+
+            if (gp.buttons[1].pressed && !keys['gpSizeDown']) { 
+                adjustUltronSize(-1); keys['gpSizeDown'] = true;
+            } else if (!gp.buttons[1].pressed) keys['gpSizeDown'] = false;
+            
+            // Extra actions
+            if (gp.buttons[2].pressed && !keys['gpA']) { triggerAbility(p1Char); keys['gpA']=true; }
+            if (!gp.buttons[2].pressed) keys['gpA']=false;
+            if (gp.buttons[3].pressed && !keys['gpS']) { nextCharacter(1); keys['gpS']=true; }
+            if (!gp.buttons[3].pressed) keys['gpS']=false;
+            if (gp.buttons[10].pressed) mobileInput.jump = true; // L3 or R3 for jump as backup
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updateGamepad();
+            updatePlayer(p1Char, true);
+            if (magnetTimer > 0) magnetTimer--;
+            
+            // Periodically transform a tree into a mini Ultron
+            if (Date.now() % 120 === 0 && enemies.length < 150) {
+                const treeIdx = obstacles.findIndex(o => o.userData.type === 'TREE');
+                if (treeIdx > -1) {
+                    const tree = obstacles[treeIdx];
+                    const pos = tree.position.clone();
+                    if (tree.userData.leaves) scene.remove(tree.userData.leaves);
+                    scene.remove(tree);
+                    obstacles.splice(treeIdx, 1);
+                    
+                    const en = buildEnemy(pos.x, pos.z);
+                    spawnFlash(pos);
+                    playPop();
+                }
+            }
+
+            // Spawn swarm periodically in front
+            enemySpawnTimer++;
+            if (enemySpawnTimer > 180 && enemies.length < 100) {
+                spawnEnemiesInFront(15);
+                enemySpawnTimer = 0;
+            }
+            
+            const d = charData[p1Char];
+            const scale = (p1Char === 'ULTRON') ? d.sizeCurrent : 1.0;
+            const camOffset = new THREE.Vector3(0, 15 + scale * 4, 30 + scale * 6);
+            
+            // Thin out fog as we grow
+            if (scene.fog) scene.fog.density = 0.002 / (1 + scale * 0.1);
+
+            const targetPos = characters[p1Char].mesh.position.clone();
+            const lookTarget = targetPos.clone().add(new THREE.Vector3(0, scale * 1.5, 0));
+            
+            camera.position.lerp(targetPos.add(camOffset), 0.1);
+            camera.lookAt(lookTarget);
+            renderer.render(scene, camera);
+        }
+
+        return { init, nextCharacter };
+    })();
+
+    game.init();
+    </script>
+</body>
+</html>
