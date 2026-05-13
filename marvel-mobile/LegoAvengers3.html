@@ -126,6 +126,44 @@
             .stats-panel { border-radius: 15px; border-left: none; border-bottom: 4px solid var(--stark-gold); }
             .character-panel { display: none; }
         }
+
+        /* Controls Map */
+        #controls-map {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 20, 40, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: 1px solid var(--stark-blue);
+            display: flex;
+            gap: 20px;
+            transition: opacity 0.8s, transform 0.8s;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 500;
+            box-shadow: 0 0 20px rgba(0, 204, 255, 0.3);
+        }
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.7rem;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .control-item span {
+            color: var(--stark-gold);
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-bottom: 2px;
+            background: rgba(255, 204, 0, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -165,6 +203,15 @@
     </div>
 
     <div id="announcer" style="position: absolute; top: 120px; left: 50%; transform: translateX(-50%); color: var(--stark-blue); font-weight: bold; text-shadow: var(--stark-glow); pointer-events: none; opacity: 0; transition: opacity 0.5s, transform 0.5s; font-size: 1.2rem; z-index: 1000; text-align: center;"></div>
+
+    <div id="controls-map">
+        <div class="control-item"><span>WASD / L-STICK</span>MOVE</div>
+        <div class="control-item"><span>SPACE / R3</span>JUMP</div>
+        <div class="control-item"><span>F / □</span>ABILITY</div>
+        <div class="control-item"><span>L / OPTIONS</span>LEGION</div>
+        <div class="control-item"><span>V/C / ✕ ○</span>SIZE</div>
+        <div class="control-item"><span>ENTER / △</span>SWITCH</div>
+    </div>
 
     <div id="debug-info">LEGION V3.0 | ENGINE: THREE.JS R128 | STATUS: STABLE</div>
 
@@ -279,7 +326,7 @@
             'BLACK_PANTHER': { name: "הפנתר השחור", ability: "Kinetic Pulse", speed: 0.35, jump: 0.32, color: 0x111111, canClimb: true },
             'IRON_MAN': { name: "איירון מן", ability: "Unibeam", speed: 0.8, jump: 0.5, color: 0xaa0000, isGiant: true, sizeLevels: [7], sizeIndex: 0, sizeTarget: 7, sizeCurrent: 7 },
             'HULK': { name: "הענק הירוק", ability: "Gamma Smash", speed: 0.22, jump: 0.45, color: 0x008800, isGiant: true, sizeLevels: [6, 9], sizeIndex: 0, sizeTarget: 6, sizeCurrent: 6 },
-            'RED_HULK': { name: "רד הלאק", ability: "Gamma Burst", speed: 0.25, jump: 0.5, color: 0xaa0000, isGiant: true, sizeLevels: [10], sizeIndex: 0, sizeTarget: 10, sizeCurrent: 10, heatMode: true },
+            'RED_HULK': { name: "רד הלאק", ability: "Gamma Burst", speed: 0.25, jump: 0.5, color: 0xaa0000, isGiant: true, sizeLevels: [6, 12, 24], sizeIndex: 0, sizeTarget: 6, sizeCurrent: 6, heatMode: true },
 
             'CAPTAIN_AMERICA': { name: "קפטן אמריקה", ability: "Shield Throw", speed: 0.24, jump: 0.25, color: 0x0000aa },
             'THOR': { name: "ת'ור", ability: "Lightning Strike", speed: 0.22, jump: 0.25, color: 0x555555 },
@@ -563,6 +610,23 @@
             stick.onmousedown = stick.ontouchstart = () => { joystickDragging = true; if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); };
             window.onmouseup = window.ontouchend = () => { joystickDragging = false; k.style.transform = ''; mobileInput.x = mobileInput.z = 0; };
             window.onmousemove = window.ontouchmove = move;
+
+            // Show/Hide Controls Map
+            let controlsTimeout;
+            const ctrlMap = document.getElementById('controls-map');
+            const showControls = () => {
+                if (!ctrlMap) return;
+                ctrlMap.style.opacity = '1';
+                ctrlMap.style.transform = 'translateX(-50%) translateY(0)';
+                clearTimeout(controlsTimeout);
+                controlsTimeout = setTimeout(() => {
+                    ctrlMap.style.opacity = '0';
+                    ctrlMap.style.transform = 'translateX(-50%) translateY(10px)';
+                }, 3000);
+            };
+            window.addEventListener('mousemove', showControls);
+            window.addEventListener('keydown', showControls);
+            showControls(); // Initial show
         }
 
         function triggerAbility(char) {
@@ -1009,6 +1073,11 @@
                 const growthFactor = Math.sqrt(pScale); 
                 targetScale *= growthFactor;
                 
+                // Red Hulk must always be the biggest leader!
+                if (p1Char === 'RED_HULK' && targetScale >= pScale) {
+                    targetScale = pScale * 0.8;
+                }
+                
                 ally.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
 
                 // 4. Separation (Don't stack)
@@ -1167,8 +1236,8 @@
             }
             
             const d = charData[p1Char];
-            const scale = (p1Char === 'ULTRON') ? d.sizeCurrent : 1.0;
-            const camOffset = new THREE.Vector3(0, 15 + scale * 4, 30 + scale * 6);
+            const scale = d.sizeCurrent || 1.0;
+            const camOffset = new THREE.Vector3(0, 15 + scale * 4, 30 + scale * 7);
             
             // Thin out fog as we grow
             if (scene.fog) scene.fog.density = 0.002 / (1 + scale * 0.1);
