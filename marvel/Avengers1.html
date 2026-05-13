@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>הנוקמים 1 - הקרב על ניו יורק</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@400;700;800&family=Orbitron:wght@700&display=swap');
+        
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Assistant', sans-serif;
+            color: #fff;
+            user-select: none;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .panel {
+            background: rgba(10, 15, 30, 0.8);
+            border: 2px solid #38bdf8;
+            border-radius: 15px;
+            padding: 15px 25px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+        }
+
+        .score-title {
+            font-size: 1.2rem;
+            color: #7dd3fc;
+            text-transform: uppercase;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .score-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            color: #fde047;
+            text-shadow: 0 0 15px rgba(253, 224, 71, 0.6);
+            line-height: 1;
+        }
+
+        .hp-bar-container {
+            width: 300px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin-top: 10px;
+            overflow: hidden;
+            border: 1px solid #ef4444;
+        }
+
+        .hp-bar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #dc2626, #ef4444);
+            box-shadow: 0 0 15px #ef4444;
+            transition: width 0.2s ease;
+        }
+
+        .character-selector {
+            display: flex;
+            gap: 10px;
+            pointer-events: auto;
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.5);
+            padding: 15px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .char-btn {
+            background: rgba(15, 23, 42, 0.8);
+            border: 2px solid #475569;
+            color: white;
+            font-family: 'Assistant', sans-serif;
+            font-weight: 700;
+            padding: 10px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100px;
+        }
+
+        .char-btn:hover {
+            transform: translateY(-5px);
+            background: rgba(30, 41, 59, 0.9);
+        }
+
+        .char-btn.active {
+            border-color: #38bdf8;
+            background: rgba(14, 165, 233, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);
+            transform: translateY(-5px);
+        }
+
+        .char-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-bottom: 5px;
+            background: #fff;
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+
+        .iron-man { background: radial-gradient(#fde047, #dc2626); }
+        .captain { background: radial-gradient(#fff, #2563eb); }
+        .thor { background: radial-gradient(#e2e8f0, #475569); }
+        .hulk { background: radial-gradient(#a3e635, #15803d); }
+        .widow { background: radial-gradient(#ef4444, #111827); }
+        .hawkeye { background: radial-gradient(#c084fc, #4c1d95); }
+        .hulkbuster { background: radial-gradient(#fde047, #7f1d1d); }
+        .red-hulk { background: radial-gradient(#fde047, #ff0000); }
+
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 15, 30, 0.95);
+            border: 2px solid #ef4444;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+            pointer-events: auto;
+            z-index: 100;
+            box-shadow: 0 0 50px rgba(239, 68, 68, 0.5);
+        }
+
+        #game-over h2 {
+            font-size: 4rem;
+            color: #ef4444;
+            margin: 0 0 20px 0;
+            text-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+        }
+
+        .restart-btn {
+            background: linear-gradient(90deg, #38bdf8, #818cf8);
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            color: #fff;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Assistant', sans-serif;
+            font-weight: 700;
+            transition: all 0.2s;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+        }
+        
+        .restart-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.6);
+        }
+
+        #damage-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 50%, rgba(255,0,0,0.4) 100%);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 5;
+        }
+
+        .controls-panel {
+            text-align: left;
+            direction: ltr;
+        }
+        .controls-panel h3 {
+            margin: 0 0 10px 0; color: #38bdf8; text-align: right;
+        }
+        .controls-panel div {
+            text-align: right; margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="damage-overlay"></div>
+    <div id="ui-layer">
+        <div class="top-bar">
+            <div class="panel">
+                <div class="score-title">Tesseract Energy</div>
+                <div class="score-value" id="score">0</div>
+                <div class="hp-bar-container">
+                    <div class="hp-bar" id="hp-bar"></div>
+                </div>
+            </div>
+            
+            <div class="panel controls-panel">
+                <h3>פקדים (Controls)</h3>
+                <div>תנועה - WASD / Arrows</div>
+                <div>כיוון - Mouse</div>
+                <div>ירי - Auto / Click</div>
+                <div>החלפת נוקם - 1-7</div>
+                <div>מצב לגיון (כולם יחד) - L</div>
+                <div>הגדלה/הקטנה - V / C</div>
+            </div>
+        </div>
+
+        <div class="character-selector" id="char-selector">
+            <button class="char-btn active" data-index="0">
+                <div class="char-icon iron-man"></div>
+                Iron Man (1)
+            </button>
+            <button class="char-btn" data-index="1">
+                <div class="char-icon captain"></div>
+                Captain (2)
+            </button>
+            <button class="char-btn" data-index="2">
+                <div class="char-icon thor"></div>
+                Thor (3)
+            </button>
+            <button class="char-btn" data-index="3">
+                <div class="char-icon hulk"></div>
+                Hulk (4)
+            </button>
+            <button class="char-btn" data-index="4">
+                <div class="char-icon widow"></div>
+                Black Widow (5)
+            </button>
+            <button class="char-btn" data-index="5">
+                <div class="char-icon hawkeye"></div>
+                Hawkeye (6)
+            </button>
+            <button class="char-btn" data-index="6">
+                <div class="char-icon hulkbuster"></div>
+                Hulkbuster (7)
+            </button>
+            <button class="char-btn" data-index="7">
+                <div class="char-icon red-hulk"></div>
+                Red Hulk (8)
+            </button>
+        </div>
+    </div>
+
+    <div id="game-over">
+        <h2>New York Has Fallen...</h2>
+        <div style="font-size: 1.5rem; margin-bottom: 20px;">Score: <span id="final-score">0</span></div>
+        <button class="restart-btn" onclick="location.reload()">Play Again</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Game State
+        let isGameOver = false;
+        let legionMode = false;
+        let pScale = 1.0;
+        let allies = [];
+        let score = 0;
+        let hp = 100;
+        let maxHp = 100;
+
+        
+        // Scene Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0f1e);
+        scene.fog = new THREE.Fog(0x0a0f1e, 50, 400);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(100, 200, 50);
+        dirLight.castShadow = true;
+        dirLight.shadow.camera.left = -200;
+        dirLight.shadow.camera.right = 200;
+        dirLight.shadow.camera.top = 200;
+        dirLight.shadow.camera.bottom = -200;
+        scene.add(dirLight);
+
+        const pointLight = new THREE.PointLight(0x38bdf8, 1, 100);
+        scene.add(pointLight);
+
+        // Environment (New York Streets)
+        const groundGeo = new THREE.PlaneGeometry(1000, 1000);
+        const groundMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Buildings
+        const buildings = new THREE.Group();
+        const buildingMat1 = new THREE.MeshPhongMaterial({ color: 0x1e293b });
+        const buildingMat2 = new THREE.MeshPhongMaterial({ color: 0x0f172a });
+        
+        for (let i = 0; i < 60; i++) {
+            const width = 20 + Math.random() * 30;
+            const height = 50 + Math.random() * 150;
+            const depth = 20 + Math.random() * 30;
+            const geo = new THREE.BoxGeometry(width, height, depth);
+            const mat = Math.random() > 0.5 ? buildingMat1 : buildingMat2;
+            const b = new THREE.Mesh(geo, mat);
+            
+            let x, z;
+            do {
+                x = (Math.random() - 0.5) * 600;
+                z = (Math.random() - 0.5) * 600;
+            } while (Math.abs(x) < 80 && Math.abs(z) < 80); // Keep center clear
+            
+            b.position.set(x, height / 2, z);
+            b.castShadow = true;
+            b.receiveShadow = true;
+            buildings.add(b);
+        }
+        scene.add(buildings);
+
+        // Grid helper for tech look
+        const grid = new THREE.GridHelper(1000, 100, 0x38bdf8, 0x1e293b);
+        grid.position.y = 0.1;
+        grid.material.opacity = 0.2;
+        grid.material.transparent = true;
+        scene.add(grid);
+
+        // Utility: Create Box
+        function createBox(w, h, d, color) {
+            const geo = new THREE.BoxGeometry(w, h, d);
+            const mat = new THREE.MeshPhongMaterial({ color: color });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            return mesh;
+        }
+
+        // Characters Data
+        const characters = [
+            {
+                name: 'Iron Man',
+                speed: 1.2,
+                fireRate: 150, // ms
+                damage: 25,
+                projSpeed: 3,
+                projColor: 0x00ffff,
+                build: () => {
+                    const g = new THREE.Group();
+                    const body = createBox(2, 3, 1.5, 0xdc2626); body.position.y = 1.5;
+                    const head = createBox(1.2, 1.2, 1.2, 0xfde047); head.position.y = 3.6;
+                    const core = createBox(0.8, 0.8, 1.6, 0x00ffff); core.position.y = 1.8;
+                    g.add(body, head, core);
+                    return g;
+                }
+            },
+            {
+                name: 'Captain America',
+                speed: 1.4,
+                fireRate: 400,
+                damage: 50,
+                projSpeed: 2.5,
+                projColor: 0xffffff,
+                build: () => {
+                    const g = new THREE.Group();
+                    const body = createBox(2.2, 3, 1.5, 0x2563eb); body.position.y = 1.5;
+                    const head = createBox(1.2, 1.2, 1.2, 0x2563eb); head.position.y = 3.6;
+                    const shield = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.2, 16), new THREE.MeshPhongMaterial({color: 0xef4444}));
+                    shield.rotation.x = Math.PI/2;
+                    shield.position.set(1.5, 1.5, 0.8);
+                    g.add(body, head, shield);
+                    return g;
+                }
+            },
+            {
+                name: 'Thor',
+                speed: 1.1,
+                fireRate: 800,
+                damage: 120,
+                projSpeed: 4,
+                projColor: 0xfde047,
+                build: () => {
+                    const g = new THREE.Group();
+                    const body = createBox(2.5, 3.2, 1.8, 0x1e293b); body.position.y = 1.6;
+                    const head = createBox(1.2, 1.2, 1.2, 0xfcd34d); head.position.y = 3.8;
+                    const cape = createBox(2.2, 3, 0.2, 0xef4444); cape.position.set(0, 1.5, -1);
+                    const hammer = createBox(1, 1.5, 1, 0x94a3b8); hammer.position.set(1.8, 1.5, 0.8);
+                    g.add(body, head, cape, hammer);
+                    return g;
+                }
+            },
+            {
+                name: 'Hulk',
+                speed: 1.5,
+                fireRate: 600,
+                damage: 150,
+                projSpeed: 0, // Melee
+                projColor: 0x000000,
+                build: () => {
+                    const g = new THREE.Group();
+                    const body = createBox(4, 4.5, 3, 0x15803d); body.position.y = 2.25;
+                    const pants = createBox(4.1, 2, 3.1, 0x4c1d95); pants.position.y = 1;
+                    const head = createBox(1.8, 1.8, 1.8, 0x15803d); head.position.y = 5.4;
+                    g.add(body, pants, head);
+                    return g;
+                }
+            },
+            {
+                name: 'Black Widow',
+                speed: 1.8,
+                fireRate: 100,
+                damage: 15,
+                projSpeed: 3.5,
+                projColor: 0xffffff,
+                build: () => {
+                    const g = new THREE.Group();
+                    const body = createBox(1.6, 2.8, 1.2, 0x111827); body.position.y = 1.4;
+                    const head = createBox(1, 1, 1, 0xeab308); head.position.y = 3.3; // red/blonde hair
+                    g.add(body, head);
+                    return g;
+                }
+            },
+            {
+                name: 'Hawkeye',
+                speed: 1.6,
+                fireRate: 500,
+                damage: 80,
+                projSpeed: 5,
+                projColor: 0xc084fc,
+                build: () => {
+                    const g = new THREE.Group();
+                    const body = createBox(1.8, 2.9, 1.3, 0x4c1d95); body.position.y = 1.45;
+                    const head = createBox(1.1, 1.1, 1.1, 0xfcd34d); head.position.y = 3.45;
+                    const bow = createBox(0.2, 2.5, 0.2, 0x000000); bow.position.set(1.2, 1.5, 0.8);
+                    g.add(body, head, bow);
+                    return g;
+                }
+            },
+            {
+                name: 'Hulkbuster',
+                speed: 1.0,
+                fireRate: 300,
+                damage: 100,
+                projSpeed: 4,
+                projColor: 0xfde047,
+                build: () => {
+                    const g = new THREE.Group();
+                    const body = createBox(3.5, 4, 2.5, 0x991b1b); body.position.y = 2;
+                    const armor = createBox(3.7, 2, 2.7, 0xd4af37); armor.position.y = 3;
+                    const head = createBox(1.5, 1.2, 1.5, 0x991b1b); head.position.y = 4.6;
+                    const eyeL = createBox(0.4, 0.2, 0.2, 0x00ffff); eyeL.position.set(-0.35, 4.8, 0.7);
+                    const eyeR = createBox(0.4, 0.2, 0.2, 0x00ffff); eyeR.position.set(0.35, 4.8, 0.7);
+                    const handL = createBox(1, 2.5, 1, 0x991b1b); handL.position.set(-2.2, 2, 0.5);
+                    const handR = createBox(1, 2.5, 1, 0x991b1b); handR.position.set(2.2, 2, 0.5);
+                    g.add(body, armor, head, eyeL, eyeR, handL, handR);
+                    return g;
+                }
+            },
+            {
+                name: 'Red Hulk',
+                speed: 1.5,
+                fireRate: 500,
+                damage: 250,
+                projSpeed: 0, // Melee
+                projColor: 0x000000,
+                build: () => {
+                    const g = new THREE.Group();
+                    const body = createBox(4, 4.5, 3, 0xff0000); body.position.y = 2.25;
+                    const pants = createBox(4.1, 2, 3.1, 0x000000); pants.position.y = 1;
+                    const head = createBox(1.8, 1.8, 1.8, 0xff0000); head.position.y = 5.4;
+                    const eyeL = createBox(0.4, 0.2, 0.2, 0xffff00); eyeL.position.set(-0.4, 5.6, 0.8);
+                    const eyeR = createBox(0.4, 0.2, 0.2, 0xffff00); eyeR.position.set(0.4, 5.6, 0.8);
+                    g.add(body, pants, head, eyeL, eyeR);
+                    return g;
+                }
+            }
+        ];
+
+        let currentCharIdx = 0;
+        let playerGroup = new THREE.Group();
+        scene.add(playerGroup);
+        
+        let playerMesh;
+
+        function setCharacter(idx) {
+            currentCharIdx = idx;
+            if (playerMesh) {
+                playerGroup.remove(playerMesh);
+            }
+            playerMesh = characters[idx].build();
+            playerGroup.add(playerMesh);
+
+            // Default scaling for giants
+            if (characters[idx].name === 'Red Hulk') pScale = 10.0;
+            else if (characters[idx].name === 'Hulkbuster') pScale = 4.0; 
+            else pScale = 1.0;
+
+            // Update UI
+            document.querySelectorAll('.char-btn').forEach((btn, i) => {
+                if (i === idx) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+        }
+
+        setCharacter(0); // Start as Iron Man
+
+        // Input
+        const keys = { w:false, a:false, s:false, d:false, ArrowUp:false, ArrowLeft:false, ArrowDown:false, ArrowRight:false };
+        const mouse = new THREE.Vector2();
+        const mouseWorld = new THREE.Vector3();
+        let isMouseDown = false;
+
+        window.addEventListener('keydown', (e) => {
+            if(keys.hasOwnProperty(e.key)) keys[e.key] = true;
+            if(e.key >= '1' && e.key <= '8') {
+                setCharacter(parseInt(e.key) - 1);
+            }
+            if(e.key.toLowerCase() === 'l') {
+                toggleLegion();
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            if(keys.hasOwnProperty(e.key)) keys[e.key] = false;
+            // Handle lowercase too
+            if(e.key === 'V') keys['v'] = false;
+            if(e.key === 'C') keys['c'] = false;
+        });
+        // Extra key handling for scaling
+        window.addEventListener('keydown', (e) => {
+            if(e.key === 'v' || e.key === 'V') keys['v'] = true;
+            if(e.key === 'c' || e.key === 'C') keys['c'] = true;
+        });
+        
+        const raycaster = new THREE.Raycaster();
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        window.addEventListener('mousedown', () => isMouseDown = true);
+        window.addEventListener('mouseup', () => isMouseDown = false);
+
+        document.getElementById('char-selector').addEventListener('click', (e) => {
+            const btn = e.target.closest('.char-btn');
+            if (btn) {
+                setCharacter(parseInt(btn.getAttribute('data-index')));
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Game Entities
+        const projectiles = [];
+        const enemies = [];
+        const particles = [];
+        const items = [];
+
+        let lastFireTime = 0;
+        let enemySpawnTimer = 0;
+
+        function spawnEnemy() {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 100 + Math.random() * 50;
+            const x = playerGroup.position.x + Math.cos(angle) * dist;
+            const z = playerGroup.position.z + Math.sin(angle) * dist;
+
+            const enemy = new THREE.Group();
+            // Chitauri look (Gold/Purple slender)
+            const body = createBox(1.5, 3.5, 1.5, 0x4c1d95); body.position.y = 1.75;
+            const armor = createBox(1.7, 1.5, 1.7, 0xd4af37); armor.position.y = 2.5;
+            const head = createBox(1, 1, 1.2, 0xd4af37); head.position.y = 4; head.position.z = 0.2;
+            enemy.add(body, armor, head);
+            
+            enemy.position.set(x, 0, z);
+            enemy.hp = 100 + score * 0.5; // Scale with score
+            enemy.maxHp = enemy.hp;
+            enemy.speed = 0.4 + Math.random() * 0.3 + (score * 0.002);
+            
+            scene.add(enemy);
+            enemies.push(enemy);
+        }
+
+        function createExplosion(pos, color, count=10) {
+            for(let i=0; i<count; i++) {
+                const p = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.5,0.5), new THREE.MeshBasicMaterial({color: color}));
+                p.position.copy(pos);
+                p.velocity = new THREE.Vector3((Math.random()-0.5)*2, Math.random()*2, (Math.random()-0.5)*2);
+                p.life = 1.0;
+                scene.add(p);
+                particles.push(p);
+            }
+        }
+
+        function dropItem(pos) {
+            // Tesseract cube
+            const item = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshBasicMaterial({color: 0x38bdf8, transparent: true, opacity: 0.8}));
+            item.position.copy(pos);
+            item.position.y = 0.5;
+            scene.add(item);
+            items.push(item);
+        }
+
+        function takeDamage(amt) {
+            hp -= amt;
+            document.getElementById('hp-bar').style.width = Math.max(0, (hp / maxHp) * 100) + '%';
+            
+            const overlay = document.getElementById('damage-overlay');
+            overlay.style.opacity = 0.8;
+            setTimeout(() => overlay.style.opacity = 0, 200);
+
+            if (hp <= 0 && !isGameOver) {
+                isGameOver = true;
+                document.getElementById('game-over').style.display = 'block';
+                document.getElementById('final-score').innerText = score;
+            }
+        }
+
+        function toggleLegion() {
+            legionMode = !legionMode;
+            if (legionMode) {
+                characters.forEach((char, idx) => {
+                    if (idx !== currentCharIdx) {
+                        const allyGroup = new THREE.Group();
+                        const mesh = char.build();
+                        allyGroup.add(mesh);
+                        allyGroup.charData = char;
+                        allyGroup.lastFire = 0;
+                        allyGroup.position.copy(playerGroup.position);
+                        allyGroup.position.x += (Math.random() - 0.5) * 30;
+                        allyGroup.position.z += (Math.random() - 0.5) * 30;
+                        scene.add(allyGroup);
+                        allies.push(allyGroup);
+                    }
+                });
+            } else {
+                allies.forEach(a => scene.remove(a));
+                allies = [];
+            }
+        }
+
+        // Main Loop
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (isGameOver) return;
+            const now = Date.now();
+            const delta = clock.getDelta();
+            const time = clock.getElapsedTime();
+            const char = characters[currentCharIdx];
+
+            // Player Movement
+            let moveX = 0; let moveZ = 0;
+            if(keys.w || keys.ArrowUp) moveZ = -1;
+            if(keys.s || keys.ArrowDown) moveZ = 1;
+            if(keys.a || keys.ArrowLeft) moveX = -1;
+            if(keys.d || keys.ArrowRight) moveX = 1;
+
+            if (moveX !== 0 || moveZ !== 0) {
+                const len = Math.sqrt(moveX*moveX + moveZ*moveZ);
+                playerGroup.position.x += (moveX / len) * char.speed;
+                playerGroup.position.z += (moveZ / len) * char.speed;
+                
+                // Bobbing animation
+                playerMesh.position.y = Math.abs(Math.sin(time * 15)) * 0.5;
+            } else {
+                playerMesh.position.y = 0;
+            }
+
+            // Mouse Aiming
+            raycaster.setFromCamera(mouse, camera);
+            const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+            raycaster.ray.intersectPlane(plane, mouseWorld);
+            
+            // Look at mouse
+            if (mouseWorld) {
+                playerGroup.lookAt(mouseWorld.x, playerGroup.position.y, mouseWorld.z);
+            }
+
+            // Scaling logic
+            const maxS = (characters[currentCharIdx].name === 'Red Hulk') ? 10.0 : (characters[currentCharIdx].name === 'Hulkbuster' ? 8.0 : 4.0);
+            if (keys['v']) pScale = Math.min(maxS, pScale + 0.02);
+            if (keys['c']) pScale = Math.max(0.5, pScale - 0.02);
+            playerGroup.scale.set(pScale, pScale, pScale);
+
+            pointLight.position.set(playerGroup.position.x, 15 * pScale, playerGroup.position.z);
+
+            // Camera follow
+            const camDist = 30 + pScale * 20;
+            const camHeight = 40 + pScale * 15;
+            camera.position.lerp(new THREE.Vector3(playerGroup.position.x, camHeight, playerGroup.position.z + camDist), 0.1);
+            camera.lookAt(playerGroup.position);
+
+            // Allies (Legion) update
+            allies.forEach(ally => {
+                const char = ally.charData;
+                const targetPos = playerGroup.position.clone().add(new THREE.Vector3(
+                    Math.cos(allies.indexOf(ally) * (Math.PI*2/allies.length)) * 15 * pScale,
+                    0,
+                    Math.sin(allies.indexOf(ally) * (Math.PI*2/allies.length)) * 15 * pScale
+                ));
+                
+                const dist = ally.position.distanceTo(targetPos);
+                if (dist > 2) {
+                    const dir = new THREE.Vector3().subVectors(targetPos, ally.position).normalize();
+                    ally.position.add(dir.multiplyScalar(char.speed * 1.5));
+                    ally.lookAt(playerGroup.position.x, 0, playerGroup.position.z);
+                }
+                ally.scale.lerp(new THREE.Vector3(pScale * 0.8, pScale * 0.8, pScale * 0.8), 0.1);
+
+                // Ally Shooting
+                if (enemies.length > 0 && now - ally.lastFire > char.fireRate * 1.5) {
+                    let closest = enemies[0];
+                    let minDist = ally.position.distanceTo(closest.position);
+                    enemies.forEach(e => {
+                        const d = ally.position.distanceTo(e.position);
+                        if (d < minDist) { minDist = d; closest = e; }
+                    });
+
+                    if (minDist < 100 * pScale) {
+                        if (char.name === 'Hulk') {
+                            enemies.forEach(e => {
+                                if (e.position.distanceTo(ally.position) < 10 * pScale) e.hp -= char.damage * 0.5;
+                            });
+                        } else {
+                            const dir = new THREE.Vector3().subVectors(closest.position, ally.position).normalize();
+                            const p = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshBasicMaterial({color: char.projColor}));
+                            p.position.copy(ally.position);
+                            p.position.y = 2 * pScale;
+                            p.velocity = dir.multiplyScalar(char.projSpeed);
+                            p.damage = char.damage * 0.5;
+                            p.charName = char.name;
+                            p.life = 100;
+                            scene.add(p);
+                            projectiles.push(p);
+                        }
+                        ally.lastFire = now;
+                    }
+                }
+            });
+
+            // Shooting
+            if ((isMouseDown || enemies.length > 0) && now - lastFireTime > char.fireRate) {
+                // Auto aim at closest if not clicking, else aim at mouse
+                let targetPos = mouseWorld;
+                
+                if (!isMouseDown && enemies.length > 0) {
+                    let closest = enemies[0];
+                    let minDist = playerGroup.position.distanceTo(closest.position);
+                    for(let i=1; i<enemies.length; i++){
+                        const d = playerGroup.position.distanceTo(enemies[i].position);
+                        if(d < minDist) { minDist = d; closest = enemies[i]; }
+                    }
+                    targetPos = closest.position;
+                    playerGroup.lookAt(targetPos.x, playerGroup.position.y, targetPos.z);
+                }
+
+                if (char.name === 'Hulk') {
+                    // Melee attack
+                    createExplosion(playerGroup.position.clone().add(new THREE.Vector3(0,2,0).add(playerGroup.getWorldDirection(new THREE.Vector3()).multiplyScalar(3))), 0x15803d, 5);
+                    enemies.forEach(e => {
+                        if (e.position.distanceTo(playerGroup.position) < 10) {
+                            e.hp -= char.damage;
+                            e.position.add(playerGroup.getWorldDirection(new THREE.Vector3()).multiplyScalar(2)); // Knockback
+                        }
+                    });
+                } else {
+                    // Projectile
+                    const dir = new THREE.Vector3().subVectors(targetPos, playerGroup.position).normalize();
+                    dir.y = 0; // Flat shooting
+                    
+                    let projSize = 0.5;
+                    if(char.name === 'Thor') projSize = 1.2;
+                    if(char.name === 'Captain America') projSize = 1.5;
+
+                    const p = new THREE.Mesh(new THREE.BoxGeometry(projSize, projSize, projSize), new THREE.MeshBasicMaterial({color: char.projColor}));
+                    p.position.copy(playerGroup.position);
+                    p.position.y = 2;
+                    p.velocity = dir.multiplyScalar(char.projSpeed);
+                    p.damage = char.damage;
+                    p.charName = char.name;
+                    p.life = 100;
+                    
+                    if (char.name === 'Black Widow') {
+                        // Double shot
+                        const p2 = p.clone();
+                        p.position.add(new THREE.Vector3(dir.z, 0, -dir.x).multiplyScalar(0.5));
+                        p2.position.add(new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(0.5));
+                        p2.velocity = p.velocity.clone();
+                        scene.add(p2); projectiles.push(p2);
+                    }
+
+                    scene.add(p);
+                    projectiles.push(p);
+                }
+                lastFireTime = now;
+            }
+
+            // Projectiles update
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                p.position.add(p.velocity);
+                p.life--;
+                
+                if (p.charName === 'Thor') {
+                    p.rotation.x += 0.5; p.rotation.y += 0.5;
+                } else if (p.charName === 'Captain America') {
+                    p.rotation.y += 0.5;
+                    // Return logic approximation
+                    if(p.life < 50) {
+                        const dirToPlayer = new THREE.Vector3().subVectors(playerGroup.position, p.position).normalize();
+                        p.velocity.lerp(dirToPlayer.multiplyScalar(char.projSpeed), 0.1);
+                    }
+                }
+
+                if (p.life <= 0) {
+                    scene.remove(p);
+                    projectiles.splice(i, 1);
+                    continue;
+                }
+
+                // Hit enemies
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const e = enemies[j];
+                    if (p.position.distanceTo(e.position) < 3) {
+                        e.hp -= p.damage;
+                        createExplosion(p.position, p.material.color.getHex(), 3);
+                        if (p.charName !== 'Thor') { // Thor pierces
+                            scene.remove(p);
+                            projectiles.splice(i, 1);
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // Enemies update
+            enemySpawnTimer++;
+            const spawnRate = Math.max(20, 100 - score / 5);
+            if (enemySpawnTimer > spawnRate) {
+                spawnEnemy();
+                enemySpawnTimer = 0;
+            }
+
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                
+                if (e.hp <= 0) {
+                    createExplosion(e.position, 0x4c1d95, 15);
+                    if(Math.random() > 0.3) dropItem(e.position);
+                    scene.remove(e);
+                    enemies.splice(i, 1);
+                    continue;
+                }
+
+                // Move to player
+                const dir = new THREE.Vector3().subVectors(playerGroup.position, e.position).normalize();
+                e.position.add(dir.multiplyScalar(e.speed));
+                e.lookAt(playerGroup.position);
+
+                // Attack player
+                if (e.position.distanceTo(playerGroup.position) < 3) {
+                    takeDamage(10 * delta); // continuous damage when touching
+                }
+            }
+
+            // Items update
+            for (let i = items.length - 1; i >= 0; i--) {
+                const item = items[i];
+                item.rotation.x += 0.05;
+                item.rotation.y += 0.05;
+
+                // Magnet effect
+                const dist = item.position.distanceTo(playerGroup.position);
+                if (dist < 15) {
+                    item.position.lerp(playerGroup.position, 0.1);
+                }
+
+                if (dist < 3) {
+                    score += 10;
+                    document.getElementById('score').innerText = score;
+                    scene.remove(item);
+                    items.splice(i, 1);
+                    // Heal slightly
+                    hp = Math.min(maxHp, hp + 2);
+                    document.getElementById('hp-bar').style.width = (hp / maxHp) * 100 + '%';
+                }
+            }
+
+            // Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.position.add(p.velocity);
+                p.life -= delta * 2;
+                p.scale.setScalar(p.life);
+                if (p.life <= 0) {
+                    scene.remove(p);
+                    particles.splice(i, 1);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>

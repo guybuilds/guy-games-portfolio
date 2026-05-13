@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marvel 2 Mobile - Web Edition</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
+        canvas { display: block; }
+        #ui {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 2px solid #ffcc00;
+            user-select: none;
+            text-align: right;
+            z-index: 100;
+            font-size: 0.9rem;
+            max-width: 200px;
+        }
+        .controls { font-size: 0.7rem; opacity: 0.8; margin-top: 5px; }
+        .character-name { font-weight: bold; font-size: 1.1rem; color: #ffcc00; text-shadow: 0 0 10px rgba(255, 204, 0, 0.5); }
+        .switch-btn { 
+            background: #ffcc00; border: none; padding: 8px 15px; border-radius: 10px; 
+            font-weight: bold; cursor: pointer; margin-top: 5px; transition: all 0.2s;
+            font-size: 0.8rem;
+        }
+        .switch-btn:hover { transform: scale(1.05); box-shadow: 0 0 15px #ffcc00; }
+        #stats { position: absolute; top: 10px; left: 10px; color: #fff; font-weight: bold; font-size: 1.2rem; z-index: 100; text-shadow: 2px 2px 4px #000; }
+        #loading {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; color: #ffcc00; display: flex; justify-content: center; align-items: center;
+            font-size: 2rem; z-index: 1000; transition: opacity 0.5s;
+        }
+
+        /* Mobile Controls */
+        #mobile-controls {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 200; display: none;
+        }
+        .joystick-container { position: absolute; top: 0; left: 0; width: 50%; height: 100%; pointer-events: auto; touch-action: none; }
+        .joystick-knob { position: absolute; width: 80px; height: 80px; background: rgba(255, 204, 0, 0.4); border: 3px solid #ffcc00; border-radius: 50%; transform: translate(-50%, -50%); display: none; }
+        
+        .action-buttons { position: absolute; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 15px; pointer-events: auto; touch-action: none; }
+        .action-btn {
+            width: 80px; height: 80px; border-radius: 50%; border: 4px solid rgba(255, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.5); color: #ffcc00; font-weight: bold; font-size: 1.1rem; display: flex; justify-content: center; align-items: center;
+            backdrop-filter: blur(5px); -webkit-tap-highlight-color: transparent;
+        }
+        .action-btn:active { transform: scale(0.9); background: rgba(255, 204, 0, 0.8); color: #000; }
+        .btn-jump { border-color: rgba(0, 204, 255, 0.5); color: #00ccff; }
+        .btn-special { border-color: rgba(255, 51, 0, 0.5); color: #ff3300; }
+        .btn-legion { border-color: rgba(0, 255, 255, 0.5); color: #00ffff; }
+
+        @media (max-width: 900px) {
+            #mobile-controls { display: block; }
+            #ui { display: none !important; }
+            #stats { font-size: 1rem; }
+            .action-btn { width: 65px; height: 65px; font-size: 0.9rem; }
+            .action-buttons { gap: 10px; bottom: 20px; right: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">טוען MARVEL 2 MOBILE...</div>
+
+    <div id="stats">
+        ניקוד לבנים: <span id="bricks">0</span>
+    </div>
+
+    <div id="ui">
+        <div id="char-info">
+            <div class="character-name" id="active-char">איירון מן</div>
+            <div class="controls">
+                מקשים: WASD לזוז, רווח לקפוץ/לעוף<br>
+                Shift לרוץ | <b>F: יכולת מיוחדת</b><br>
+                Q/E: שינוי גודל
+            </div>
+            <div id="gamepad-status" style="margin-top: 10px; font-size: 0.8rem; color: #ff3333;">🎮 שלט לא מחובר</div>
+            <button class="switch-btn" id="switch-char-btn">החלף דמות</button>
+        </div>
+    </div>
+    
+    <div id="mobile-controls">
+        <div class="joystick-container" id="joystick-zone">
+            <div class="joystick-knob" id="joystick-knob"></div>
+        </div>
+        <div class="action-buttons">
+            <button class="action-btn btn-special" id="btn-special">כוח</button>
+            <button class="action-btn btn-jump" id="btn-jump">קפיצה</button>
+            <button class="action-btn btn-legion" id="btn-legion">👑</button>
+            <button class="action-btn" id="btn-switch">החלף</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+    (function() {
+        if (typeof THREE === 'undefined') return;
+
+        let scene, camera, renderer, clock;
+        let ironMan, hulk, captainAmerica, thor, thanos, godzilla, captainMarvel;
+        let p1Char = 'IRON_MAN';
+        let p2Char = 'HULK';
+        let characters = {};
+        const charNames = ['IRON_MAN', 'HULK', 'CAPTAIN_AMERICA', 'THOR', 'THANOS', 'GODZILLA', 'CAPTAIN_MARVEL'];
+        let bricks = [];
+        let obstacles = [];
+        let score = 0;
+        let keys = {};
+        let abilities = { laser: null, smash: null };
+        let mobileInput = { x: 0, z: 0, jump: false };
+        let joystickActive = false;
+        let joystickStart = { x: 0, y: 0 };
+        let legionMode = false;
+        let crowns = {};
+
+        // Size Caps
+        let hulkScale = 7.0;
+        let hulkTargetScale = 7.0;
+        let ironManScale = 7.0;
+        let ironManTargetScale = 7.0;
+        const HULK_MAX = 9.0;
+        const IRONMAN_MAX = 7.0;
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+            camera.position.set(0, 10, 20);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+            clock = new THREE.Clock();
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+            const sun = new THREE.DirectionalLight(0xffffff, 1.0);
+            sun.position.set(20, 50, 20); sun.castShadow = true;
+            scene.add(sun);
+
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshPhongMaterial({ color: 0x3d8e3d }));
+            floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+            ironMan = buildIronMan();
+            hulk = buildHulk();
+            captainAmerica = buildCaptainAmerica();
+            thor = buildThor();
+            thanos = buildThanos();
+            godzilla = buildGodzilla();
+            captainMarvel = buildCaptainMarvel();
+            
+            scene.add(ironMan, hulk, captainAmerica, thor, thanos, godzilla, captainMarvel);
+            [ironMan, hulk, captainAmerica, thor, thanos, godzilla, captainMarvel].forEach(m => m.visible = true);
+            
+            ironMan.position.set(0, 0, 0);
+            hulk.position.set(6, 0, 0);
+
+            characters = {
+                'IRON_MAN': { mesh: ironMan, speed: 0.6, jump: 0.4, gravity: 0.008, yVel: 0, name: "איירון מן" },
+                'HULK': { mesh: hulk, speed: 0.18, jump: 0.45, gravity: 0.015, yVel: 0, name: "ענק ירוק" },
+                'CAPTAIN_AMERICA': { mesh: captainAmerica, speed: 0.22, jump: 0.25, gravity: 0.008, yVel: 0, name: "קפטן אמריקה" },
+                'THOR': { mesh: thor, speed: 0.20, jump: 0.25, gravity: 0.008, yVel: 0, name: "ת'ור" },
+                'THANOS': { mesh: thanos, speed: 0.15, jump: 0.20, gravity: 0.015, yVel: 0, name: "תאנוס" },
+                'GODZILLA': { mesh: godzilla, speed: 0.12, jump: 0.15, gravity: 0.02, yVel: 0, name: "גודזילה" },
+                'CAPTAIN_MARVEL': { mesh: captainMarvel, speed: 0.28, jump: 0.35, gravity: 0.008, yVel: 0, name: "קפטן מרוול" }
+            };
+
+            spawnBricks();
+            initMobileControls();
+            
+            window.addEventListener('keydown', (e) => {
+                keys[e.code] = true;
+                if (e.code === 'KeyF') performAction(p1Char);
+                if (e.code === 'Digit1') toggleLegionMode();
+            });
+            window.addEventListener('keyup', (e) => keys[e.code] = false);
+            
+            document.getElementById('switch-char-btn').onclick = () => {
+                p1Char = charNames[(charNames.indexOf(p1Char) + 1) % charNames.length];
+                updateUI();
+            };
+
+            document.getElementById('loading').style.opacity = '0';
+            setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
+            updateUI();
+            animate();
+        }
+
+        function createBox(w, h, d, color) {
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshPhongMaterial({ color }));
+            mesh.castShadow = mesh.receiveShadow = true; return mesh;
+        }
+
+        function buildIronMan() {
+            const g = new THREE.Group();
+            const torso = createBox(0.8, 1.2, 0.4, 0xaa0000); torso.position.y = 1.2; g.add(torso);
+            const reactor = createBox(0.2, 0.2, 0.1, 0x7dd3fc); reactor.position.set(0, 1.5, 0.21); g.add(reactor);
+            const head = createBox(0.6, 0.6, 0.6, 0xaa0000); head.position.y = 2.1; g.add(head);
+            const face = createBox(0.4, 0.4, 0.1, 0xffcc00); face.position.set(0, 2.1, 0.3); g.add(face);
+            return g;
+        }
+
+        function buildHulk() {
+            const g = new THREE.Group();
+            const torso = createBox(1.6, 2.0, 1.0, 0x008800); torso.position.y = 2.0; g.add(torso);
+            const pants = createBox(1.7, 0.8, 1.1, 0x6b21a8); pants.position.y = 1.1; g.add(pants);
+            const head = createBox(0.8, 0.8, 0.8, 0x008800); head.position.y = 3.4; g.add(head);
+            return g;
+        }
+
+        function buildCaptainAmerica() { const g = new THREE.Group(); g.add(createBox(0.8, 2.0, 0.4, 0x0000aa)); return g; }
+        function buildThor() { const g = new THREE.Group(); g.add(createBox(1.0, 2.0, 0.6, 0x555555)); return g; }
+        function buildThanos() { const g = new THREE.Group(); g.add(createBox(1.1, 2.5, 0.7, 0x5500aa)); return g; }
+        function buildGodzilla() { const g = new THREE.Group(); g.add(createBox(1.8, 5.0, 2.0, 0x2c3e50)); return g; }
+        function buildCaptainMarvel() { const g = new THREE.Group(); g.add(createBox(0.8, 2.0, 0.4, 0x002244)); return g; }
+
+        function spawnBricks() {
+            for(let i=0; i<100; i++) {
+                const b = createBox(0.4, 0.4, 0.4, 0xffd700);
+                b.position.set((Math.random()-0.5)*200, 0.2, (Math.random()-0.5)*200);
+                scene.add(b); bricks.push(b);
+            }
+        }
+
+        function performAction(charKey) {
+            const mesh = characters[charKey].mesh;
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(3, 0.1, 16, 50), new THREE.MeshBasicMaterial({ color: 0xffcc00 }));
+            ring.rotation.x = Math.PI/2; ring.position.copy(mesh.position);
+            scene.add(ring); setTimeout(() => scene.remove(ring), 300);
+        }
+
+        function toggleLegionMode() { legionMode = !legionMode; updateUI(); }
+
+        function updateUI() {
+            document.getElementById('active-char').textContent = characters[p1Char].name;
+            const status = document.getElementById('gamepad-status');
+            status.textContent = legionMode ? '👑 מצב שליטה פעיל' : '🕹️ שליטה רגילה';
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            hulkScale = THREE.MathUtils.lerp(hulkScale, hulkTargetScale, 0.05);
+            characters['HULK'].mesh.scale.set(hulkScale, hulkScale, hulkScale);
+            ironManScale = THREE.MathUtils.lerp(ironManScale, ironManTargetScale, 0.05);
+            characters['IRON_MAN'].mesh.scale.set(ironManScale, ironManScale, ironManScale);
+
+            if (keys['KeyQ']) {
+                if (p1Char === 'HULK') hulkTargetScale = Math.min(HULK_MAX, hulkTargetScale + 0.1);
+                if (p1Char === 'IRON_MAN') ironManTargetScale = Math.min(IRONMAN_MAX, ironManTargetScale + 0.1);
+            }
+            if (keys['KeyE']) {
+                if (p1Char === 'HULK') hulkTargetScale = Math.max(1.0, hulkTargetScale - 0.1);
+                if (p1Char === 'IRON_MAN') ironManTargetScale = Math.max(1.0, ironManTargetScale - 0.1);
+            }
+
+            updatePlayer(p1Char, true);
+            
+            const p1Pos = characters[p1Char].mesh.position;
+            const activeScale = p1Char === 'HULK' ? hulkScale : (p1Char === 'IRON_MAN' ? ironManScale : 1.0);
+            camera.position.lerp(p1Pos.clone().add(new THREE.Vector3(0, 15 + activeScale*5, 25 + activeScale*7)), 0.1);
+            camera.lookAt(p1Pos);
+            renderer.render(scene, camera);
+        }
+
+        function updatePlayer(charKey, isP1) {
+            const p = characters[charKey]; const m = p.mesh;
+            let mx = 0, mz = 0; const s = p.speed * (keys['ShiftLeft'] ? 1.5 : 1.0);
+            if (keys['KeyW']) mz -= s; if (keys['KeyS']) mz += s;
+            if (keys['KeyA']) mx -= s; if (keys['KeyD']) mx += s;
+            if (joystickActive) { mx = mobileInput.x * s; mz = mobileInput.z * s; }
+            m.position.x += mx; m.position.z += mz;
+            if (mx !== 0 || mz !== 0) m.rotation.y = Math.atan2(mx, mz);
+            p.yVel -= p.gravity; m.position.y += p.yVel;
+            if (m.position.y <= 0) { m.position.y = 0; p.yVel = 0; if (mobileInput.jump || keys['Space']) { p.yVel = p.jump; mobileInput.jump = false; } }
+        }
+
+        function initMobileControls() {
+            const zone = document.getElementById('joystick-zone');
+            const knob = document.getElementById('joystick-knob');
+            zone.addEventListener('pointerdown', (e) => {
+                joystickActive = true; joystickStart = { x: e.clientX, y: e.clientY };
+                knob.style.display = 'block'; knob.style.left = e.clientX+'px'; knob.style.top = e.clientY+'px';
+                const move = (ev) => {
+                    const dx = ev.clientX - joystickStart.x; const dy = ev.clientY - joystickStart.y;
+                    const d = Math.min(60, Math.sqrt(dx*dx+dy*dy)); const a = Math.atan2(dy, dx);
+                    knob.style.transform = `translate(${Math.cos(a)*d}px, ${Math.sin(a)*d}px)`;
+                    mobileInput.x = Math.cos(a)*(d/60); mobileInput.z = Math.sin(a)*(d/60);
+                };
+                const end = () => {
+                    joystickActive = false; knob.style.display = 'none'; mobileInput.x = mobileInput.z = 0;
+                    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end);
+                };
+                window.addEventListener('pointermove', move); window.addEventListener('pointerup', end);
+            });
+            document.getElementById('btn-jump').onclick = () => mobileInput.jump = true;
+            document.getElementById('btn-special').onclick = () => performAction(p1Char);
+            document.getElementById('btn-switch').onclick = () => document.getElementById('switch-char-btn').click();
+            document.getElementById('btn-legion').onclick = () => toggleLegionMode();
+        }
+
+        init();
+    })();
+    </script>
+</body>
+</html>

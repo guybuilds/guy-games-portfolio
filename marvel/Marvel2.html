@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marvel 2 - World Eater Edition</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Orbitron', sans-serif; color: #fff; user-select: none; }
+        #hud { position: absolute; top: 0; left: 0; width: 100%; padding: 25px; pointer-events: none; z-index: 100; box-sizing: border-box; }
+        .box { background: rgba(0, 0, 0, 0.9); border: 2px solid #a855f7; padding: 15px; border-radius: 20px; backdrop-filter: blur(20px); display: inline-block; box-shadow: 0 0 50px rgba(168, 85, 247, 0.4); }
+        .score { font-size: 3.5rem; color: #ffff00; font-weight: 900; text-shadow: 0 0 30px #ffff00; }
+        #upgrade-alert { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); font-size: 5rem; font-weight: 900; color: #a855f7; text-shadow: 0 0 60px #a855f7; display: none; text-align: center; pointer-events: none; z-index: 200; animation: hyper 0.5s ease-in-out; }
+        @keyframes hyper { 0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0c001a; display: flex; justify-content: center; align-items: center; z-index: 1000; color: #a855f7; }
+        #gamepad-info { position: absolute; bottom: 20px; width: 100%; text-align: center; font-size: 0.9rem; color: #a855f7; letter-spacing: 2px; }
+        .ability-cd { font-size: 0.7rem; color: #fbbf24; margin-top: 5px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="loading"><h1>PREPARING PLANETARY CONSUMPTION...</h1></div>
+    <div id="upgrade-alert">GALACTUS ARRIVES!</div>
+    <div id="hud">
+        <div class="box">
+            <div style="font-size: 0.9rem; color: #a855f7;">PLANETS CONSUMED</div>
+            <div id="score" class="score">0</div>
+            <div id="ability-text" class="ability-cd">SPECIAL: [SQUARE / SHIFT] READY</div>
+        </div>
+        <div style="float: left;" class="box">
+            <div id="lvl" style="font-weight: 900; color: #a855f7; font-size: 1.5rem;">LEVEL 1</div>
+            <div style="width: 250px; height: 12px; background: rgba(255,255,255,0.05); margin-top: 10px; border-radius: 6px; overflow: hidden; border: 1px solid #a855f7;">
+                <div id="bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #a855f7, #ec4899); box-shadow: 0 0 20px #a855f7;"></div>
+            </div>
+        </div>
+    </div>
+    <div id="gamepad-info">[X: GROW | O: SHRINK | SQUARE: ATOMIC PULSE]</div>
+
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+    <script>
+    (function() {
+        let scene, camera, renderer, clock;
+        let player, ironMan, thanos, captainAmerica, godzilla, galactus, enemies = [], projectiles = [], studs = [], particles = [], obstacles = [];
+        let keys = {}, score = 0, lvl = 1, exp = 0;
+        let pSize = 1.0, shootInt = 180, lastShoot = 0;
+        let spawnTimer = 0, dmg = 40, baseMoveSpd = 2.0, maxScale = 5.0;
+        let activeChar = 'IRON_MAN', shake = 0, godzillaPhase = 1;
+        let abilityCD = 0, lastAbility = 0;
+
+        function init() {
+            try {
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x05000a);
+                scene.fog = new THREE.Fog(0x05000a, 1500, 8000);
+
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 30000);
+                camera.position.set(0, 300, 300);
+
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setPixelRatio(window.devicePixelRatio);
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                document.body.appendChild(renderer.domElement);
+
+                scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+                const sun = new THREE.DirectionalLight(0xa855f7, 1.0); sun.position.set(200, 1000, 200); scene.add(sun);
+
+                buildEnvironment();
+
+                ironMan = buildIronMan();
+                thanos = buildThanos();
+                captainAmerica = buildCaptainAmerica();
+                godzilla = buildGodzilla();
+                galactus = buildGalactus();
+                
+                [thanos, captainAmerica, godzilla, galactus].forEach(m => m.visible = false);
+                scene.add(ironMan, thanos, captainAmerica, godzilla, galactus);
+                player = ironMan;
+
+                window.addEventListener('keydown', e => keys[e.code] = true);
+                window.addEventListener('keyup', e => keys[e.code] = false);
+                window.addEventListener('resize', onResize);
+
+                document.getElementById('loading').style.display = 'none';
+                animate();
+            } catch (e) { console.error(e); }
+        }
+
+        function createBox(w, h, d, color, matType = 'phong') {
+            const mat = matType === 'basic' ? new THREE.MeshBasicMaterial({ color }) : new THREE.MeshPhongMaterial({ color });
+            return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+        }
+
+        function buildEnvironment() {
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(30000, 30000), new THREE.MeshPhongMaterial({ color: 0x050505 }));
+            floor.rotation.x = -Math.PI / 2; scene.add(floor);
+            const grid = new THREE.GridHelper(10000, 100, 0xa855f7, 0x1e1b4b); grid.position.y = 0.5; scene.add(grid);
+
+            for (let i = 0; i < 300; i++) {
+                const x = (Math.random()-0.5)*15000, z = (Math.random()-0.5)*15000;
+                if (Math.abs(x) < 300 && Math.abs(z) < 300) continue;
+                const trunk = createBox(6, 30, 6, 0x18181b); trunk.position.set(x, 15, z);
+                const leaves = createBox(25, 25, 25, 0x1e1b4b); leaves.position.set(x, 40, z);
+                scene.add(trunk, leaves);
+                obstacles.push({ trunk, leaves, x, z, active: true });
+            }
+        }
+
+        function buildIronMan() {
+            const g = new THREE.Group();
+            g.add(createBox(1.2, 1.8, 0.6, 0xaa0000));
+            const head = createBox(0.8, 0.8, 0.8, 0xaa0000); head.position.y = 1.3; g.add(head);
+            const face = createBox(0.6, 0.6, 0.1, 0xffcc00); face.position.set(0, 1.3, 0.41); g.add(face);
+            return g;
+        }
+
+        function buildThanos() {
+            const g = new THREE.Group();
+            const body = createBox(2.2, 3.0, 1.2, 0x5b21b6); body.position.y = 1.5; g.add(body);
+            const chest = createBox(2.3, 1.6, 1.3, 0xfbbf24); chest.position.y = 2.3; g.add(chest);
+            const head = createBox(1.3, 1.5, 1.3, 0x5b21b6); head.position.y = 3.8; g.add(head);
+            const gauntlet = createBox(0.9, 2.1, 0.9, 0xfbbf24); gauntlet.position.set(-1.6, 1.6, 0); g.add(gauntlet);
+            return g;
+        }
+
+        function buildCaptainAmerica() {
+            const g = new THREE.Group();
+            const body = createBox(1.8, 2.8, 0.8, 0x1d4ed8); body.position.y = 1.4; g.add(body);
+            const head = createBox(1.2, 1.2, 1.2, 0x1d4ed8); head.position.y = 3.4; g.add(head);
+            const shield = createBox(3.0, 3.0, 0.3, 0xef4444); shield.position.set(1.8, 1.4, 0); g.add(shield);
+            return g;
+        }
+
+        function buildGodzilla() {
+            const g = new THREE.Group();
+            const body = createBox(5, 10, 8, 0x111827); body.position.y = 5; g.add(body);
+            const head = createBox(4, 4, 6, 0x111827); head.position.set(0, 11, 4); g.add(head);
+            const spikes = new THREE.Group(); spikes.name = "spikes_group"; g.add(spikes);
+            const tail = createBox(4, 4, 18, 0x111827); tail.position.set(0, 3, -11); g.add(tail);
+            return g;
+        }
+
+        function buildGalactus() {
+            const g = new THREE.Group();
+            const body = createBox(10, 15, 6, 0x7c3aed); body.position.y = 7.5; g.add(body);
+            const chest = createBox(11, 10, 7, 0xec4899); chest.position.y = 10; g.add(chest);
+            const head = createBox(6, 6, 6, 0x7c3aed); head.position.y = 18; g.add(head);
+            const hornL = createBox(2, 8, 2, 0xec4899); hornL.position.set(-4, 22, 0); hornL.rotation.z = 0.5; g.add(hornL);
+            const hornR = createBox(2, 8, 2, 0xec4899); hornR.position.set(4, 22, 0); hornR.rotation.z = -0.5; g.add(hornR);
+            return g;
+        }
+
+        function updateGodzillaSpikes(group, phase) {
+            while(group.children.length > 0) group.remove(group.children[0]);
+            const count = 6 + phase * 4;
+            for (let i = 0; i < count; i++) {
+                const s = createBox(2, 4 + phase*0.3, 2, phase >= 4 ? 0xff4400 : 0x00ff88, 'basic');
+                s.position.set(0, 11 + i*0.6, -2 - i*1.5); group.add(s);
+            }
+        }
+
+        function useAbility() {
+            if (Date.now() - lastAbility < 5000) return;
+            lastAbility = Date.now();
+            shake = 3.0;
+            const range = 50 * pSize;
+            enemies.forEach(e => {
+                if (e.position.distanceTo(player.position) < range) e.userData.hp -= dmg * 5;
+            });
+            const pulse = createBox(range*2, 2, range*2, 0xa855f7, 'basic');
+            pulse.position.copy(player.position); scene.add(pulse);
+            setTimeout(() => scene.remove(pulse), 500);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const now = Date.now();
+            const gp = navigator.getGamepads()[0];
+            let mx = 0, mz = 0;
+
+            const currentSpeed = baseMoveSpd / Math.sqrt(pSize);
+
+            if (gp) {
+                if (Math.abs(gp.axes[0]) > 0.1) mx = gp.axes[0] * currentSpeed;
+                if (Math.abs(gp.axes[1]) > 0.1) mz = gp.axes[1] * currentSpeed;
+                if (gp.buttons[0].pressed) pSize = Math.min(maxScale, pSize + 0.1);
+                if (gp.buttons[1].pressed) pSize = Math.max(0.2, pSize - 0.1);
+                if (gp.buttons[2].pressed) useAbility(); // Square
+            }
+            if (keys['KeyW']) mz = -currentSpeed; if (keys['KeyS']) mz = currentSpeed;
+            if (keys['KeyA']) mx = -currentSpeed; if (keys['KeyD']) mx = currentSpeed;
+            if (keys['ShiftLeft'] || keys['KeyQ']) useAbility();
+
+            player.position.x += mx; player.position.z += mz;
+            if (mx !== 0 || mz !== 0) player.rotation.y = Math.atan2(mx, mz);
+            player.scale.lerp(new THREE.Vector3(pSize, pSize, pSize), 0.1);
+
+            // Ability CD UI
+            const cd = Math.max(0, 5 - (now - lastAbility)/1000);
+            document.getElementById('ability-text').textContent = cd > 0 ? `RELOADING: ${cd.toFixed(1)}s` : `SPECIAL: [SQUARE / SHIFT] READY`;
+
+            // Destruction
+            if (pSize > 4.0) {
+                obstacles.forEach(o => {
+                    if (o.active && player.position.distanceTo(new THREE.Vector3(o.x, 0, o.z)) < 30 * pSize) {
+                        scene.remove(o.trunk, o.leaves); o.active = false; shake = 1.0;
+                    }
+                });
+            }
+
+            // AUTO LASERS
+            if (now - lastShoot > shootInt) {
+                let target = null, dMin = (500 + (godzillaPhase*100)) * pSize;
+                enemies.forEach(e => {
+                    const d = e.position.distanceTo(player.position);
+                    if (d < dMin) { dMin = d; target = e; }
+                });
+                if (target) {
+                    let pGeo, pColor;
+                    if (activeChar === 'IRON_MAN') { pGeo = [0.4, 0.4, 8]; pColor = 0x00f2ff; }
+                    else if (activeChar === 'THANOS') { pGeo = [2, 2, 2]; pColor = 0xa855f7; }
+                    else if (activeChar === 'CAPTAIN_AMERICA') { pGeo = [6, 6, 0.5]; pColor = 0xef4444; }
+                    else if (activeChar === 'GODZILLA') { 
+                        const bs = (5 + godzillaPhase*2) * pSize; pGeo = [bs, bs, 15 + godzillaPhase*5]; pColor = godzillaPhase >= 4 ? 0xff4400 : 0x00ff88; 
+                    } else { pGeo = [15 * pSize, 15 * pSize, 15 * pSize]; pColor = 0xa855f7; } // Galactus
+
+                    const p = createBox(pGeo[0], pGeo[1], pGeo[2], pColor, 'basic');
+                    p.position.copy(player.position); p.position.y = 10 * pSize;
+                    p.lookAt(target.position);
+                    p.userData = { dir: target.position.clone().sub(p.position).normalize(), speed: 8.0 + godzillaPhase, life: 120 + godzillaPhase*30 };
+                    scene.add(p); projectiles.push(p);
+                    lastShoot = now;
+                }
+            }
+
+            // Projectiles
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i]; p.position.add(p.userData.dir.clone().multiplyScalar(p.userData.speed));
+                if (--p.userData.life <= 0) { scene.remove(p); projectiles.splice(i, 1); continue; }
+                enemies.forEach((e, j) => {
+                    if (p.position.distanceTo(e.position) < 15 * pSize) {
+                        e.userData.hp -= dmg; p.userData.life = 0;
+                        if (e.userData.hp <= 0) {
+                            for (let k=0; k<10; k++) {
+                                const pt = createBox(1, 1, 1, 0xa855f7, 'basic'); pt.position.copy(e.position);
+                                pt.userData = { vel: new THREE.Vector3((Math.random()-0.5)*8, Math.random()*8, (Math.random()-0.5)*8), life: 40 };
+                                scene.add(pt); particles.push(pt);
+                            }
+                            const s = createBox(2, 1, 2, 0xfbbf24, 'basic'); s.position.copy(e.position); scene.add(s); studs.push(s);
+                            scene.remove(e); enemies.splice(j, 1); score++; document.getElementById('score').textContent = score;
+                        }
+                    }
+                });
+            }
+
+            // Magnet & XP
+            for (let i = studs.length - 1; i >= 0; i--) {
+                const s = studs[i]; const d = s.position.distanceTo(player.position);
+                if (d < 100 * pSize) s.position.lerp(player.position, 0.4);
+                if (d < 10 * pSize) {
+                    scene.remove(s); studs.splice(i, 1); exp += 100;
+                    const next = lvl * 1000; document.getElementById('bar').style.width = (exp/next)*100 + '%';
+                    if (exp >= next) levelUp();
+                }
+            }
+
+            enemies.forEach(e => {
+                e.position.add(player.position.clone().sub(e.position).normalize().multiplyScalar(e.userData.s));
+                e.lookAt(player.position);
+            });
+
+            if (++spawnTimer > Math.max(1, 20 - lvl*3)) {
+                const a = Math.random() * Math.PI * 2, dist = 800 + pSize*40;
+                const e = createBox(8, 10, 4, 0x110022);
+                e.position.set(player.position.x + Math.cos(a)*dist, 5, player.position.z + Math.sin(a)*dist);
+                e.userData = { hp: 100 + lvl*100, s: 0.4 };
+                scene.add(e); enemies.push(e); spawnTimer = 0;
+            }
+
+            const camH = 250 + pSize*30;
+            camera.position.lerp(player.position.clone().add(new THREE.Vector3(0, camH, camH)), 0.05);
+            if (shake > 0) { camera.position.x += (Math.random()-0.5)*shake*15; shake *= 0.9; }
+            camera.lookAt(player.position.x, 0, player.position.z - 80);
+            renderer.render(scene, camera);
+        }
+
+        function levelUp() {
+            lvl++; exp = 0;
+            if (lvl === 2) { activeChar = 'THANOS'; ironMan.visible = false; thanos.visible = true; player = thanos; maxScale = 5.0; showAlert("THANOS ASCENDED!"); }
+            else if (lvl === 3) { activeChar = 'CAPTAIN_AMERICA'; thanos.visible = false; captainAmerica.visible = true; player = captainAmerica; maxScale = 5.5; showAlert("CAPTAIN AMERICA RISES!"); }
+            else if (lvl >= 4 && lvl <= 10) {
+                activeChar = 'GODZILLA'; captainAmerica.visible = false; godzilla.visible = true; player = godzilla;
+                godzillaPhase = lvl - 3; maxScale = 6.0 + godzillaPhase*0.5;
+                updateGodzillaSpikes(player.getObjectByName("spikes_group"), godzillaPhase);
+                showAlert(`GODZILLA PHASE ${godzillaPhase}!`);
+                if (godzillaPhase >= 4) { sun.color.setHex(0xff4400); scene.background.setHex(0x1a0500); }
+            } else if (lvl === 11) {
+                activeChar = 'GALACTUS'; godzilla.visible = false; galactus.visible = true; player = galactus;
+                maxScale = 20.0; dmg += 5000; shootInt = 100;
+                sun.color.setHex(0xa855f7); scene.background.setHex(0x05000a);
+                showAlert("GALACTUS: THE WORLD EATER!");
+            } else { dmg += 2000; showAlert("COSMIC DESTRUCTION!"); }
+            document.getElementById('lvl').textContent = 'LEVEL ' + lvl;
+        }
+
+        function showAlert(txt) {
+            const alert = document.getElementById('upgrade-alert'); alert.textContent = txt;
+            alert.style.display = 'block'; setTimeout(() => alert.style.display = 'none', 3000);
+        }
+
+        function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+        init();
+    })();
+    </script>
+</body>
+</html>

@@ -164,6 +164,8 @@
         </div>
     </div>
 
+    <div id="announcer" style="position: absolute; top: 120px; left: 50%; transform: translateX(-50%); color: var(--stark-blue); font-weight: bold; text-shadow: var(--stark-glow); pointer-events: none; opacity: 0; transition: opacity 0.5s, transform 0.5s; font-size: 1.2rem; z-index: 1000; text-align: center;"></div>
+
     <div id="debug-info">LEGION V3.0 | ENGINE: THREE.JS R128 | STATUS: STABLE</div>
 
     <!-- Libraries -->
@@ -182,7 +184,7 @@
         let scene, camera, renderer, clock;
         let p1Char = 'ULTRON', p2Char = 'IRON_MAN';
         let characters = {};
-        const charRoster = ['ULTRON', 'BLACK_PANTHER', 'IRON_MAN', 'HULK', 'CAPTAIN_AMERICA', 'THOR', 'THANOS', 'GODZILLA', 'CAPTAIN_MARVEL', 'SPIDER_MAN', 'DOCTOR_STRANGE', 'BLACK_WIDOW'];
+        const charRoster = ['ULTRON', 'BLACK_PANTHER', 'IRON_MAN', 'HULK', 'RED_HULK', 'CAPTAIN_AMERICA', 'THOR', 'THANOS', 'GODZILLA', 'CAPTAIN_MARVEL', 'SPIDER_MAN', 'DOCTOR_STRANGE', 'BLACK_WIDOW', 'HULKBUSTER'];
         
         let bricks = [], obstacles = [], buildings = [];
         let score = 0;
@@ -190,12 +192,53 @@
         let mobileInput = { x: 0, z: 0, jump: false };
         let joystickDragging = false;
         let enemies = [];
+        let legionAllies = [];
+        let projectiles = [];
+        let playerPosHistory = [];
         let legionMode = false;
         let magnetTimer = 0;
         let enemySpawnTimer = 0;
         let audioCtx;
+        let shakeAmount = 0;
+        let heatParticles = [];
+
 
         let lastPopTime = 0;
+        function showMessage(text, color = 'var(--stark-blue)') {
+            const el = document.getElementById('announcer');
+            if (!el) return;
+            el.innerText = text.toUpperCase();
+            el.style.color = color;
+            el.style.opacity = '1';
+            el.style.transform = 'translateX(-50%) translateY(0)';
+            
+            clearTimeout(el.timer);
+            el.timer = setTimeout(() => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateX(-50%) translateY(-20px)';
+            }, 3000);
+        }
+
+        function createHeatParticle(pos, scale) {
+            const size = 0.2 * scale;
+            const p = createBox(size, size, size, 0xff3300, true);
+            p.position.copy(pos);
+            p.position.x += (Math.random() - 0.5) * 5 * scale;
+            p.position.z += (Math.random() - 0.5) * 5 * scale;
+            p.userData = {
+                vel: new THREE.Vector3((Math.random() - 0.5) * 0.1, 0.1 + Math.random() * 0.2, (Math.random() - 0.5) * 0.1),
+                life: 1.0,
+                decay: 0.02 + Math.random() * 0.02
+            };
+            scene.add(p);
+            heatParticles.push(p);
+        }
+
+        function shakeCamera(amount) {
+            shakeAmount = Math.max(shakeAmount, amount);
+        }
+
+
         function playPop() {
             if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return; } }
             const now = Date.now(); if (now - lastPopTime < 30) return; // Audio throttling
@@ -234,16 +277,19 @@
         const charData = {
             'ULTRON': { name: "אולטרון", ability: "Extinction Level Event", speed: 0.38, jump: 0.3, color: 0x999999, isGiant: true, sizeLevels: [1, 10, 35, 80, 200], sizeIndex: 1, sizeTarget: 10, sizeCurrent: 10 },
             'BLACK_PANTHER': { name: "הפנתר השחור", ability: "Kinetic Pulse", speed: 0.35, jump: 0.32, color: 0x111111, canClimb: true },
-            'IRON_MAN': { name: "איירון מן", ability: "Unibeam", speed: 0.28, jump: 0.25, color: 0xaa0000 },
-            'HULK': { name: "הענק הירוק", ability: "Gamma Smash", speed: 0.20, jump: 0.45, color: 0x008800 },
+            'IRON_MAN': { name: "איירון מן", ability: "Unibeam", speed: 0.8, jump: 0.5, color: 0xaa0000, isGiant: true, sizeLevels: [7], sizeIndex: 0, sizeTarget: 7, sizeCurrent: 7 },
+            'HULK': { name: "הענק הירוק", ability: "Gamma Smash", speed: 0.22, jump: 0.45, color: 0x008800, isGiant: true, sizeLevels: [6, 9], sizeIndex: 0, sizeTarget: 6, sizeCurrent: 6 },
+            'RED_HULK': { name: "רד הלאק", ability: "Gamma Burst", speed: 0.25, jump: 0.5, color: 0xaa0000, isGiant: true, sizeLevels: [10], sizeIndex: 0, sizeTarget: 10, sizeCurrent: 10, heatMode: true },
+
             'CAPTAIN_AMERICA': { name: "קפטן אמריקה", ability: "Shield Throw", speed: 0.24, jump: 0.25, color: 0x0000aa },
             'THOR': { name: "ת'ור", ability: "Lightning Strike", speed: 0.22, jump: 0.25, color: 0x555555 },
             'THANOS': { name: "תאנוס", ability: "Reality Snap", speed: 0.18, jump: 0.20, color: 0x5500aa },
-            'GODZILLA': { name: "גודזילה", ability: "Atomic Breath", speed: 0.15, jump: 0.15, color: 0x2c3e50 },
+            'GODZILLA': { name: "גודזילה", ability: "Atomic Breath", speed: 0.15, jump: 0.15, color: 0x2c3e50, isGiant: true, sizeLevels: [3, 25, 120, 400, 1200], sizeIndex: 0, sizeTarget: 3, sizeCurrent: 3 },
             'CAPTAIN_MARVEL': { name: "קפטן מרוול", ability: "Photon Blast", speed: 0.30, jump: 0.40, color: 0x002244 },
             'SPIDER_MAN': { name: "ספיידרמן", ability: "Web Pull", speed: 0.32, jump: 0.45, color: 0xcc0000 },
             'DOCTOR_STRANGE': { name: "דוקטור סטריינג'", ability: "Mystic Shield", speed: 0.22, jump: 0.30, color: 0x880000 },
-            'BLACK_WIDOW': { name: "אלמנה שחורה", ability: "Widow's Bite", speed: 0.28, jump: 0.25, color: 0x111111 }
+            'BLACK_WIDOW': { name: "אלמנה שחורה", ability: "Widow's Bite", speed: 0.28, jump: 0.25, color: 0x111111 },
+            'HULKBUSTER': { name: "האלקבאסטר", ability: "Heavy Repulsor", speed: 0.18, jump: 0.25, color: 0x991b1b, isGiant: true, sizeLevels: [6, 8], sizeIndex: 0, sizeTarget: 6, sizeCurrent: 6 }
         };
 
         function init() {
@@ -356,21 +402,26 @@
             const group = new THREE.Group();
             group.position.set(x, 0, z);
             
-            const body = createBox(1, 1.5, 0.6, 0x888888);
+            const isEnemy = (p1Char !== 'ULTRON');
+            const color = isEnemy ? 0x666666 : 0x888888;
+            const eyeColor = isEnemy ? 0xff0000 : 0x00ccff;
+            
+            const body = createBox(1, 1.5, 0.6, color);
             body.position.y = 0.75;
-            const eye = createBox(0.8, 0.2, 0.1, 0x00ccff); // Friendly Blue Eyes
+            const eye = createBox(0.8, 0.2, 0.1, eyeColor);
             eye.position.set(0, 1.2, 0.35);
             group.add(body, eye);
             
             group.userData = { 
-                type: 'ALLY', 
+                type: isEnemy ? 'ENEMY' : 'ALLY', 
                 hp: 10, 
                 speed: 0.12 + Math.random() * 0.08, 
                 baseOffset: new THREE.Vector2((Math.random()-0.5)*15, (Math.random()-0.5)*15),
                 rotParam: Math.random() * Math.PI * 2,
                 rotSpeed: (Math.random() - 0.5) * 0.04,
-                scaleShift: Math.random() * 10, // For size fluctuation
-                isSizeShifter: true
+                scaleShift: Math.random() * 10,
+                isSizeShifter: true,
+                lastFire: 0
             };
             scene.add(group);
             enemies.push(group);
@@ -402,24 +453,60 @@
             if (type === 'ULTRON') {
                 const eyeL = createBox(0.1, 0.1, 0.1, 0xff0000); eyeL.position.set(-0.15, 2.2, 0.3); g.add(eyeL);
                 const eyeR = createBox(0.1, 0.1, 0.1, 0xff0000); eyeR.position.set(0.15, 2.2, 0.3); g.add(eyeR);
-                g.scale.set(8.0, 8.0, 8.0);
             }
-            if (type === 'BLACK_PANTHER') {
-                const necklace = createBox(0.9, 0.1, 0.45, 0x888888); necklace.position.y = 1.7; g.add(necklace);
+            if (type === 'RED_HULK') {
+                // Hair
+                const hair = createBox(0.65, 0.2, 0.65, 0x111111);
+                hair.position.y = 0.35;
+                h.add(hair);
+                
+                // Pants (Waist area)
+                const pants = createBox(0.85, 0.4, 0.45, 0x222222);
+                pants.position.y = -0.4;
+                t.add(pants);
+                
+                // Pecs/Shoulders for bulk
+                const pecL = createBox(0.4, 0.5, 0.2, d.color);
+                pecL.position.set(-0.2, 0.3, 0.2);
+                t.add(pecL);
+                const pecR = createBox(0.4, 0.5, 0.2, d.color);
+                pecR.position.set(0.2, 0.3, 0.2);
+                t.add(pecR);
+
+                const eyeL = createBox(0.12, 0.1, 0.1, 0xffff00); eyeL.position.set(-0.15, 2.2, 0.3); g.add(eyeL);
+                const eyeR = createBox(0.12, 0.1, 0.1, 0xffff00); eyeR.position.set(0.15, 2.2, 0.3); g.add(eyeR);
+                
+                // Add a glow light to Red Hulk
+                const glow = new THREE.PointLight(0xff3300, 1, 10);
+                glow.position.y = 1;
+                g.add(glow);
+                g.userData.glow = glow;
             }
-            if (type === 'HULK' || type === 'GODZILLA' || type === 'THANOS') g.scale.set(1.8, 1.8, 1.8);
+
+            if (type === 'HULKBUSTER') {
+                const plate = createBox(1.0, 0.6, 0.5, 0xd4af37); plate.position.set(0, 1.4, 0.1); g.add(plate);
+                const shoulderL = createBox(0.5, 0.5, 0.5, 0x991b1b); shoulderL.position.set(-0.6, 1.6, 0); g.add(shoulderL);
+                const shoulderR = createBox(0.5, 0.5, 0.5, 0x991b1b); shoulderR.position.set(0.6, 1.6, 0); g.add(shoulderR);
+                const eyeL = createBox(0.15, 0.1, 0.1, 0x00ffff); eyeL.position.set(-0.2, 2.2, 0.3); g.add(eyeL);
+                const eyeR = createBox(0.15, 0.1, 0.1, 0x00ffff); eyeR.position.set(0.2, 2.2, 0.3); g.add(eyeR);
+            }
+            if (d && d.sizeCurrent) {
+                g.scale.set(d.sizeCurrent, d.sizeCurrent, d.sizeCurrent);
+            } else if (type === 'HULK' || type === 'GODZILLA' || type === 'THANOS') {
+                g.scale.set(1.8, 1.8, 1.8);
+            }
             return g;
         }
 
-        function adjustUltronSize(delta) {
-            if (p1Char !== 'ULTRON') return;
-            const d = charData['ULTRON'];
+        function adjustSize(delta) {
+            const d = charData[p1Char];
+            if (!d.sizeLevels) return;
             const oldIndex = d.sizeIndex;
             d.sizeIndex = Math.max(0, Math.min(d.sizeLevels.length - 1, d.sizeIndex + delta));
             if (d.sizeIndex === oldIndex) return;
             
             d.sizeTarget = d.sizeLevels[d.sizeIndex];
-            d.isGiant = (d.sizeIndex > 0);
+            d.isGiant = (d.sizeIndex > 0 || d.sizeLevels[0] > 1);
             
             // Auto-hide bricks for performance at scale
             bricks.forEach(b => b.visible = (d.sizeIndex < 2));
@@ -435,24 +522,28 @@
             });
             characters[p1Char].mesh.visible = true;
             characters[p1Char].mesh.position.set(10, 0, 10);
+            
+            // Initialize history
+            for(let i=0; i<200; i++) playerPosHistory.push(new THREE.Vector3(10, 0, 10));
         }
 
         function setupInput() {
             window.addEventListener('keydown', e => {
                 keys[e.code] = true;
                 if (e.code === 'KeyF') triggerAbility(p1Char);
-                if (e.code === 'KeyV') adjustUltronSize(1);
-                if (e.code === 'KeyC') adjustUltronSize(-1);
+                if (e.code === 'KeyL') toggleLegion();
+                if (e.code === 'KeyV') adjustSize(1);
+                if (e.code === 'KeyC') adjustSize(-1);
                 if (e.code === 'Enter') nextCharacter(1);
             });
             window.addEventListener('keyup', e => keys[e.code] = false);
 
             document.getElementById('btn-special').onclick = () => triggerAbility(p1Char);
             document.getElementById('btn-jump').onclick = () => { mobileInput.jump = true; if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); };
-            document.getElementById('btn-grow').onclick = () => adjustUltronSize(1);
-            document.getElementById('btn-shrink').onclick = () => adjustUltronSize(-1);
+            document.getElementById('btn-grow').onclick = () => adjustSize(1);
+            document.getElementById('btn-shrink').onclick = () => adjustSize(-1);
             document.getElementById('btn-switch').onclick = () => nextCharacter(1);
-            document.getElementById('btn-legion').onclick = () => { legionMode = !legionMode; updateHUD(); };
+            document.getElementById('btn-legion').onclick = () => toggleLegion();
 
             const joy = document.getElementById('joystick-container');
             const stick = document.createElement('div');
@@ -476,22 +567,129 @@
 
         function triggerAbility(char) {
             const mesh = characters[char].mesh;
-            const s = createBox(3, 3, 3, char === 'BLACK_PANTHER' ? 0xaa00ff : charData[char].color, false, true);
+            const d = charData[char];
+            const isRedHulk = char === 'RED_HULK';
+            
+            const color = isRedHulk ? 0xff4400 : (char === 'BLACK_PANTHER' ? 0xaa00ff : d.color);
+            const s = createBox(3, 3, 3, color, false, true);
             s.position.copy(mesh.position); scene.add(s);
+            
+            if (isRedHulk) {
+                shakeCamera(2.0);
+                // Extra fire particles for Red Hulk
+                for(let i=0; i<20; i++) {
+                    const f = createBox(1, 1, 1, 0xffaa00);
+                    f.position.copy(mesh.position);
+                    f.userData = { 
+                        vel: new THREE.Vector3((Math.random()-0.5)*2, Math.random()*2, (Math.random()-0.5)*2),
+                        life: 1.0 
+                    };
+                    scene.add(f);
+                    bricks.push(f); // Using bricks array for simple particle cleanup
+                }
+            }
+
             let sc = 1;
             const an = () => {
-                sc += 1.2; s.scale.set(sc, sc, sc); s.material.opacity -= 0.04;
+                sc += isRedHulk ? 2.0 : 1.2; s.scale.set(sc, sc, sc); s.material.opacity -= 0.04;
                 if (s.material.opacity > 0) requestAnimationFrame(an); else scene.remove(s);
                 obstacles.forEach((o, i) => { if (o.position.distanceTo(mesh.position) < sc*2) { scene.remove(o); obstacles.splice(i, 1); score += 200; updateHUD(); spawnFlash(o.position); } });
-                // Allies don't get destroyed by your special!
             }; an();
             playSparkle();
         }
 
+
+        function toggleLegion() {
+            legionMode = !legionMode;
+            updateHUD();
+            
+            if (legionMode) {
+                // Clear existing just in case
+                legionAllies.forEach(a => scene.remove(a));
+                legionAllies = [];
+                
+                showMessage("Legion Protocol: ACTIVATED", "var(--stark-gold)");
+                charRoster.forEach((type, idx) => {
+                    if (type === p1Char) return;
+                    const mesh = buildCharacterMesh(type);
+                    mesh.visible = true;
+                    scene.add(mesh);
+                    
+                    mesh.userData = {
+                        type: 'LEGION',
+                        charType: type,
+                        speed: 0.15 + Math.random() * 0.1,
+                        rotParam: (idx / charRoster.length) * Math.PI * 2,
+                        rotSpeed: 0.02 + Math.random() * 0.02,
+                        jumpVel: 0,
+                        jumpCount: 0,
+                        lastFire: 0
+                    };
+                    
+                    // Initial position near player
+                    const pMesh = characters[p1Char].mesh;
+                    mesh.position.set(
+                        pMesh.position.x + (Math.random()-0.5) * 40,
+                        0,
+                        pMesh.position.z + (Math.random()-0.5) * 40
+                    );
+                    
+                    legionAllies.push(mesh);
+                });
+            } else {
+                showMessage("Legion Protocol: DISENGAGED");
+                legionAllies.forEach(a => scene.remove(a));
+                legionAllies = [];
+            }
+        }
+
         function nextCharacter(p) {
+            const oldChar = p1Char;
             characters[p1Char].mesh.visible = false;
             p1Char = charRoster[(charRoster.indexOf(p1Char) + 1) % charRoster.length];
             characters[p1Char].mesh.visible = true;
+            
+            // If Legion Mode is active, swap the new player character out of the legion 
+            // and put the old player character back in.
+            if (legionMode) {
+                // Find new char in legion and remove it
+                const idx = legionAllies.findIndex(a => a.userData.charType === p1Char);
+                if (idx > -1) {
+                    scene.remove(legionAllies[idx]);
+                    legionAllies.splice(idx, 1);
+                }
+                
+                // Add old char to legion at current position
+                const mesh = buildCharacterMesh(oldChar);
+                mesh.visible = true;
+                mesh.position.copy(characters[p1Char].mesh.position); // Use NEW player's position as starting point
+                mesh.userData = {
+                    type: 'LEGION',
+                    charType: oldChar,
+                    speed: 0.15 + Math.random() * 0.1,
+                    rotParam: Math.random() * Math.PI * 2,
+                    rotSpeed: 0.02 + Math.random() * 0.02,
+                    jumpVel: 0,
+                    jumpCount: 0,
+                    lastFire: 0
+                };
+                scene.add(mesh);
+                legionAllies.push(mesh);
+            }
+
+            // Re-align all drones based on new character
+            const isUltronPlayer = (p1Char === 'ULTRON');
+            enemies.forEach(en => {
+                const isDrone = (en.userData.hp !== undefined && (en.children.length > 0)); // Basic drone check
+                if (isDrone) {
+                    en.userData.type = isUltronPlayer ? 'ALLY' : 'ENEMY';
+                    // Update eyes
+                    const eye = en.children.find(c => c.geometry && c.geometry.type === 'BoxGeometry' && c.scale.x < 1);
+                    if (eye) eye.material.color.set(isUltronPlayer ? 0x00ccff : 0xff0000);
+                }
+            });
+
+            showMessage(`Switching to: ${charData[p1Char].name}`);
             updateHUD();
         }
 
@@ -499,9 +697,17 @@
             document.getElementById('score').innerText = score.toString().padStart(6, '0');
             const d = charData[p1Char];
             let nameStr = d.name;
-            if (p1Char === 'ULTRON') nameStr += ` (LEVEL ${d.sizeIndex + 1})`;
+            if (d.sizeLevels) nameStr += ` (LEVEL ${d.sizeIndex + 1})`;
             if (magnetTimer > 0) nameStr += " [MAGNET!]";
+            if (legionMode) nameStr += " [LEGION ACTIVE]";
             document.getElementById('p1-name').innerText = nameStr;
+            
+            const legionBtn = document.getElementById('btn-legion');
+            if (legionBtn) {
+                legionBtn.style.backgroundColor = legionMode ? 'var(--stark-gold)' : 'rgba(0,0,0,0.5)';
+                legionBtn.style.color = legionMode ? '#000' : 'var(--stark-gold)';
+            }
+
             const debug = document.getElementById('debug-info');
             const g = navigator.getGamepads()[0];
             debug.innerText = g ? "WAKANDA TECH: LINKED" : "WAKANDA TECH: SEARCHING";
@@ -512,6 +718,49 @@
             const f = new THREE.PointLight(0xaa00ff, 3, 12);
             f.position.copy(pos); f.position.y += 2; scene.add(f);
             setTimeout(() => scene.remove(f), 150);
+        }
+
+        function spawnLegoExplosion(pos, color, value = 0) {
+            for(let i=0; i<12; i++) {
+                const b = createBox(0.4, 0.4, 0.4, color);
+                b.position.copy(pos);
+                b.userData = {
+                    vel: new THREE.Vector3((Math.random()-0.5)*0.8, 0.5 + Math.random()*0.5, (Math.random()-0.5)*0.8),
+                    life: 1.0
+                };
+                scene.add(b);
+                bricks.push(b); 
+            }
+            if (value > 0) spawnFloatingScore(pos, value);
+            playPop();
+        }
+
+        function spawnFloatingScore(pos, value) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.font = 'bold 80px Arial';
+            ctx.fillStyle = '#ffcc00';
+            ctx.textAlign = 'center';
+            ctx.fillText(`+${value}`, 128, 80);
+            
+            const tex = new THREE.CanvasTexture(canvas);
+            const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+            const sprite = new THREE.Sprite(mat);
+            sprite.position.copy(pos);
+            sprite.position.y += 5;
+            sprite.scale.set(4, 2, 1);
+            scene.add(sprite);
+            
+            let life = 0;
+            const animate = () => {
+                life += 0.02;
+                sprite.position.y += 0.1;
+                sprite.material.opacity = 1 - life;
+                if (life < 1) requestAnimationFrame(animate);
+                else scene.remove(sprite);
+            };
+            animate();
         }
 
         function getCollidedObstacle(nx, nz) {
@@ -530,7 +779,7 @@
             const currentSpeed = d.speed * (1 + (d.sizeIndex || 0) * 1.5);
 
             // Slower, smoother scaling
-            if (char === 'ULTRON') {
+            if (d.sizeLevels) {
                 d.sizeCurrent = THREE.MathUtils.lerp(d.sizeCurrent, d.sizeTarget, 0.03);
                 m.scale.set(d.sizeCurrent, d.sizeCurrent, d.sizeCurrent);
             }
@@ -546,6 +795,31 @@
                     if (m.position.y <= 0.1) { st.yVel = d.jump; st.jumpCount = 1; }
                     else if (st.jumpCount === 1) { st.yVel = d.jump; st.jumpCount = 2; playSparkle(); }
                     mobileInput.jump = false;
+                }
+
+                // Player Auto-Attack
+                const now = Date.now();
+                if (!st.lastAutoFire) st.lastAutoFire = 0;
+                // Only attack if we are NOT Ultron (Ultron drones are your allies)
+                if (p1Char !== 'ULTRON' && (now - st.lastAutoFire > 500)) {
+                    let closest = null, minDist = 40 * (d.sizeCurrent || 1);
+                    enemies.forEach(en => {
+                        if (en.userData.type === 'ENEMY') {
+                            const dist = m.position.distanceTo(en.position);
+                            if (dist < minDist) { minDist = dist; closest = en; }
+                        }
+                    });
+                    if (closest) {
+                        const pScale = (d.sizeCurrent || 1);
+                        const pSize = Math.max(1, pScale * 0.5);
+                        const p = createBox(pSize, pSize, pSize, d.color, true);
+                        p.position.copy(m.position); p.position.y += 2 * pScale;
+                        const pDir = closest.position.clone().add(new THREE.Vector3(0, 2, 0)).sub(p.position).normalize();
+                        p.userData = { vel: pDir.multiplyScalar(3.0), life: 100, charType: p1Char, hitRadius: 5 * pScale };
+                        scene.add(p); projectiles.push(p);
+                        st.lastAutoFire = now;
+                        playSparkle();
+                    }
                 }
             }
 
@@ -580,61 +854,235 @@
                 
                 if (d.isGiant) {
                     m.position.y += Math.abs(wave) * 0.1 * (d.sizeCurrent / 4); 
+                    // Footstep shake
+                    if (Math.abs(wave) > 0.9 && !st.lastStep) {
+                        shakeCamera(d.sizeCurrent * 0.02);
+                        st.lastStep = true;
+                    } else if (Math.abs(wave) < 0.1) {
+                        st.lastStep = false;
+                    }
                 }
+
             } else {
                 if (m.userData.lLeg) m.userData.lLeg.rotation.x = 0;
                 if (m.userData.rLeg) m.userData.rLeg.rotation.x = 0;
             }
 
             st.yVel -= st.gravity; m.position.y += st.yVel;
-            if (m.position.y < 0) { m.position.y = 0; st.yVel = 0; st.jumpCount = 0; }
+            if (m.position.y < 0) { 
+                if (st.yVel < -0.1 && d.isGiant) {
+                    shakeCamera(d.sizeCurrent * 0.1);
+                    spawnLegoExplosion(m.position, d.color, 0);
+                }
+                m.position.y = 0; st.yVel = 0; st.jumpCount = 0; 
+            }
+
+            // Screen Shake & Heat Particles for Red Hulk
+            if (isP1 && d.heatMode) {
+                if (Math.random() < 0.3) createHeatParticle(m.position, d.sizeCurrent);
+                if (m.userData.glow) {
+                    m.userData.glow.intensity = 1 + Math.sin(Date.now() * 0.01) * 0.5;
+                }
+            }
+
             
-            // SQUAD LOGIC (DYNAMIC CIRCLING)
+            // SQUAD / ENEMY LOGIC
             for (let i = enemies.length - 1; i >= 0; i--) {
                 const en = enemies[i];
-                const d = charData[char];
-                const scale = d.sizeCurrent || 1;
+                const pMesh = characters[p1Char].mesh;
+                const pData = charData[p1Char];
+                const pScale = pData.sizeCurrent || 1;
+                const isEnemy = en.userData.type === 'ENEMY';
                 
-                // Dynamic Circling Pattern
-                en.userData.rotParam += en.userData.rotSpeed;
-                const radius = 8 + scale * 2 + Math.sin(en.userData.rotParam * 0.5) * 3;
-                const targetX = m.position.x + Math.cos(en.userData.rotParam) * radius;
-                const targetZ = m.position.z + Math.sin(en.userData.rotParam) * radius;
-                const targetPos = new THREE.Vector3(targetX, 0, targetZ);
-                
-                const distToTarget = en.position.distanceTo(targetPos);
-                if (distToTarget > 0.5) {
-                    const dir = targetPos.sub(en.position).normalize();
-                    const moveSpeed = en.userData.speed * (1 + scale * 0.15);
-                    en.position.x += dir.x * moveSpeed;
-                    en.position.z += dir.z * moveSpeed;
-                    if (moveSpeed > 0.1) en.rotation.y = Math.atan2(dir.x, dir.z);
+                if (en.userData.hp <= 0) {
+                    spawnLegoExplosion(en.position, isEnemy ? 0x444444 : 0x888888, 500);
+                    scene.remove(en);
+                    enemies.splice(i, 1);
+                    score += 500; updateHUD();
+                    continue;
                 }
 
-                // Size Fluctuation Logic
+                if (isEnemy) {
+                    // Move to player
+                    const dir = pMesh.position.clone().sub(en.position).normalize();
+                    en.position.x += dir.x * en.userData.speed;
+                    en.position.z += dir.z * en.userData.speed;
+                    en.lookAt(pMesh.position);
+                } else {
+                    // Dynamic Circling Pattern for Allies
+                    en.userData.rotParam += en.userData.rotSpeed;
+                    const radius = 8 + pScale * 2 + Math.sin(en.userData.rotParam * 0.5) * 3;
+                    const targetX = pMesh.position.x + Math.cos(en.userData.rotParam) * radius;
+                    const targetZ = pMesh.position.z + Math.sin(en.userData.rotParam) * radius;
+                    const targetPos = new THREE.Vector3(targetX, 0, targetZ);
+                    
+                    const distToTarget = en.position.distanceTo(targetPos);
+                    if (distToTarget > 0.5) {
+                        const dir = targetPos.sub(en.position).normalize();
+                        const moveSpeed = en.userData.speed * (1 + pScale * 0.15);
+                        en.position.x += dir.x * moveSpeed;
+                        en.position.z += dir.z * moveSpeed;
+                        if (moveSpeed > 0.1) en.rotation.y = Math.atan2(dir.x, dir.z);
+                    }
+                }
+
+                // Size Fluctuation
                 if (en.userData.isSizeShifter) {
                     en.userData.scaleShift += 0.05;
-                    // Keep scale positive (Math.sin goes from -1 to 1) -> value between 0.5 and 2.0
                     const fluctuate = 1.25 + Math.sin(en.userData.scaleShift) * 0.75; 
-                    const finalScale = fluctuate * (1 + scale * 0.1); 
+                    const finalScale = fluctuate * (1 + pScale * 0.1); 
                     en.scale.set(finalScale, finalScale, finalScale);
                 }
 
-                // Smoothly adjust vertical position to current scale
                 en.position.y = THREE.MathUtils.lerp(en.position.y, 0, 0.1);
 
                 // Allies help destroy nearby obstacles
-                const interactDist = 3 + scale * 0.5;
-                obstacles.forEach((obs, oi) => {
-                    if (en.position.distanceTo(obs.position) < interactDist) {
-                        scene.remove(obs); obstacles.splice(oi, 1);
-                        score += 100; updateHUD(); spawnFlash(obs.position); playPop();
+                if (!isEnemy) {
+                    const interactDist = 3 + pScale * 0.5;
+                    obstacles.forEach((obs, oi) => {
+                        if (en.position.distanceTo(obs.position) < interactDist) {
+                            scene.remove(obs); obstacles.splice(oi, 1);
+                            score += 100; updateHUD(); spawnFlash(obs.position); playPop();
+                            spawnFloatingScore(obs.position, 100);
+                        }
+                    });
+                }
+            }
+
+            // LEGION ALLIES UPDATE - FORMATION & COOPERATION
+            legionAllies.forEach((ally, idx) => {
+                const pMesh = characters[p1Char].mesh;
+                const pData = charData[p1Char];
+                const pScale = pData.sizeCurrent || 1;
+                
+                // 1. Combat Logic - Find Priority Target
+                let targetEnemy = null;
+                let minDist = 30 * pScale;
+                enemies.forEach(en => {
+                    if (en.userData.type === 'ENEMY') {
+                        const d = ally.position.distanceTo(en.position);
+                        if (d < minDist) { minDist = d; targetEnemy = en; }
                     }
                 });
+
+                // 2. Movement Logic (Formation vs Combat)
+                let targetPos = new THREE.Vector3();
+                const now = Date.now();
+                
+                if (targetEnemy && p1Char !== 'ULTRON') {
+                    // Attack stance - move towards enemy but keep some distance
+                    const dir = targetEnemy.position.clone().sub(ally.position).normalize();
+                    targetPos.copy(targetEnemy.position).sub(dir.multiplyScalar(5 * pScale));
+                    
+                    // Fire at enemy
+                    if (now - ally.userData.lastFire > 600) {
+                        const aScale = ally.scale.y;
+                        const pSize = Math.max(0.8, aScale * 0.4);
+                        const p = createBox(pSize, pSize, pSize, charData[ally.userData.charType].color, true);
+                        p.position.copy(ally.position); p.position.y += 2 * aScale;
+                        const pDir = targetEnemy.position.clone().add(new THREE.Vector3(0,2,0)).sub(p.position).normalize();
+                        p.userData = { vel: pDir.multiplyScalar(2.5), life: 100, charType: ally.userData.charType, hitRadius: 4 * aScale };
+                        scene.add(p); projectiles.push(p);
+                        ally.userData.lastFire = now;
+                        playSparkle();
+                    }
+                } else {
+                    // Formation stance - staggered circle/V behind player
+                    const angle = (idx / legionAllies.length) * Math.PI - (Math.PI / 2);
+                    const pRot = pMesh.rotation.y;
+                    const radius = 10 * pScale + (idx % 3) * 5;
+                    const offsetX = Math.sin(pRot + angle + Math.PI) * radius;
+                    const offsetZ = Math.cos(pRot + angle + Math.PI) * radius;
+                    targetPos.set(pMesh.position.x + offsetX, 0, pMesh.position.z + offsetZ);
+                }
+
+                // 3. Appropriate Scaling Logic
+                const dAlly = charData[ally.userData.charType];
+                let targetScale = 1.0;
+                if (dAlly.sizeLevels) targetScale = dAlly.sizeLevels[0]; 
+                if (ally.userData.charType === 'HULK' || ally.userData.charType === 'THANOS') targetScale = 1.8;
+                if (ally.userData.charType === 'GODZILLA') targetScale = 3.0;
+                if (ally.userData.charType === 'HULKBUSTER') targetScale = 6.0;
+                if (ally.userData.charType === 'RED_HULK') targetScale = 10.0;
+                
+                // If the player is massive, allies grow slightly but stay proportional 
+                const growthFactor = Math.sqrt(pScale); 
+                targetScale *= growthFactor;
+                
+                ally.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+
+                // 4. Separation (Don't stack)
+                let separation = new THREE.Vector3();
+                legionAllies.forEach((other, oIdx) => {
+                    if (idx === oIdx) return;
+                    const d = ally.position.distanceTo(other.position);
+                    const minDistSep = 4 * targetScale;
+                    if (d < minDistSep) {
+                        separation.add(ally.position.clone().sub(other.position).normalize().multiplyScalar(0.4));
+                    }
+                });
+                targetPos.add(separation);
+
+                // 5. Apply Movement
+                const distToTarget = ally.position.distanceTo(targetPos);
+                if (distToTarget > 0.2) {
+                    const moveDir = targetPos.clone().sub(ally.position).normalize();
+                    const moveSpeed = (targetEnemy ? 0.4 : 0.25) * (1 + targetScale * 0.2);
+                    ally.position.x += moveDir.x * moveSpeed;
+                    ally.position.z += moveDir.z * moveSpeed;
+                    
+                    // Look at movement or enemy
+                    if (targetEnemy) {
+                        ally.lookAt(targetEnemy.position.x, ally.position.y, targetEnemy.position.z);
+                    } else {
+                        const lookTarget = ally.position.clone().add(moveDir);
+                        ally.lookAt(lookTarget.x, ally.position.y, lookTarget.z);
+                    }
+
+                    // Stride animation
+                    const wave = Math.sin(now * 0.015);
+                    if (ally.userData.lLeg) ally.userData.lLeg.rotation.x = wave * 1.2;
+                    if (ally.userData.rLeg) ally.userData.rLeg.rotation.x = -wave * 1.2;
+                } else {
+                    if (ally.userData.lLeg) ally.userData.lLeg.rotation.x = 0;
+                    if (ally.userData.rLeg) ally.userData.rLeg.rotation.x = 0;
+                }
+                
+                // Help destroy obstacles
+                const interactDistLegion = 5 + targetScale;
+                obstacles.forEach((obs, oi) => {
+                    if (ally.position.distanceTo(obs.position) < interactDistLegion) {
+                        scene.remove(obs); obstacles.splice(oi, 1);
+                        score += 200; updateHUD(); spawnFlash(obs.position); playPop();
+                        spawnFloatingScore(obs.position, 200);
+                    }
+                });
+            });
+
+            // Projectiles Update
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                p.position.add(p.userData.vel);
+                p.userData.life--;
+                
+                // Hit detection
+                const radius = p.userData.hitRadius || 5;
+                enemies.forEach(en => {
+                    if (en.userData.type === 'ENEMY' && p.position.distanceTo(en.position) < radius) {
+                        en.userData.hp -= 10;
+                        p.userData.life = 0;
+                        spawnFlash(p.position);
+                    }
+                });
+
+                if (p.userData.life <= 0) {
+                    scene.remove(p);
+                    projectiles.splice(i, 1);
+                }
             }
 
             // Performance Optimized Collection - STOP BRICKS AT LARGE SCALE
-            if (p1Char === 'ULTRON' && d.sizeCurrent > 15) return; 
+            if (d.sizeCurrent > 15) return; 
 
             const collDist = d.isGiant ? (d.sizeCurrent * 1.5) : 2.5; 
             const attractRange = d.isGiant ? Math.max(22, d.sizeCurrent * 5) : 22;
@@ -663,11 +1111,11 @@
             
             // PS Buttons
             if (gp.buttons[0].pressed && !keys['gpSizeUp']) { 
-                adjustUltronSize(1); keys['gpSizeUp'] = true;
+                adjustSize(1); keys['gpSizeUp'] = true;
             } else if (!gp.buttons[0].pressed) keys['gpSizeUp'] = false;
 
             if (gp.buttons[1].pressed && !keys['gpSizeDown']) { 
-                adjustUltronSize(-1); keys['gpSizeDown'] = true;
+                adjustSize(-1); keys['gpSizeDown'] = true;
             } else if (!gp.buttons[1].pressed) keys['gpSizeDown'] = false;
             
             // Extra actions
@@ -675,12 +1123,22 @@
             if (!gp.buttons[2].pressed) keys['gpA']=false;
             if (gp.buttons[3].pressed && !keys['gpS']) { nextCharacter(1); keys['gpS']=true; }
             if (!gp.buttons[3].pressed) keys['gpS']=false;
+            
+            // Legion on Options/Start (Button 9)
+            if (gp.buttons[9].pressed && !keys['gpLegion']) { toggleLegion(); keys['gpLegion']=true; }
+            if (!gp.buttons[9].pressed) keys['gpLegion']=false;
+
             if (gp.buttons[10].pressed) mobileInput.jump = true; // L3 or R3 for jump as backup
         }
 
         function animate() {
             requestAnimationFrame(animate);
             updateGamepad();
+            
+            const pMesh = characters[p1Char].mesh;
+            playerPosHistory.unshift(pMesh.position.clone());
+            if(playerPosHistory.length > 500) playerPosHistory.pop();
+
             updatePlayer(p1Char, true);
             if (magnetTimer > 0) magnetTimer--;
             
@@ -702,8 +1160,9 @@
 
             // Spawn swarm periodically in front
             enemySpawnTimer++;
-            if (enemySpawnTimer > 180 && enemies.length < 100) {
-                spawnEnemiesInFront(15);
+            const spawnRate = legionMode ? 100 : 200;
+            if (enemySpawnTimer > spawnRate && enemies.length < 150) {
+                spawnEnemiesInFront(legionMode ? 20 : 10);
                 enemySpawnTimer = 0;
             }
             
@@ -718,8 +1177,31 @@
             const lookTarget = targetPos.clone().add(new THREE.Vector3(0, scale * 1.5, 0));
             
             camera.position.lerp(targetPos.add(camOffset), 0.1);
+            
+            // Apply Camera Shake
+            if (shakeAmount > 0) {
+                camera.position.x += (Math.random() - 0.5) * shakeAmount;
+                camera.position.y += (Math.random() - 0.5) * shakeAmount;
+                shakeAmount *= 0.9;
+                if (shakeAmount < 0.01) shakeAmount = 0;
+            }
+
             camera.lookAt(lookTarget);
+
+            // Update Heat Particles
+            for (let i = heatParticles.length - 1; i >= 0; i--) {
+                const p = heatParticles[i];
+                p.position.add(p.userData.vel);
+                p.userData.life -= p.userData.decay;
+                p.scale.setScalar(p.userData.life);
+                if (p.userData.life <= 0) {
+                    scene.remove(p);
+                    heatParticles.splice(i, 1);
+                }
+            }
+
             renderer.render(scene, camera);
+
         }
 
         return { init, nextCharacter };

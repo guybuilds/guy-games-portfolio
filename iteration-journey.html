@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>הדרך לשיפור - מצגת אינטראקטיבית</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;700;900&family=Outfit:wght@800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #38bdf8;
+            --secondary: #818cf8;
+            --accent: #facc15;
+            --bg: #030712;
+            --card-bg: rgba(17, 24, 39, 0.6);
+            --text: #f9fafb;
+            --transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Heebo', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .presentation-container {
+            position: relative;
+            height: 100%;
+            width: 100%;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            text-align: center;
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(1.1);
+            transition: var(--transition);
+            z-index: 1;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+            z-index: 2;
+        }
+
+        .slide::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: -1;
+        }
+
+        .content {
+            max-width: 900px;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: clamp(3rem, 10vw, 6rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 20px;
+            background: linear-gradient(to left, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            font-weight: 300;
+            opacity: 0.9;
+            line-height: 1.4;
+        }
+
+        .highlight {
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        /* Controls */
+        .controls {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 100;
+            transition: opacity 0.5s;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            transition: 0.3s;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn:hover {
+            background: var(--primary);
+            transform: scale(1.1);
+        }
+
+        .progress {
+            position: fixed;
+            top: 0; left: 0; height: 5px;
+            background: var(--primary);
+            width: 0%;
+            transition: 0.4s;
+            z-index: 1000;
+        }
+
+        .indicator {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            font-size: 1.2rem;
+            opacity: 0.5;
+            font-weight: 700;
+        }
+
+        .hidden { opacity: 0; pointer-events: none; }
+
+        /* Slide Backgrounds */
+        #s1 { background-image: url('C:/Users/User/.gemini/antigravity/brain/02ba35ff-da81-42ba-a345-8ed0a379d87f/coding_iteration_abstract_1778681048308.png'); }
+        #s4 { background-image: url('C:/Users/User/.gemini/antigravity/brain/02ba35ff-da81-42ba-a345-8ed0a379d87f/debugging_repair_abstract_1778681268572.png'); }
+        #s8 { background-image: url('C:/Users/User/.gemini/antigravity/brain/02ba35ff-da81-42ba-a345-8ed0a379d87f/growth_abstract_impactful_1778682634686.png'); }
+        #s12 { background-image: url('C:/Users/User/.gemini/antigravity/brain/02ba35ff-da81-42ba-a345-8ed0a379d87f/coding_iteration_abstract_1778681048308.png'); }
+        
+        .grad1 { background: linear-gradient(45deg, #0f172a, #1e1b4b); }
+        .grad2 { background: linear-gradient(135deg, #1e293b, #020617); }
+        .grad3 { background: radial-gradient(circle, #1e1b4b, #000); }
+
+    </style>
+</head>
+<body>
+
+    <div class="progress" id="progress"></div>
+
+    <div class="presentation-container">
+        <div class="slide active" id="s1"><div class="content"><h1>לנסות. לתקן. לשפר.</h1></div></div>
+        <div class="slide grad1" id="s2"><div class="content"><p>זה אף פעם לא מתחיל <span class="highlight">מושלם</span>.</p></div></div>
+        <div class="slide grad2" id="s3"><div class="content"><p>המשחק הראשון שבנינו היה הכי פשוט שיש.</p></div></div>
+        <div class="slide" id="s4"><div class="content"><h1>אבל רצינו יותר.</h1></div></div>
+        <div class="slide grad3" id="s5"><div class="content"><p>ניסינו להוסיף עוד דמויות, עוד כוחות, עוד עומק.</p></div></div>
+        <div class="slide grad1" id="s6"><div class="content"><p>וזה נשבר. שוב ושוב. <br><span class="highlight">וזה בסדר.</span></p></div></div>
+        <div class="slide grad2" id="s7"><div class="content"><p>כי כל טעות לימדה אותנו איך להתקדם.</p></div></div>
+        <div class="slide" id="s8"><div class="content"><h1>השינוי הגדול.</h1><p>שינינו את הגדלים של הגיבורים עשרות פעמים.</p></div></div>
+        <div class="slide grad3" id="s9"><div class="content"><p>חיפשנו את המספר המדויק שיהפוך את הענק הירוק ל-<span class="highlight">ענק באמת</span>.</p></div></div>
+        <div class="slide grad1" id="s10"><div class="content"><p>דייקנו את תנועת המצלמה, את גובה הקפיצה, את הכל.</p></div></div>
+        <div class="slide grad2" id="s11"><div class="content"><p>המשחקים שלנו משתפרים <span class="highlight">בכל יום</span>.</p></div></div>
+        <div class="slide" id="s12" style="background-image: url('C:/Users/User/.gemini/antigravity/brain/02ba35ff-da81-42ba-a345-8ed0a379d87f/coding_iteration_abstract_1778681048308.png');">
+            <div class="content"><h1>הכל מתחיל במילים.</h1><p>כותבים את הרעיון בצ'אט, ורואים איך הקוד נולד.</p></div>
+        </div>
+        <div class="slide grad3" id="s13"><div class="content"><p>המכונה כותבת, אנחנו בודקים, מתקנים ומשחקים.</p></div></div>
+        <div class="slide grad1" id="s14"><div class="content"><p>לומדים מכל באג, משפרים כל תנועה, ונהנים מהדרך.</p></div></div>
+        <div class="slide" id="s15" style="background-image: url('C:/Users/User/.gemini/antigravity/brain/02ba35ff-da81-42ba-a345-8ed0a379d87f/growth_abstract_impactful_1778682634686.png');">
+            <div class="content"><h1>הסוד הוא פשוט:</h1><p><span class="highlight" style="font-size: 4rem;">לא לוותר.</span></p></div>
+        </div>
+        <div class="slide grad2" id="s16">
+            <div class="content">
+                <h1>תודה על ההקשבה!</h1>
+                <p style="font-size: 1.5rem; margin-top: 20px;"><a href="index.html" style="color: var(--primary); text-decoration: none; border: 2px solid var(--primary); padding: 10px 30px; border-radius: 50px;">חזרה לפורטפוליו</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls" id="controls">
+        <button class="btn" onclick="changeSlide(-1)">→</button>
+        <button class="btn" onclick="changeSlide(1)">←</button>
+    </div>
+
+    <div class="indicator" id="indicator">1 / 16</div>
+
+    <script>
+        let current = 0;
+        const slides = document.querySelectorAll('.slide');
+        const total = slides.length;
+        const progress = document.getElementById('progress');
+        const indicator = document.getElementById('indicator');
+        const controls = document.getElementById('controls');
+        let timer;
+
+        function update() {
+            slides.forEach((s, i) => s.classList.toggle('active', i === current));
+            progress.style.width = ((current + 1) / total * 100) + '%';
+            indicator.innerText = `${current + 1} / ${total}`;
+            resetTimer();
+        }
+
+        function changeSlide(dir) {
+            current = (current + dir + total) % total;
+            update();
+        }
+
+        function resetTimer() {
+            controls.classList.remove('hidden');
+            indicator.classList.remove('hidden');
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                controls.classList.add('hidden');
+                indicator.classList.add('hidden');
+            }, 3000);
+        }
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'ArrowLeft') changeSlide(1);
+            if (e.key === 'ArrowRight') changeSlide(-1);
+        });
+
+        document.addEventListener('mousemove', resetTimer);
+        document.addEventListener('touchstart', resetTimer);
+
+        update();
+    </script>
+</body>
+</html>
