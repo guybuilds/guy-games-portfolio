@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Godzilla: 3D Rampage</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;600;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="ui-overlay">
+            <header>
+                <div class="stat-group">
+                    <span class="label">NUCLEAR CHARGE</span>
+                    <div class="progress-bar-container">
+                        <div id="charge-fill" class="progress-bar-fill"></div>
+                    </div>
+                </div>
+                <div class="stat-group score-container">
+                    <span class="label">RADIATION POINTS</span>
+                    <div id="score-counter">0</div>
+                </div>
+                <div id="gamepad-status" class="status-icon">🎮</div>
+            </header>
+
+            <div id="upgrade-menu" class="panel">
+                <h2>RADIATION UPGRADES</h2>
+                <div class="upgrade-row">
+                    <span>BEAM INTENSITY</span>
+                    <button class="upgrade-btn" data-type="damage">LEVEL 1 (500 pts)</button>
+                </div>
+                <div class="upgrade-row">
+                    <span>RECHARGE RATE</span>
+                    <button class="upgrade-btn" data-type="recharge">LEVEL 1 (500 pts)</button>
+                </div>
+                <div class="upgrade-row">
+                    <span>MAX CHARGE</span>
+                    <button class="upgrade-btn" data-type="max_energy">LEVEL 1 (1000 pts)</button>
+                </div>
+                <p class="hint">PRESS 'U' TO CLOSE</p>
+            </div>
+
+            <div id="start-screen" class="screen show">
+                <h1 class="logo">3D <span>RAMPAGE</span></h1>
+                <p class="subtitle">FREE ROAM DESTRUCTION</p>
+                <button id="start-btn">ENTER 3D WORLD</button>
+                <div class="controls-hint">
+                    <p>WASD: MOVE</p>
+                    <p>MOUSE: LOOK</p>
+                    <p>SPACE: FIRE</p>
+                    <p>SHIFT: JUMP</p>
+                </div>
+            </div>
+
+            <div id="hud-notifications"></div>
+        </div>
+    </div>
+<script src="game.js"></script>
+</body>
+</html>

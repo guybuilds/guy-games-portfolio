@@ -148,6 +148,7 @@
         .char-card[data-char="raph"]::before { background: var(--neon-red); }
         .char-card[data-char="don"]::before { background: var(--neon-purple); }
         .char-card[data-char="mikey"]::before { background: var(--neon-orange); }
+        .char-card[data-char="foot"]::before { background: #6a5acd; }
 
         .char-card:hover, .char-card.selected {
             transform: translateY(-8px);
@@ -159,6 +160,7 @@
         .char-card.selected[data-char="raph"] { border-color: var(--neon-red); box-shadow: 0 0 20px rgba(255, 0, 85, 0.3); }
         .char-card.selected[data-char="don"] { border-color: var(--neon-purple); box-shadow: 0 0 20px rgba(176, 38, 255, 0.3); }
         .char-card.selected[data-char="mikey"] { border-color: var(--neon-orange); box-shadow: 0 0 20px rgba(255, 108, 0, 0.3); }
+        .char-card.selected[data-char="foot"] { border-color: #6a5acd; box-shadow: 0 0 20px rgba(106, 90, 205, 0.3); }
 
         .char-avatar {
             width: 60px;
@@ -177,6 +179,7 @@
         .char-card[data-char="raph"] .char-avatar { background: rgba(255, 0, 85, 0.2); border-color: var(--neon-red); }
         .char-card[data-char="don"] .char-avatar { background: rgba(176, 38, 255, 0.2); border-color: var(--neon-purple); }
         .char-card[data-char="mikey"] .char-avatar { background: rgba(255, 108, 0, 0.2); border-color: var(--neon-orange); }
+        .char-card[data-char="foot"] .char-avatar { background: rgba(106, 90, 205, 0.2); border-color: #6a5acd; }
 
         .char-name {
             font-size: 1.3rem;
@@ -662,6 +665,13 @@
                 <div class="char-weapon">נונצ'אקו</div>
                 <div class="char-ability-desc"><b>פצצת פיצה:</b> זורק פיצה מסתובבת שמתפוצצת במגע.</div>
             </div>
+            <!-- Foot Soldier -->
+            <div class="char-card" data-char="foot">
+                <div class="char-avatar">🥷</div>
+                <div class="char-name">חייל מסדר הרגל</div>
+                <div class="char-weapon">קטאנה ושוריקנים</div>
+                <div class="char-ability-desc"><b>מטר שוריקנים:</b> משגר מניפת כוכבי נינג'ה קדימה לחיתוך מטרות.</div>
+            </div>
         </div>
 
         <button class="play-btn" id="start-btn">התחל לשוטט 🚀</button>
@@ -759,6 +769,7 @@
                 raph: { name: "רפאל", maskColor: 0xff0044, speed: 0.28, jump: 0.35, damage: 25, ability: "זעם מוטגני [F] / ⬜", weapon: "סאי" },
                 don: { name: "דונטלו", maskColor: 0xa800ff, speed: 0.32, jump: 0.36, damage: 18, ability: "לייזר קוונטי [F] / ⬜", weapon: "בו" },
                 mikey: { name: "מיכלאנג'לו", maskColor: 0xff7700, speed: 0.38, jump: 0.42, damage: 12, ability: "פצצת פיצה [F] / ⬜", weapon: "נונצ'אקו" },
+                foot: { name: "חייל מסדר הרגל", maskColor: 0x6a5acd, speed: 0.36, jump: 0.40, damage: 20, ability: "מטר שוריקנים [F] / ⬜", weapon: "קטאנה ושוריקנים" },
                 splinter: { name: "מאסטר ספלינטר", maskColor: 0xa08060, speed: 0.25, jump: 0.30, damage: 30, ability: "מדיטציית ריפוי [F] / ⬜", weapon: "מטה עץ" },
                 shredder: { name: "שרדר", maskColor: 0xdcdcdc, speed: 0.45, jump: 0.45, damage: 35, ability: "טפרי להב [F] / ⬜", weapon: "טפרים" }
             }
@@ -1532,6 +1543,83 @@
                     return group;
                 }
 
+                if (charId === 'foot') {
+                    const ninjaBlack = 0x1a1a24;
+                    const sash = 0x6a5acd;
+
+                    // רגליים
+                    const fLegL = this.createBoxMesh(0.4, 0.85, 0.42, ninjaBlack);
+                    fLegL.position.set(-0.25, 0.42, 0);
+                    const fLegR = this.createBoxMesh(0.4, 0.85, 0.42, ninjaBlack);
+                    fLegR.position.set(0.25, 0.42, 0);
+                    group.add(fLegL, fLegR);
+
+                    // גוף
+                    const fTorso = this.createBoxMesh(0.95, 1.2, 0.55, ninjaBlack);
+                    fTorso.position.y = 1.45;
+                    group.add(fTorso);
+
+                    // חגורת בד סגולה + סמל מסדר הרגל
+                    const belt = this.createBoxMesh(0.98, 0.22, 0.58, sash);
+                    belt.position.y = 1.0;
+                    group.add(belt);
+                    const emblem = this.createBoxMesh(0.34, 0.34, 0.06, 0xcfcfe6);
+                    emblem.position.set(0, 1.55, 0.3);
+                    group.add(emblem);
+
+                    // ראש עטוף במסכת נינג'ה
+                    const fHead = this.createBoxMesh(0.6, 0.6, 0.6, ninjaBlack);
+                    fHead.position.y = 2.18;
+                    group.add(fHead);
+                    // רצועת מצח סגולה
+                    const band = this.createBoxMesh(0.64, 0.16, 0.64, sash);
+                    band.position.set(0, 2.3, 0);
+                    group.add(band);
+                    // קצוות הרצועה מתבדרים מאחור
+                    const tailA = this.createBoxMesh(0.08, 0.5, 0.08, sash);
+                    tailA.position.set(-0.12, 2.05, -0.34);
+                    tailA.rotation.x = -0.4;
+                    const tailB = this.createBoxMesh(0.08, 0.5, 0.08, sash);
+                    tailB.position.set(0.12, 2.05, -0.34);
+                    tailB.rotation.x = -0.5;
+                    group.add(tailA, tailB);
+                    // חריץ עיניים זוהר
+                    const eyes = this.createBoxMesh(0.5, 0.1, 0.05, 0xff3355);
+                    eyes.position.set(0, 2.18, 0.31);
+                    group.add(eyes);
+
+                    // זרועות עם ציר בכתף
+                    const lArmGroup = new THREE.Group();
+                    lArmGroup.position.set(-0.62, 1.85, 0);
+                    const lU = this.createBoxMesh(0.3, 0.55, 0.3, ninjaBlack);
+                    lU.position.y = -0.28; lArmGroup.add(lU);
+                    const lF = this.createBoxMesh(0.26, 0.48, 0.26, ninjaBlack);
+                    lF.position.y = -0.82; lArmGroup.add(lF);
+                    const lHand = this.createBoxMesh(0.28, 0.24, 0.28, sash);
+                    lHand.position.y = -1.12; lArmGroup.add(lHand);
+                    group.add(lArmGroup);
+
+                    const rArmGroup = new THREE.Group();
+                    rArmGroup.position.set(0.62, 1.85, 0);
+                    const rU = this.createBoxMesh(0.3, 0.55, 0.3, ninjaBlack);
+                    rU.position.y = -0.28; rArmGroup.add(rU);
+                    const rF = this.createBoxMesh(0.26, 0.48, 0.26, ninjaBlack);
+                    rF.position.y = -0.82; rArmGroup.add(rF);
+                    const rHand = this.createBoxMesh(0.28, 0.24, 0.28, sash);
+                    rHand.position.y = -1.12; rArmGroup.add(rHand);
+                    group.add(rArmGroup);
+
+                    // קטאנה אחוזה בזרוע ימין
+                    const blade = this.createBoxMesh(0.06, 1.5, 0.12, 0xdcdcdc);
+                    blade.position.set(0, -1.7, 0.2);
+                    const grip = this.createBoxMesh(0.1, 0.45, 0.16, 0x222230);
+                    grip.position.set(0, -1.05, 0.2);
+                    rArmGroup.add(blade, grip);
+
+                    group.userData = { lLeg: fLegL, rLeg: fLegR, lArm: lArmGroup, rArm: rArmGroup };
+                    return group;
+                }
+
                 const legL = this.createBoxMesh(0.42, 0.8, 0.45, skinColor);
                 legL.position.set(-0.25, 0.4, 0);
                 const legR = this.createBoxMesh(0.42, 0.8, 0.45, skinColor);
@@ -2023,6 +2111,18 @@
                     sound.playSlash();
                     this.spawnPizzaProjectile(pos, forward);
                 }
+                else if (this.activeHeroId === 'foot') {
+                    sound.playSlash();
+                    this.createAbilitySweep(pos, 5, 0x6a5acd);
+                    this.damageDestructiblesAround(pos, 5);
+                    // מניפה של שלושה שוריקנים
+                    const spread = [-0.35, 0, 0.35];
+                    spread.forEach(a => {
+                        const dir = forward.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), a);
+                        this.spawnShuriken(pos, dir);
+                    });
+                    this.triggerAnnouncement("מטר שוריקנים!");
+                }
                 else if (this.activeHeroId === 'splinter') {
                     sound.playHeal();
                     this.createAbilitySweep(pos, 8, 0x39ff14);
@@ -2118,6 +2218,30 @@
                     speed: 0.5,
                     life: 2.0,
                     type: 'PIZZA_BOMB'
+                });
+            }
+
+            spawnShuriken(startPos, forward) {
+                const star = new THREE.Group();
+                star.position.copy(startPos);
+                star.position.y += 1.1;
+
+                const bladeMat = new THREE.MeshStandardMaterial({ color: 0xcfcfe6, metalness: 0.9, roughness: 0.2 });
+                const b1 = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.04, 0.16), bladeMat);
+                const b2 = b1.clone();
+                b2.rotation.y = Math.PI / 2;
+                star.add(b1, b2);
+                const hub = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 0.18), new THREE.MeshStandardMaterial({ color: 0x6a5acd }));
+                star.add(hub);
+
+                this.scene.add(star);
+
+                this.projectiles.push({
+                    mesh: star,
+                    dir: forward.clone().normalize(),
+                    speed: 1.0,
+                    life: 1.4,
+                    type: 'SHURIKEN'
                 });
             }
 
