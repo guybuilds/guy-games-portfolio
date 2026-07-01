@@ -659,7 +659,7 @@
                 <div class="char-avatar">🟠</div>
                 <div class="char-name">גוקו</div>
                 <div class="char-weapon">טיסה + סופר-סייאן</div>
-                <div class="char-ability-desc">בלי קורים - גוקו יכול לעוף! לחצו X / C / V / B להתעלות לסופר-סייאן 1-4.</div>
+                <div class="char-ability-desc">בלי קורים - גוקו יכול לעוף! לחצו X / C / V / B להתעלות לסופר-סייאן 1-4, ו-Z לקאיו-קן.</div>
             </div>
         </div>
 
@@ -696,6 +696,7 @@
             <div class="help-item"><span class="key-badge" id="help-web-key">קליק / F</span> / <span class="key-badge">R2</span> <span id="help-web-desc">ירי קורים / נדנוד</span></div>
             <div class="help-item"><span class="key-badge">SHIFT</span> / <span class="key-badge">R1</span> ריצה</div>
             <div class="help-item"><span class="key-badge">X</span> / <span class="key-badge">C</span> / <span class="key-badge">V</span> / <span class="key-badge">B</span> גוקו: סופר-סייאן 1-4</div>
+            <div class="help-item"><span class="key-badge">Z</span> גוקו: קאיו-קן</div>
         </div>
     </div>
 
@@ -714,6 +715,7 @@
                 <button class="action-btn" id="touch-ss2" style="border-color:#ffe066;color:#ffe066;font-size:0.75rem;">SSJ2</button>
                 <button class="action-btn" id="touch-ss3" style="border-color:#fff2a8;color:#fff2a8;font-size:0.75rem;">SSJ3</button>
                 <button class="action-btn" id="touch-ss4" style="border-color:#ff5a00;color:#ff5a00;font-size:0.75rem;">SSJ4</button>
+                <button class="action-btn" id="touch-kaioken" style="border-color:#ff2200;color:#ff2200;font-size:0.7rem;">קאיו-קן</button>
             </div>
             <div class="row-btns">
                 <button class="action-btn btn-jump" id="touch-jump">קפוץ</button>
@@ -769,7 +771,8 @@
                 ss2:   { name: "סופר-סייאן 2",     hair: 0xffe680, gi: 0xff8c00, aura: 0xffe066,  speedMult: 1.3,  scale: 1.0,  sparks: true  },
                 ss3:   { name: "סופר-סייאן 3",     hair: 0xfff2a8, gi: 0xff8c00, aura: 0xffd700,  speedMult: 1.45, scale: 1.0,  sparks: true  },
                 ss4:   { name: "סופר-סייאן 4",     hair: 0xffd700, gi: 0xb8341c, aura: 0xff5a00,  speedMult: 1.6,  scale: 1.15, sparks: true  }
-            }
+            },
+            KAIOKEN: { name: "קאיו-קן", color: 0xff2200, speedMult: 1.35, sparkSize: 0.26 }
         };
 
         // ================= Web Audio Synthesizer (procedural, no audio files) =================
@@ -976,6 +979,7 @@
                 this.activeSuitId = 'classic';
                 this.activeCharacter = 'spidey'; // 'spidey' | 'goku'
                 this.saiyanForm = 'base';
+                this.kaiokenActive = false;
                 this.score = 0;
                 this.isWon = false;
                 this.gameStarted = false;
@@ -1068,6 +1072,52 @@
                 this.scene.add(this.sunLight);
             }
 
+            // Tiny pixelated grass texture (nearest-filter, tiled) for that vanilla Minecraft ground look
+            createGrassTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 16;
+                canvas.height = 16;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#5c9e3a';
+                ctx.fillRect(0, 0, 16, 16);
+                for (let i = 0; i < 55; i++) {
+                    ctx.fillStyle = Math.random() > 0.5 ? '#4f8a30' : '#6bb047';
+                    ctx.fillRect(Math.floor(Math.random() * 16), Math.floor(Math.random() * 16), 1, 1);
+                }
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.magFilter = THREE.NearestFilter;
+                tex.minFilter = THREE.NearestFilter;
+                tex.wrapS = THREE.RepeatWrapping;
+                tex.wrapT = THREE.RepeatWrapping;
+                const half = CONFIG.CITY_HALF_SIZE;
+                const tiles = Math.round((half * 2.4) / 4);
+                tex.repeat.set(tiles, tiles);
+                return tex;
+            }
+
+            // Simple blocky Minecraft-style oak tree (log trunk + stacked leaf cubes)
+            createTree(x, z) {
+                const group = new THREE.Group();
+                const trunkH = 5 + Math.random() * 2.5;
+                const trunk = this.createVoxelMesh(1.6, trunkH, 1.6, 0x6b4a2b);
+                trunk.position.y = trunkH / 2;
+                group.add(trunk);
+
+                const leafColor = [0x4f9e33, 0x5cad38, 0x458a2c][Math.floor(Math.random() * 3)];
+                const leaf1 = this.createVoxelMesh(4.4, 2.2, 4.4, leafColor);
+                leaf1.position.y = trunkH + 0.6;
+                group.add(leaf1);
+                const leaf2 = this.createVoxelMesh(3.2, 2.0, 3.2, leafColor);
+                leaf2.position.y = trunkH + 2.4;
+                group.add(leaf2);
+                const leaf3 = this.createVoxelMesh(2.0, 1.6, 2.0, leafColor);
+                leaf3.position.y = trunkH + 3.9;
+                group.add(leaf3);
+
+                group.position.set(x, 0, z);
+                return group;
+            }
+
             createBoxMesh(w, h, d, color, metalness = 0.1, roughness = 0.7) {
                 const geom = new THREE.BoxGeometry(w, h, d);
                 const mat = new THREE.MeshStandardMaterial({ color, metalness, roughness });
@@ -1109,20 +1159,17 @@
             buildWorld() {
                 const half = CONFIG.CITY_HALF_SIZE;
 
-                // Street/ground level floor - bright grass-green voxel look
+                // Street/ground level floor - pixelated, tiled grass texture (vanilla Minecraft look)
                 const streetGeo = new THREE.PlaneGeometry(half * 2.4, half * 2.4);
-                const streetMat = new THREE.MeshStandardMaterial({ color: 0x5fd15c, flatShading: true, roughness: 0.9 });
+                const grassTex = this.createGrassTexture();
+                const streetMat = new THREE.MeshStandardMaterial({ map: grassTex, flatShading: true, roughness: 0.95 });
                 const street = new THREE.Mesh(streetGeo, streetMat);
                 street.rotation.x = -Math.PI / 2;
                 street.receiveShadow = true;
                 this.scene.add(street);
 
-                const streetGrid = new THREE.GridHelper(half * 2.4, 120, 0x3fae44, 0x4bc24c);
-                streetGrid.position.y = 0.01;
-                this.scene.add(streetGrid);
-
-                // Bright, saturated Minecraft-style block palette
-                const buildingPalette = [0xe6483c, 0xf2b705, 0x3d7dd8, 0x4bbf6b, 0xff9a3c, 0x9d5cd8, 0x39c6c6];
+                // Earthy, muted vanilla-Minecraft block palette (stone, cobble, oak, brick, sandstone, quartz)
+                const buildingPalette = [0xa8a8a8, 0x8f8f8f, 0xc9a06e, 0xa5673f, 0x9c4a3c, 0xded6b3, 0xdfe0e2, 0x6b4a2b];
 
                 // City buildings — procedural generation loop (varying heights/widths), reskinned
                 // as chunky stacked voxel blocks instead of one smooth box.
@@ -1174,9 +1221,9 @@
                     // Windows as bright chunky "blocks" instead of neon glow planes
                     const winRows = Math.floor(bh / 8);
                     const winCols = Math.floor(bw / 5);
-                    const winColor = 0xfff6d0;
+                    const winColor = 0xcdeaf5;
 
-                    const winMat = new THREE.MeshStandardMaterial({ color: winColor, flatShading: true, emissive: 0x554400, emissiveIntensity: 0.3 });
+                    const winMat = new THREE.MeshStandardMaterial({ color: winColor, flatShading: true, emissive: 0x3a6b78, emissiveIntensity: 0.2 });
                     const winGeo = new THREE.BoxGeometry(1.4, 2.2, 0.25);
 
                     for (let r = 0; r < winRows; r++) {
@@ -1205,10 +1252,10 @@
 
                 // Central plaza landmark - tall chunky voxel tower for swinging anchor practice
                 const towerH = 170;
-                const towerVoxel = this.createVoxelTower(18, towerH, 18, 0xe6483c, [0xf2b705, 0x3d7dd8]);
+                const towerVoxel = this.createVoxelTower(18, towerH, 18, 0x9c4a3c, [0xc9a06e, 0xdfe0e2]);
                 towerVoxel.position.set(0, 0, 0);
                 this.scene.add(towerVoxel);
-                const towerProxy = this.createBoxMesh(18, towerH, 18, 0xe6483c, 0, 0.9);
+                const towerProxy = this.createBoxMesh(18, towerH, 18, 0x9c4a3c, 0, 0.9);
                 towerProxy.position.set(0, towerH / 2, 0);
                 towerProxy.visible = false;
                 this.scene.add(towerProxy);
@@ -1221,8 +1268,22 @@
                 towerSpire.position.set(0, towerH + 10, 0);
                 this.scene.add(towerSpire);
 
-                // Boundary walls so player doesn't run off forever - bright chunky blocks
-                const wallColor = 0x4bbf6b;
+                // Scatter Minecraft-style trees across the ground, avoiding building footprints
+                const treeCount = 90;
+                for (let i = 0; i < treeCount; i++) {
+                    let tx, tz, tooClose, attempts = 0;
+                    do {
+                        tx = (Math.random() - 0.5) * half * 2.1;
+                        tz = (Math.random() - 0.5) * half * 2.1;
+                        tooClose = this.buildings.some(b => tx > b.min.x - 4 && tx < b.max.x + 4 && tz > b.min.z - 4 && tz < b.max.z + 4);
+                        attempts++;
+                    } while (tooClose && attempts < 15);
+                    if (tooClose) continue;
+                    this.scene.add(this.createTree(tx, tz));
+                }
+
+                // Boundary walls so player doesn't run off forever - muted stone blocks
+                const wallColor = 0x8f8f8f;
                 const w1 = this.createVoxelMesh(half * 2.4, 60, 4, wallColor);
                 w1.position.set(0, 30, half * 1.2);
                 this.scene.add(w1);
@@ -1503,6 +1564,14 @@
                     } else {
                         ud.aura.visible = false;
                     }
+
+                    // Kaio-ken overrides the aura to its signature red-orange regardless of Saiyan form
+                    if (this.kaiokenActive) {
+                        ud.aura.visible = true;
+                        ud.auraMat.color.setHex(CONFIG.KAIOKEN.color);
+                        ud.auraMat.size = CONFIG.KAIOKEN.sparkSize;
+                        ud.auraMat.opacity = 1.0;
+                    }
                 }
 
                 // Overall model scale bump for SS4 "powered up" feel
@@ -1522,6 +1591,15 @@
                 if (label) label.innerText = CONFIG.SAIYAN_FORMS[nextForm].name;
 
                 this.triggerAnnouncement(nextForm === 'base' ? 'חוזר לצורה בסיסית' : `הפעלה: ${CONFIG.SAIYAN_FORMS[nextForm].name}!`);
+            }
+
+            // Kaio-ken: independent toggle that stacks on top of the current base/Super Saiyan form
+            toggleKaioken() {
+                if (this.activeCharacter !== 'goku' || !this.gameStarted) return;
+                this.kaiokenActive = !this.kaiokenActive;
+                this.applySaiyanForm(this.saiyanForm); // reapply to recompute aura with/without Kaio-ken override
+                sound.playPowerUp();
+                this.triggerAnnouncement(this.kaiokenActive ? 'קאיו-קן!!' : 'קאיו-קן כבוי');
             }
 
             spawnPickups(count) {
@@ -1626,12 +1704,14 @@
                         this.wantWebInput = true;
                     }
 
-                    // Super Saiyan transformations - Goku only, does not affect Spider-Man keybinds
-                    if (this.activeCharacter === 'goku') {
+                    // Super Saiyan / Kaio-ken transformations - Goku only, ignore browser key-repeat
+                    // so holding the key doesn't flicker the toggle on/off every frame.
+                    if (this.activeCharacter === 'goku' && !e.repeat) {
                         if (e.code === 'KeyX') this.toggleSaiyanForm('ss1');
                         else if (e.code === 'KeyC') this.toggleSaiyanForm('ss2');
                         else if (e.code === 'KeyV') this.toggleSaiyanForm('ss3');
                         else if (e.code === 'KeyB') this.toggleSaiyanForm('ss4');
+                        else if (e.code === 'KeyZ') this.toggleKaioken();
                     }
                 });
 
@@ -1659,6 +1739,8 @@
                     const btn = document.getElementById(id);
                     if (btn) btn.onclick = () => this.toggleSaiyanForm(ssMap[id]);
                 });
+                const kaiokenBtn = document.getElementById('touch-kaioken');
+                if (kaiokenBtn) kaiokenBtn.onclick = () => this.toggleKaioken();
 
                 document.getElementById('sound-btn').onclick = () => {
                     const muted = sound.toggle();
@@ -1780,6 +1862,7 @@
                     this.scene.add(this.playerGroup);
                     this.playerGroup.position.copy(this.playerPhysics.pos);
                     this.saiyanForm = 'base';
+                    this.kaiokenActive = false;
                     this.applySaiyanForm('base');
 
                     const data = CONFIG.SUITS.goku;
@@ -1788,7 +1871,7 @@
                     document.querySelector('.player-info').style.borderColor = hex;
 
                     this.updateControlLabels();
-                    this.triggerAnnouncement(`נבחר: ${data.name}! עופו עם רווח, השתלטו על כוח עם X/C/V/B!`);
+                    this.triggerAnnouncement(`נבחר: ${data.name}! עופו עם רווח, השתלטו על כוח עם X/C/V/B, ו-Z לקאיו-קן!`);
                 } else {
                     this.playerGroup = this.buildPlayerCharacter(suitId);
                     this.scene.add(this.playerGroup);
@@ -1953,7 +2036,7 @@
                     // No web fluid for Goku - ring shows full/gold, label shows current Saiyan form
                     ring.style.strokeDashoffset = 0;
                     ring.style.stroke = '#ff8c00';
-                    label.innerText = CONFIG.SAIYAN_FORMS[this.saiyanForm].name;
+                    label.innerText = CONFIG.SAIYAN_FORMS[this.saiyanForm].name + (this.kaiokenActive ? ` + ${CONFIG.KAIOKEN.name}` : '');
                     return;
                 }
 
@@ -2069,7 +2152,7 @@
                 }
 
                 const isGoku = this.activeCharacter === 'goku';
-                const saiyanSpeedMult = isGoku ? CONFIG.SAIYAN_FORMS[this.saiyanForm].speedMult : 1.0;
+                const saiyanSpeedMult = isGoku ? CONFIG.SAIYAN_FORMS[this.saiyanForm].speedMult * (this.kaiokenActive ? CONFIG.KAIOKEN.speedMult : 1.0) : 1.0;
 
                 let dx = 0, dz = 0;
                 const shiftHeld = this.keys['ShiftLeft'] || this.keys['ShiftRight'] || this.isRunning;
