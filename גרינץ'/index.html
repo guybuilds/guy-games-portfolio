@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=no">
+    <title>הגרינץ': גונב המתנות 3D | guybuilds</title>
+    <!-- Three.js for 3D graphics -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Howler.js for Audio -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700;800&family=Outfit:wght@500;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-green: #39ff14;
+            --heart-red: #ff3366;
+            --heart-pink: #ec4899;
+            --whoville-blue: #0b132b;
+            --gold: #ffd700;
+            --glass: rgba(15, 23, 42, 0.75);
+            --text-color: #f1f5f9;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #030712;
+            font-family: 'Assistant', 'Outfit', sans-serif;
+            color: var(--text-color);
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ===== UI Panels ===== */
+        .hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 100;
+        }
+
+        .hud-panel {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 15px 24px;
+            pointer-events: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .stat-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+
+        .stat-label {
+            color: var(--neon-green);
+        }
+
+        .stat-value {
+            color: #fff;
+            font-variant-numeric: tabular-nums;
+            text-shadow: 0 0 8px rgba(255,255,255,0.2);
+        }
+
+        /* Heart HUD Indicator */
+        .heart-indicator {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: var(--glass);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            padding: 10px 24px;
+            pointer-events: auto;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .heart-wrapper {
+            position: relative;
+            width: 46px;
+            height: 46px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .heart-svg {
+            width: 100%;
+            height: 100%;
+            fill: var(--heart-red);
+            filter: drop-shadow(0 0 6px var(--heart-red));
+            transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), fill 0.3s;
+        }
+
+        .heart-percent {
+            position: absolute;
+            font-size: 0.75rem;
+            font-weight: 900;
+            color: white;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+        }
+
+        .heart-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .heart-title {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            text-transform: uppercase;
+        }
+
+        .heart-desc {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--neon-green);
+        }
+
+        /* Screens */
+        .screen {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(11, 19, 43, 0.92) 0%, rgba(5, 8, 15, 0.97) 100%);
+            backdrop-filter: blur(15px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            pointer-events: auto;
+            text-align: center;
+            padding: 40px;
+            transition: opacity 0.4s ease;
+        }
+
+        .screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        h1.main-title {
+            font-size: 3.5rem;
+            font-weight: 900;
+            background: linear-gradient(to right, var(--neon-green), #a3e635, var(--heart-pink));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            text-shadow: 0 0 30px rgba(57, 255, 20, 0.25);
+        }
+
+        p.description {
+            font-size: 1.1rem;
+            opacity: 0.8;
+            max-width: 600px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--neon-green) 0%, #16a34a 100%);
+            color: #030712;
+            border: none;
+            padding: 14px 45px;
+            border-radius: 30px;
+            font-size: 1.25rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(57, 255, 20, 0.4);
+            transition: all 0.2s;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover {
+            transform: scale(1.05) translateY(-2px);
+            box-shadow: 0 12px 30px rgba(57, 255, 20, 0.6);
+        }
+
+        .help-panel {
+            margin-top: 35px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            max-width: 700px;
+            text-align: right;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 25px;
+        }
+
+        .help-col {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .help-title {
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: var(--neon-green);
+        }
+
+        .help-text {
+            font-size: 0.85rem;
+            opacity: 0.85;
+            line-height: 1.4;
+        }
+
+        /* Sound Toggle */
+        .sound-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: var(--glass);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            pointer-events: auto;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+        }
+        .sound-btn:hover {
+            border-color: var(--neon-green);
+            transform: translateY(-2px);
+        }
+
+        /* Back to Portfolio */
+        .back-link {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            padding: 10px 22px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.85rem;
+            pointer-events: auto;
+            z-index: 200;
+            transition: all 0.2s;
+        }
+        .back-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* Gamepad connected toast */
+        #gamepad-toast {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(34, 197, 94, 0.95);
+            color: #030712;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-weight: 800;
+            box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
+            z-index: 300;
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+            pointer-events: none;
+        }
+        #gamepad-toast.show {
+            opacity: 1;
+            bottom: 90px;
+        }
+
+        /* Mobile Controls HUD */
+        #mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            pointer-events: none;
+            display: none;
+            z-index: 150;
+        }
+        @media (max-width: 900px) {
+            #mobile-controls { display: flex; justify-content: space-between; align-items: flex-end; }
+            .help-panel { grid-template-columns: 1fr; gap: 15px; }
+            h1.main-title { font-size: 2.3rem; }
+        }
+        .virtual-joystick-zone {
+            width: 130px;
+            height: 130px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 2px dashed rgba(255,255,255,0.15);
+            border-radius: 50%;
+            position: relative;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .virtual-joystick-knob {
+            width: 55px;
+            height: 55px;
+            background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.05) 100%);
+            border: 2px solid var(--neon-green);
+            box-shadow: 0 0 15px rgba(57, 255, 20, 0.4);
+            border-radius: 50%;
+            position: absolute;
+        }
+        .mobile-btn-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: auto;
+        }
+        .m-row { display: flex; gap: 10px; }
+        .m-btn {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            background: var(--glass);
+            color: white;
+            font-weight: 800;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+        }
+        .m-btn:active { transform: scale(0.9); }
+        .m-btn-special { border-color: var(--neon-green); color: var(--neon-green); }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- 3D Canvas -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Sound and Back buttons -->
+        <button class="sound-btn" id="soundBtn"><span id="soundIcon">🔊</span> <span id="soundText">מוזיקה דולקת</span></button>
+        <a href="../index.html" class="back-link">חזרה לפורטפוליו</a>
+
+        <!-- Toast -->
+        <div id="gamepad-toast">🎮 שלט משחק פלייסטיישן מחובר!</div>
+
+        <!-- HUD -->
+        <div class="hud">
+            <div class="hud-panel">
+                <div class="stat-row">
+                    <span class="stat-label">ניקוד:</span>
+                    <span class="stat-value" id="hudScore">0000</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">מתנות בשק:</span>
+                    <span class="stat-value" id="hudPresents">0</span>
+                </div>
+                <div class="stat-row" style="font-size: 0.85rem; opacity: 0.8;">
+                    <span>עצים שקושטו:</span>
+                    <span class="stat-value" id="hudDecorated">0</span>
+                </div>
+            </div>
+
+            <!-- Heart Indicator -->
+            <div class="heart-indicator">
+                <div class="heart-wrapper">
+                    <svg class="heart-svg" id="heartSvg" viewBox="0 0 32 29.6">
+                        <path d="M23.6,0c-3.4,0-6.3,2.7-7.6,5.6C14.7,2.7,11.8,0,8.4,0C3.8,0,0,3.8,0,8.4c0,9.4,9.5,11.9,16,21.2
+                        c6.1-9.3,16-12.1,16-21.2C32,3.8,28.2,0,23.6,0z"/>
+                    </svg>
+                    <span class="heart-percent" id="heartPercentVal">100%</span>
+                </div>
+                <div class="heart-info">
+                    <span class="heart-title">לב הגרינץ'</span>
+                    <span class="heart-desc" id="heartStatusDesc">רגיל (100%)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Menu Screen -->
+        <div class="screen" id="menuScreen">
+            <h1 class="main-title">הגרינץ': שוטטות חופשית 3D 🎄</h1>
+            <p class="description">
+                סיירו בחופשיות ברחבי מפת חג המולד התלת-מימדית של הוביל!
+                אספו מתנות וצעצועים הפזורים בשלג, קשטו את עצי האשוח וצפו בלב של הגרינץ' גדל בתוך גופו ממש כמו בסרט!
+                חוויה מרגיעה, מהנה וללא אויבים.
+            </p>
+            <button class="btn" id="startBtn">התחל לשחק 🐾</button>
+
+            <div class="help-panel">
+                <div class="help-col">
+                    <div class="help-title">🎮 שלט משחק (Gamepad)</div>
+                    <div class="help-text">ג'ויסטיק שמאלי: תנועה חופשית ב-360 מעלות</div>
+                    <div class="help-text">כפתור דרומי (✖ / A): קפיצה</div>
+                    <div class="help-text"><b>כפתור ✖ (Cross)</b>: כיווץ הלב (מהירות על ומגנט מתנות)</div>
+                    <div class="help-text"><b>כפתור ⭕ (Circle)</b>: הגדלת הלב (הגרינץ' נהיה נחמד ומקשט עצים)</div>
+                    <div class="help-text"><b>כפתור ⬜ (Square)</b>: הגדלת הלב קצת</div>
+                </div>
+                <div class="help-col">
+                    <div class="help-title">⌨️ מקלדת מחשב</div>
+                    <div class="help-text">WASD / מקשי חיצים: תנועה חופשית</div>
+                    <div class="help-text">מקש רווח (Space): קפיצה</div>
+                    <div class="help-text"><b>מקש X</b>: כיווץ הלב למינימום (רשע ומהיר)</div>
+                    <div class="help-text"><b>מקש C / O</b>: הגדלת הלב למקסימום (נחמד וחם)</div>
+                    <div class="help-text"><b>מקש Z / S</b>: הגדלת הלב קצת</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Controls (Virtual Joystick & Action Buttons) -->
+        <div id="mobile-controls">
+            <div class="virtual-joystick-zone" id="joystickZone">
+                <div class="virtual-joystick-knob" id="joystickKnob"></div>
+            </div>
+            <div class="mobile-btn-container">
+                <button class="m-btn m-btn-special" id="mBtnX">✖</button>
+                <div class="m-row">
+                    <button class="m-btn" id="mBtnCircle">⭕</button>
+                    <button class="m-btn" id="mBtnSquare">⬜</button>
+                    <button class="m-btn" id="mBtnJump" style="background: rgba(0, 229, 255, 0.25);">קפוץ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Game Config & Variables ---
+        let gameStarted = false;
+        let score = 0;
+        let presentsCount = 0;
+        let decoratedCount = 0;
+        let audioMuted = false;
+        let heartState = 1; // 0: Tiny (Evil), 1: Normal, 2: Medium, 3: Giant (Nice)
+        let lastGamepadButtons = [];
+        let gamepadIndex = null;
+
+        // Sound System
+        let musicTrack = null;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSynthTone(freq, type, duration, vol = 0.08, slideTo = null) {
+            if (audioMuted) return;
+            initAudio();
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                if (slideTo) {
+                    osc.frequency.exponentialRampToValueAtTime(slideTo, audioCtx.currentTime + duration);
+                }
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e){}
+        }
+
+        const sounds = {
+            jump: () => playSynthTone(150, 'sine', 0.2, 0.08, 380),
+            collect: () => {
+                playSynthTone(880, 'triangle', 0.1, 0.06);
+                setTimeout(() => playSynthTone(1320, 'triangle', 0.15, 0.06), 60);
+            },
+            bark: () => {
+                playSynthTone(160, 'sawtooth', 0.08, 0.08);
+                setTimeout(() => playSynthTone(130, 'sawtooth', 0.08, 0.08), 50);
+            },
+            heartShrink: () => playSynthTone(600, 'sine', 0.35, 0.08, 200),
+            heartGrow: () => playSynthTone(250, 'triangle', 0.4, 0.1, 800),
+            decorate: () => {
+                playSynthTone(523, 'sine', 0.1, 0.08, 1046);
+                setTimeout(() => playSynthTone(784, 'sine', 0.15, 0.08, 1568), 100);
+            }
+        };
+
+        function startMusic() {
+            if (musicTrack) {
+                musicTrack.play();
+                return;
+            }
+            musicTrack = new Howl({
+                src: ['https://archive.org/download/classic-christmas-chiptunes/01_jingle_bells.mp3'],
+                html5: true,
+                loop: true,
+                volume: 0.3,
+                onloaderror: () => startProceduralMelody()
+            });
+            if (!audioMuted) musicTrack.play();
+        }
+
+        // Procedural retro Christmas melody loop fallback
+        let proceduralInterval = null;
+        function startProceduralMelody() {
+            if (proceduralInterval) return;
+            const melody = [
+                329, 329, 329, 329, 329, 329, 329, 392, 261, 293, 329,
+                349, 349, 349, 349, 349, 329, 329, 329, 329, 293, 293, 329, 293, 392
+            ];
+            let step = 0;
+            proceduralInterval = setInterval(() => {
+                if (audioMuted || !gameStarted) return;
+                playSynthTone(melody[step], 'sine', 0.15, 0.02);
+                step = (step + 1) % melody.length;
+            }, 250);
+        }
+
+        // --- 3D Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x060c1d);
+        scene.fog = new THREE.FogExp2(0x060c1d, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x1d2d50, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0x8ec5fc, 0.8);
+        dirLight.position.set(50, 100, 50);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        dirLight.shadow.camera.near = 0.5;
+        dirLight.shadow.camera.far = 250;
+        const d = 60;
+        dirLight.shadow.camera.left = -d;
+        dirLight.shadow.camera.right = d;
+        dirLight.shadow.camera.top = d;
+        dirLight.shadow.camera.bottom = -d;
+        scene.add(dirLight);
+
+        // Snowy Ground
+        const groundGeo = new THREE.PlaneGeometry(300, 300, 64, 64);
+        // Add slight bumps/hills to snow ground
+        const pos = groundGeo.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+            const vx = pos.getX(i);
+            const vy = pos.getY(i);
+            pos.setZ(i, Math.sin(vx * 0.05) * Math.cos(vy * 0.05) * 2.5);
+        }
+        groundGeo.computeVertexNormals();
+
+        const groundMat = new THREE.MeshStandardMaterial({
+            color: 0xe2e8f0,
+            roughness: 0.9,
+            metalness: 0.05
+        });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Snowy ground helper to get height at (x, z)
+        function getGroundHeight(x, z) {
+            return Math.sin(x * 0.05) * Math.cos(z * 0.05) * 2.5;
+        }
+
+        // --- Low-Poly Asset Generators ---
+
+        // Christmas Tree
+        function createChristmasTree(x, z) {
+            const group = new THREE.Group();
+            group.position.set(x, getGroundHeight(x, z), z);
+
+            // Trunk
+            const trunkGeo = new THREE.CylinderGeometry(0.3, 0.4, 1.5, 8);
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c3d2e, roughness: 0.9 });
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.y = 0.75;
+            trunk.castShadow = true;
+            group.add(trunk);
+
+            // Foliage layers (Cones)
+            const foliageMat = new THREE.MeshStandardMaterial({ color: 0x0f5132, roughness: 0.8 });
+            const cone1 = new THREE.Mesh(new THREE.ConeGeometry(2.5, 3.2, 8), foliageMat);
+            cone1.position.y = 2.5;
+            cone1.castShadow = true;
+            group.add(cone1);
+
+            const cone2 = new THREE.Mesh(new THREE.ConeGeometry(2.0, 2.6, 8), foliageMat);
+            cone2.position.y = 4.2;
+            cone2.castShadow = true;
+            group.add(cone2);
+
+            const cone3 = new THREE.Mesh(new THREE.ConeGeometry(1.4, 2.0, 8), foliageMat);
+            cone3.position.y = 5.6;
+            cone3.castShadow = true;
+            group.add(cone3);
+
+            // Star on top
+            const starGeo = new THREE.OctahedronGeometry(0.35, 0);
+            const starMat = new THREE.MeshStandardMaterial({
+                color: 0xffd700,
+                emissive: 0xffa500,
+                emissiveIntensity: 0.5
+            });
+            const star = new THREE.Mesh(starGeo, starMat);
+            star.position.y = 6.8;
+            group.add(star);
+
+            // Little colorful ornament spheres
+            const ornamentMat = new THREE.MeshStandardMaterial({ color: 0xff3366, roughness: 0.3 });
+            const ornaments = [];
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const orb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 6), ornamentMat);
+                orb.position.set(Math.cos(angle) * 1.5, 2.2 + Math.random()*2, Math.sin(angle) * 1.5);
+                group.add(orb);
+                ornaments.push(orb);
+            }
+
+            scene.add(group);
+            return { mesh: group, star: star, ornaments: ornaments, isDecorated: false, x, z };
+        }
+
+        // Toy / Present Collectibles
+        const collectibles = [];
+        function spawnPresent(x, z, type = 'present') {
+            const group = new THREE.Group();
+            group.position.set(x, getGroundHeight(x, z) + 0.4, z);
+
+            let mainMesh;
+            if (type === 'present') {
+                // Red Box
+                const boxGeo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
+                const boxMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.5 });
+                mainMesh = new THREE.Mesh(boxGeo, boxMat);
+                mainMesh.castShadow = true;
+                group.add(mainMesh);
+
+                // Ribbon
+                const ribGeo = new THREE.BoxGeometry(0.75, 0.1, 0.75);
+                const ribMat = new THREE.MeshStandardMaterial({ color: 0xffd700, roughness: 0.3 });
+                const ribbon = new THREE.Mesh(ribGeo, ribMat);
+                group.add(ribbon);
+            } else if (type === 'ball') {
+                // Striped Ball
+                const ballGeo = new THREE.SphereGeometry(0.45, 12, 12);
+                const ballMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.4 });
+                mainMesh = new THREE.Mesh(ballGeo, ballMat);
+                mainMesh.castShadow = true;
+                group.add(mainMesh);
+            } else {
+                // Teddy Bear shape
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.4), new THREE.MeshStandardMaterial({ color: 0x854d0e }));
+                body.position.y = 0.25;
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 8, 8), new THREE.MeshStandardMaterial({ color: 0x854d0e }));
+                head.position.y = 0.6;
+                group.add(body, head);
+                mainMesh = body;
+            }
+
+            scene.add(group);
+            collectibles.push({ mesh: group, type: type, collected: false, x, z });
+        }
+
+        // Houses / Village
+        function createHouse(x, z) {
+            const group = new THREE.Group();
+            group.position.set(x, getGroundHeight(x, z), z);
+
+            // Wall body
+            const wallGeo = new THREE.BoxGeometry(7, 5, 7);
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.9 });
+            const wall = new THREE.Mesh(wallGeo, wallMat);
+            wall.position.y = 2.5;
+            wall.castShadow = true;
+            wall.receiveShadow = true;
+            group.add(wall);
+
+            // Roof
+            const roofGeo = new THREE.ConeGeometry(5.8, 4, 4);
+            const roofMat = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.9 });
+            const roof = new THREE.Mesh(roofGeo, roofMat);
+            roof.rotation.y = Math.PI / 4;
+            roof.position.y = 6.5;
+            roof.castShadow = true;
+            group.add(roof);
+
+            // Glowing Windows
+            const winMat = new THREE.MeshBasicMaterial({ color: 0xfef08a }); // warm yellow
+            const winGeo = new THREE.PlaneGeometry(1.2, 1.6);
+            
+            const w1 = new THREE.Mesh(winGeo, winMat);
+            w1.position.set(0, 2.5, 3.52);
+            const w2 = new THREE.Mesh(winGeo, winMat);
+            w2.position.set(2.2, 2.5, 3.52);
+            group.add(w1, w2);
+
+            scene.add(group);
+        }
+
+        // Populate Village
+        const trees = [];
+        for (let i = 0; i < 9; i++) {
+            const angle = (i / 9) * Math.PI * 2;
+            const hx = Math.cos(angle) * 70 + (Math.random() * 8 - 4);
+            const hz = Math.sin(angle) * 70 + (Math.random() * 8 - 4);
+            createHouse(hx, hz);
+        }
+        for (let i = 0; i < 20; i++) {
+            const tx = Math.random() * 180 - 90;
+            const tz = Math.random() * 180 - 90;
+            if (Math.hypot(tx, tz) > 15) {
+                trees.push(createChristmasTree(tx, tz));
+            }
+        }
+        for (let i = 0; i < 40; i++) {
+            const px = Math.random() * 200 - 100;
+            const pz = Math.random() * 200 - 100;
+            const t = Math.random() > 0.6 ? 'present' : (Math.random() > 0.5 ? 'ball' : 'teddy');
+            spawnPresent(px, pz, t);
+        }
+
+        // --- Grinch & Max Character Low-Poly 3D Creation ---
+        const grinchGroup = new THREE.Group();
+        grinchGroup.position.set(0, getGroundHeight(0,0), 0);
+        scene.add(grinchGroup);
+
+        // Body materials
+        // Torso has transparent material to see the glowing heart inside chest
+        const greenMat = new THREE.MeshStandardMaterial({ color: 0x65a30d, roughness: 0.8 });
+        const torsoMat = new THREE.MeshStandardMaterial({ 
+            color: 0x65a30d, 
+            roughness: 0.8,
+            transparent: true,
+            opacity: 0.78  // Semi-transparent chest just like in the movie's X-Ray view!
+        });
+        const redMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.6 });
+        const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
+        const brownMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 });
+
+        // Torso
+        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.75, 1.1, 0.55), torsoMat);
+        torso.position.y = 1.05;
+        torso.castShadow = true;
+        grinchGroup.add(torso);
+
+        // Head
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 0.55), greenMat);
+        head.position.y = 1.85;
+        head.castShadow = true;
+        grinchGroup.add(head);
+
+        // Hat
+        const hatBase = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.15, 0.65), whiteMat);
+        hatBase.position.y = 2.15;
+        const hatBody = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.8, 6), redMat);
+        hatBody.position.y = 2.5;
+        const hatTip = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 6), whiteMat);
+        hatTip.position.set(-0.2, 2.9, 0);
+        grinchGroup.add(hatBase, hatBody, hatTip);
+
+        // Sack on back
+        const sack = new THREE.Mesh(new THREE.SphereGeometry(0.48, 8, 8), brownMat);
+        sack.position.set(0, 1.0, -0.45);
+        sack.castShadow = true;
+        grinchGroup.add(sack);
+
+        // Limbs (legs/arms)
+        const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), greenMat);
+        leftLeg.position.set(-0.2, 0.3, 0);
+        const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), greenMat);
+        rightLeg.position.set(0.2, 0.3, 0);
+        grinchGroup.add(leftLeg, rightLeg);
+
+        // Glowing 3D Heart INSIDE the Torso chest!
+        const heartModel = new THREE.Group();
+        // Positioned right in the middle of Grinch's chest
+        heartModel.position.set(0, 1.15, 0.05);
+        grinchGroup.add(heartModel);
+
+        const heartColorMat = new THREE.MeshBasicMaterial({ 
+            color: 0xff3366,
+            toneMapped: false
+        });
+        const leftLobe = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), heartColorMat);
+        leftLobe.position.x = -0.07;
+        leftLobe.position.y = 0.06;
+        const rightLobe = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), heartColorMat);
+        rightLobe.position.x = 0.07;
+        rightLobe.position.y = 0.06;
+        const heartTip = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.3, 6), heartColorMat);
+        heartTip.rotation.x = Math.PI;
+        heartTip.position.y = -0.08;
+        
+        heartModel.add(leftLobe, rightLobe, heartTip);
+        heartModel.scale.set(0.8, 0.8, 0.8); // Start at standard size
+
+        // Aura circle under Grinch feet (for tiny/evil mode)
+        const auraGeo = new THREE.RingGeometry(1.2, 1.3, 32);
+        const auraMat = new THREE.MeshBasicMaterial({ color: 0x39ff14, side: THREE.DoubleSide, transparent: true, opacity: 0 });
+        const aura = new THREE.Mesh(auraGeo, auraMat);
+        aura.rotation.x = Math.PI / 2;
+        aura.position.y = 0.05;
+        grinchGroup.add(aura);
+
+        // Max the Dog 3D Model
+        const maxGroup = new THREE.Group();
+        maxGroup.position.set(-2, getGroundHeight(-2, -2), -2);
+        scene.add(maxGroup);
+
+        const dogMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.8 }); // golden brown
+        const darkBrownMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
+
+        // Torso
+        const dogTorso = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.35, 0.7), dogMat);
+        dogTorso.position.y = 0.25;
+        dogTorso.castShadow = true;
+        maxGroup.add(dogTorso);
+
+        // Head
+        const dogHead = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), dogMat);
+        dogHead.position.set(0, 0.5, 0.35);
+        dogHead.castShadow = true;
+        maxGroup.add(dogHead);
+
+        // Snout
+        const snout = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.15, 0.2), dogMat);
+        snout.position.set(0, 0.45, 0.55);
+        maxGroup.add(snout);
+
+        // Ribbon and Antler
+        const ribbon = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.1), redMat);
+        ribbon.position.set(0, 0.68, 0.35);
+        const antler = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.38, 0.08), darkBrownMat);
+        antler.position.set(0, 0.85, 0.35);
+        antler.rotation.x = 0.1;
+        maxGroup.add(ribbon, antler);
+
+        // Legs
+        const legGeo = new THREE.BoxGeometry(0.12, 0.25, 0.12);
+        const fl = new THREE.Mesh(legGeo, dogMat); fl.position.set(-0.16, 0.1, 0.24);
+        const fr = new THREE.Mesh(legGeo, dogMat); fr.position.set(0.16, 0.1, 0.24);
+        const bl = new THREE.Mesh(legGeo, dogMat); bl.position.set(-0.16, 0.1, -0.24);
+        const br = new THREE.Mesh(legGeo, dogMat); br.position.set(0.16, 0.1, -0.24);
+        maxGroup.add(fl, fr, bl, br);
+
+        // --- Falling Snow Particle System ---
+        const snowCount = 400;
+        const snowGeo = new THREE.BufferGeometry();
+        const snowPositions = new Float32Array(snowCount * 3);
+        for (let i = 0; i < snowCount * 3; i += 3) {
+            snowPositions[i] = Math.random() * 120 - 60;
+            snowPositions[i + 1] = Math.random() * 50 + 2;
+            snowPositions[i + 2] = Math.random() * 120 - 60;
+        }
+        snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPositions, 3));
+        const snowMat = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 0.22,
+            transparent: true,
+            opacity: 0.8
+        });
+        const snowParticles = new THREE.Points(snowGeo, snowMat);
+        scene.add(snowParticles);
+
+        // --- Physics, Movement & Camera state ---
+        const grinchPos = grinchGroup.position;
+        const grinchVel = new THREE.Vector3();
+        let isGrounded = true;
+        let jumpTimer = 0;
+
+        const inputs = { fwd: 0, bwd: 0, lft: 0, rgt: 0, jump: false };
+        let walkTimer = 0;
+
+        // Keyboard Event Listeners
+        window.addEventListener('keydown', e => {
+            if (e.code === 'KeyW' || e.code === 'ArrowUp') inputs.fwd = 1;
+            if (e.code === 'KeyS' || e.code === 'ArrowDown') inputs.bwd = 1;
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') inputs.lft = 1;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') inputs.rgt = 1;
+            if (e.code === 'Space') {
+                e.preventDefault();
+                inputs.jump = true;
+            }
+
+            // ZXC / CO Keys for Heart manipulation
+            if (e.code === 'KeyX') setHeartState(0);
+            if (e.code === 'KeyS' || e.code === 'KeyZ') setHeartState(2);
+            if (e.code === 'KeyC' || e.code === 'KeyO') setHeartState(3);
+        });
+
+        window.addEventListener('keyup', e => {
+            if (e.code === 'KeyW' || e.code === 'ArrowUp') inputs.fwd = 0;
+            if (e.code === 'KeyS' || e.code === 'ArrowDown') inputs.bwd = 0;
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') inputs.lft = 0;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') inputs.rgt = 0;
+            if (e.code === 'Space') inputs.jump = false;
+        });
+
+        // Gamepad controller detection
+        window.addEventListener("gamepadconnected", e => {
+            gamepadIndex = e.gamepad.index;
+            document.getElementById('gamepad-toast').classList.add('show');
+            setTimeout(() => document.getElementById('gamepad-toast').classList.remove('show'), 2500);
+        });
+
+        window.addEventListener("gamepaddisconnected", () => {
+            gamepadIndex = null;
+        });
+
+        // Virtual joystick logic (for Mobile support)
+        let touchStart = null;
+        const joyKnob = document.getElementById('joystickKnob');
+        const joyZone = document.getElementById('joystickZone');
+        const maxRange = 45;
+
+        joyZone.addEventListener('touchstart', e => {
+            touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        });
+        joyZone.addEventListener('touchmove', e => {
+            if (!touchStart) return;
+            let dx = e.touches[0].clientX - touchStart.x;
+            let dy = e.touches[0].clientY - touchStart.y;
+            let dist = Math.hypot(dx, dy);
+            if (dist > maxRange) {
+                dx = (dx / dist) * maxRange;
+                dy = (dy / dist) * maxRange;
+            }
+            joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+            
+            // map joystick displacement to inputs
+            inputs.rgt = dx > 15 ? (dx / maxRange) : 0;
+            inputs.lft = dx < -15 ? (-dx / maxRange) : 0;
+            inputs.bwd = dy > 15 ? (dy / maxRange) : 0;
+            inputs.fwd = dy < -15 ? (-dy / maxRange) : 0;
+        });
+        joyZone.addEventListener('touchend', () => {
+            touchStart = null;
+            joyKnob.style.transform = 'translate(0px, 0px)';
+            inputs.fwd = inputs.bwd = inputs.lft = inputs.rgt = 0;
+        });
+
+        // Mobile Action buttons
+        document.getElementById('mBtnJump').addEventListener('touchstart', e => {
+            e.preventDefault();
+            inputs.jump = true;
+            setTimeout(() => { inputs.jump = false; }, 200);
+        });
+        document.getElementById('mBtnX').addEventListener('touchstart', () => setHeartState(0));
+        document.getElementById('mBtnCircle').addEventListener('touchstart', () => setHeartState(3));
+        document.getElementById('mBtnSquare').addEventListener('touchstart', () => setHeartState(2));
+
+        // Heart States Function (Updated to modify Heart INSIDE chest)
+        let baseHeartScale = 1.0;
+        function setHeartState(state) {
+            if (heartState === state) return;
+            heartState = state;
+
+            const hSvg = document.getElementById('heartSvg');
+            const hPct = document.getElementById('heartPercentVal');
+            const hDesc = document.getElementById('heartStatusDesc');
+
+            if (state === 0) { // Tiny/Evil/Fast
+                hSvg.style.transform = 'scale(0.5)';
+                hSvg.style.fill = '#10b981'; // Greenish
+                hSvg.style.filter = 'drop-shadow(0 0 10px #10b981)';
+                hPct.textContent = '25%';
+                hDesc.textContent = 'כועס (מהירות, מגנט)';
+                sounds.heartShrink();
+
+                baseHeartScale = 0.25;
+                heartColorMat.color.setHex(0x10b981);
+                auraMat.color.setHex(0x39ff14);
+                auraMat.opacity = 0.55;
+            } else if (state === 2) { // Medium
+                hSvg.style.transform = 'scale(1.2)';
+                hSvg.style.fill = '#f43f5e';
+                hSvg.style.filter = 'drop-shadow(0 0 10px #f43f5e)';
+                hPct.textContent = '150%';
+                hDesc.textContent = 'מתרחב (קישוט)';
+                sounds.heartGrow();
+
+                baseHeartScale = 1.5;
+                heartColorMat.color.setHex(0xf43f5e);
+                auraMat.opacity = 0;
+            } else if (state === 3) { // Giant/Nice
+                hSvg.style.transform = 'scale(1.6) rotate(-5deg)';
+                hSvg.style.fill = '#ec4899';
+                hSvg.style.filter = 'drop-shadow(0 0 16px #ec4899)';
+                hPct.textContent = '300%';
+                hDesc.textContent = 'לב ענק ונחמד! 💖';
+                sounds.heartGrow();
+
+                // Bulges outside of the chest!
+                baseHeartScale = 3.0;
+                heartColorMat.color.setHex(0xec4899);
+                auraMat.opacity = 0;
+                setTimeout(() => sounds.bark(), 250);
+            } else {
+                baseHeartScale = 1.0;
+                heartColorMat.color.setHex(0xff3366);
+                auraMat.opacity = 0;
+            }
+        }
+
+        // Gamepad inputs handling
+        function handleGamepad() {
+            if (gamepadIndex === null) return;
+            const gp = navigator.getGamepads()[gamepadIndex];
+            if (!gp) return;
+
+            // Movement joystick mapping
+            const axX = gp.axes[0];
+            const axY = gp.axes[1];
+            inputs.rgt = axX > 0.15 ? axX : 0;
+            inputs.lft = axX < -0.15 ? -axX : 0;
+            inputs.bwd = axY > 0.15 ? axY : 0;
+            inputs.fwd = axY < -0.15 ? -axY : 0;
+
+            // Button 0 (Cross): Shrink heart
+            if (gp.buttons[0].pressed && !lastGamepadButtons[0]) setHeartState(0);
+            // Button 1 (Circle): Grow heart to max
+            if (gp.buttons[1].pressed && !lastGamepadButtons[1]) setHeartState(3);
+            // Button 2 (Square): Grow heart a little
+            if (gp.buttons[2].pressed && !lastGamepadButtons[2]) setHeartState(2);
+
+            // Button 3 (Triangle) / L1 / R1: Jump
+            inputs.jump = gp.buttons[3].pressed || gp.buttons[4].pressed || gp.buttons[5].pressed || gp.buttons[12].pressed;
+
+            lastGamepadButtons = gp.buttons.map(b => b.pressed);
+        }
+
+        // --- Game Main Loop ---
+        const clock = new THREE.Clock();
+
+        function updateGame() {
+            if (!gameStarted) return;
+
+            const delta = clock.getDelta();
+            const time = clock.getElapsedTime();
+            handleGamepad();
+
+            // Ground height reference
+            const gh = getGroundHeight(grinchPos.x, grinchPos.z);
+
+            // Basic physics
+            if (grinchPos.y > gh) {
+                grinchVel.y -= 18 * delta; // Gravity
+                isGrounded = false;
+            } else {
+                grinchPos.y = gh;
+                grinchVel.y = 0;
+                isGrounded = true;
+            }
+
+            if (inputs.jump && isGrounded && jumpTimer <= 0) {
+                grinchVel.y = 7.5;
+                jumpTimer = 0.45;
+                sounds.jump();
+            }
+            if (jumpTimer > 0) jumpTimer -= delta;
+
+            // Speed factor according to Heart size
+            let speed = 7.0;
+            if (heartState === 0) speed = 11.5; // Very fast
+            if (heartState === 3) speed = 5.8;  // Nice/relaxed
+
+            // Translate camera direction to player relative inputs
+            const moveX = (inputs.rgt - inputs.lft);
+            const moveZ = (inputs.bwd - inputs.fwd);
+            const movement = new THREE.Vector3(moveX, 0, moveZ).normalize().multiplyScalar(speed * delta);
+            
+            if (movement.lengthSq() > 0) {
+                grinchPos.add(movement);
+                // Rotate player towards moving direction
+                const angle = Math.atan2(movement.x, movement.z);
+                grinchGroup.rotation.y = angle;
+
+                // Animate limbs walking
+                walkTimer += delta * speed * 2;
+                leftLeg.position.z = Math.sin(walkTimer) * 0.25;
+                rightLeg.position.z = -Math.sin(walkTimer) * 0.25;
+            } else {
+                leftLeg.position.z = 0;
+                rightLeg.position.z = 0;
+            }
+
+            grinchPos.y += grinchVel.y * delta;
+
+            // Keep Grinch inside boundary
+            const boundary = 140;
+            grinchPos.x = Math.max(-boundary, Math.min(boundary, grinchPos.x));
+            grinchPos.z = Math.max(-boundary, Math.min(boundary, grinchPos.z));
+
+            // Max Dog Companion interpolation/follow logic
+            const maxPos = maxGroup.position;
+            const followOffset = new THREE.Vector3(0, 0, -1.2).applyAxisAngle(new THREE.Vector3(0, 1, 0), grinchGroup.rotation.y);
+            const targetMaxPos = grinchPos.clone().add(followOffset);
+            targetMaxPos.y = getGroundHeight(maxPos.x, maxPos.z);
+
+            // Interpolate Max's position
+            const followSpeed = heartState === 0 ? 5.5 : 3.8;
+            maxPos.lerp(targetMaxPos, followSpeed * delta);
+            
+            // Face Max to Grinch
+            const maxDirection = grinchPos.clone().sub(maxPos).setY(0);
+            if (maxDirection.lengthSq() > 0.05) {
+                maxGroup.rotation.y = Math.atan2(maxDirection.x, maxDirection.z);
+            }
+
+            // Animate Max walking
+            if (grinchVel.y > 0 || movement.lengthSq() > 0) {
+                fl.position.z = Math.sin(walkTimer * 1.5) * 0.12 + 0.24;
+                fr.position.z = -Math.sin(walkTimer * 1.5) * 0.12 + 0.24;
+                bl.position.z = -Math.sin(walkTimer * 1.5) * 0.12 - 0.24;
+                br.position.z = Math.sin(walkTimer * 1.5) * 0.12 - 0.24;
+            } else {
+                fl.position.z = 0.24; fr.position.z = 0.24; bl.position.z = -0.24; br.position.z = -0.24;
+            }
+
+            // Pulse and scale the Heart INSIDE the Grinch's chest dynamically like in the movie!
+            // When nice (300%), it pulses deeply and glows brighter
+            const pulseSpeed = heartState === 3 ? 12.0 : (heartState === 0 ? 3.0 : 6.0);
+            const pulseAmplitude = heartState === 3 ? 0.22 : 0.08;
+            const heartPulse = baseHeartScale * (1.0 + Math.sin(time * pulseSpeed) * pulseAmplitude);
+            heartModel.scale.set(heartPulse, heartPulse, heartPulse);
+
+            // Snow falling update
+            const pCount = snowGeo.attributes.position.count;
+            const positions = snowGeo.attributes.position.array;
+            for (let i = 0; i < pCount * 3; i += 3) {
+                positions[i + 1] -= 5.5 * delta;
+                if (positions[i + 1] < -2) {
+                    positions[i + 1] = Math.random() * 50 + 20;
+                    positions[i] = grinchPos.x + (Math.random() * 100 - 50);
+                    positions[i + 2] = grinchPos.z + (Math.random() * 100 - 50);
+                }
+            }
+            snowGeo.attributes.position.needsUpdate = true;
+
+            // Collectibles interaction
+            collectibles.forEach(col => {
+                if (col.collected) return;
+
+                col.mesh.rotation.y += delta * 1.2;
+
+                const dx = col.mesh.position.x - grinchPos.x;
+                const dy = col.mesh.position.y - grinchPos.y;
+                const dz = col.mesh.position.z - grinchPos.z;
+                const dist = Math.hypot(dx, dz);
+
+                // Magnet attraction if tiny/evil heart
+                if (heartState === 0 && dist < 14) {
+                    col.mesh.position.x += (grinchPos.x - col.mesh.position.x) * 6.5 * delta;
+                    col.mesh.position.z += (grinchPos.z - col.mesh.position.z) * 6.5 * delta;
+                }
+
+                // Collection radius
+                const grabRadius = heartState === 0 ? 2.5 : 1.6;
+                if (dist < grabRadius) {
+                    col.collected = true;
+                    sounds.collect();
+                    scene.remove(col.mesh);
+
+                    let points = 50;
+                    if (heartState === 3) points = 100;
+                    score += points;
+                    presentsCount++;
+
+                    document.getElementById('hudScore').textContent = String(score).padStart(4, '0');
+                    document.getElementById('hudPresents').textContent = presentsCount;
+
+                    // Expand Grinch's sack visually as presents grow
+                    const newSackScale = 1.0 + Math.min(presentsCount * 0.05, 1.2);
+                    sack.scale.set(newSackScale, newSackScale, newSackScale);
+                }
+            });
+
+            // Christmas Trees decorating interaction
+            trees.forEach(tree => {
+                const dx = tree.mesh.position.x - grinchPos.x;
+                const dz = tree.mesh.position.z - grinchPos.z;
+                const dist = Math.hypot(dx, dz);
+
+                // Nice state triggers decorating tree
+                if (dist < 4.0 && !tree.isDecorated && heartState === 3 && presentsCount > 0) {
+                    tree.isDecorated = true;
+                    presentsCount--;
+                    decoratedCount++;
+                    score += 250;
+
+                    sounds.decorate();
+
+                    // Light up tree star
+                    tree.star.material.color.setHex(0xff00ff);
+                    tree.star.material.emissive.setHex(0xff33cc);
+                    tree.star.material.emissiveIntensity = 1.5;
+
+                    document.getElementById('hudScore').textContent = String(score).padStart(4, '0');
+                    document.getElementById('hudPresents').textContent = presentsCount;
+                    document.getElementById('hudDecorated').textContent = decoratedCount;
+
+                    // Reset sack scale
+                    const newSackScale = 1.0 + Math.min(presentsCount * 0.05, 1.2);
+                    sack.scale.set(newSackScale, newSackScale, newSackScale);
+                }
+            });
+
+            // Camera third-person target update
+            const targetCam = new THREE.Vector3(0, 7.5, -12).applyAxisAngle(new THREE.Vector3(0, 1, 0), grinchGroup.rotation.y + Math.PI).add(grinchPos);
+            camera.position.lerp(targetCam, 5.0 * delta);
+            camera.lookAt(grinchPos.x, grinchPos.y + 1.2, grinchPos.z);
+        }
+
+        function render() {
+            renderer.render(scene, camera);
+        }
+
+        function animate() {
+            updateGame();
+            render();
+            requestAnimationFrame(animate);
+        }
+
+        // --- Menu actions ---
+        document.getElementById('startBtn').addEventListener('click', () => {
+            document.getElementById('menuScreen').classList.add('hidden');
+            gameStarted = true;
+            startMusic();
+            clock.getDelta(); // reset
+        });
+
+        // Sound settings controller
+        const soundBtn = document.getElementById('soundBtn');
+        soundBtn.addEventListener('click', () => {
+            audioMuted = !audioMuted;
+            if (audioMuted) {
+                document.getElementById('soundIcon').textContent = '🔇';
+                document.getElementById('soundText').textContent = 'מוזיקה כבויה';
+                if (musicTrack) musicTrack.mute(true);
+            } else {
+                document.getElementById('soundIcon').textContent = '🔊';
+                document.getElementById('soundText').textContent = 'מוזיקה דולקת';
+                if (musicTrack) {
+                    musicTrack.mute(false);
+                    musicTrack.play();
+                } else {
+                    startMusic();
+                }
+            }
+        });
+
+        // Window resize support
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Run animation loop
+        animate();
+    </script>
+</body>
+</html>

@@ -163,6 +163,15 @@
             position: relative;
             overflow: hidden;
         }
+        a.game-card {
+            color: inherit;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        a.game-card:focus-visible {
+            outline: 3px solid var(--c);
+            outline-offset: 5px;
+        }
         .game-card::before {
             content: '';
             position: absolute;
@@ -347,6 +356,208 @@
         .journey-banner p { margin: 0; opacity: 0.75; max-width: 640px; line-height: 1.55; }
         .journey-banner .play-btn { --c: var(--accent-color); flex-shrink: 0; }
 
+        /* ===== Development history ===== */
+        .development-history {
+            width: 100%;
+            max-width: 1100px;
+            padding: 26px 20px 6px;
+        }
+        .history-panel {
+            background:
+                linear-gradient(135deg, rgba(15, 23, 42, 0.88), rgba(30, 41, 59, 0.66)),
+                radial-gradient(at 15% 15%, rgba(250, 204, 21, 0.13), transparent 36%),
+                radial-gradient(at 85% 25%, rgba(52, 211, 153, 0.12), transparent 34%);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 20px;
+            padding: 34px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 22px 55px rgba(0,0,0,0.2);
+        }
+        .history-kicker {
+            margin: 0 0 8px;
+            color: #facc15;
+            font-weight: 800;
+            font-size: 0.9rem;
+            letter-spacing: 0.4px;
+        }
+        .history-panel h2 {
+            margin: 0 0 12px;
+            font-size: clamp(1.8rem, 4vw, 2.7rem);
+            line-height: 1.15;
+        }
+        .history-intro {
+            margin: 0;
+            max-width: 820px;
+            color: rgba(241, 245, 249, 0.76);
+            line-height: 1.7;
+            font-size: 1.04rem;
+        }
+        .history-track-wrap {
+            position: relative;
+            margin-top: 32px;
+        }
+        .history-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 4px;
+            border-radius: 999px;
+            transform: translateX(-50%);
+            background: linear-gradient(to bottom, #38bdf8, #818cf8, #f472b6, #34d399);
+            opacity: 0.65;
+        }
+        .history-track {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 34px;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .history-item {
+            --h: var(--accent-color);
+            position: relative;
+            display: flex;
+            justify-content: flex-start;
+            min-height: 210px;
+        }
+        .history-item:nth-child(even) {
+            justify-content: flex-end;
+        }
+        .history-node {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            z-index: 3;
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0b1020;
+            border: 4px solid var(--h);
+            color: var(--text-color);
+            font-size: 0.82rem;
+            font-weight: 900;
+            box-shadow: 0 0 18px color-mix(in srgb, var(--h) 70%, transparent);
+            transition: transform 0.25s, background 0.25s, color 0.25s;
+        }
+        .history-card {
+            width: calc(50% - 44px);
+            color: inherit;
+            text-decoration: none;
+            border: 1px solid color-mix(in srgb, var(--h) 34%, rgba(255,255,255,0.1));
+            border-radius: 18px;
+            padding: 24px;
+            background: rgba(15, 23, 42, 0.58);
+            backdrop-filter: blur(14px);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s, background 0.25s;
+        }
+        .history-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: var(--h);
+            opacity: 0.9;
+        }
+        .history-item:hover .history-node,
+        .history-card:focus-visible + .history-node {
+            transform: translate(-50%, -50%) scale(1.16);
+            background: var(--h);
+            color: #04111f;
+        }
+        .history-card:hover,
+        .history-card:focus-visible {
+            transform: translateY(-7px);
+            border-color: var(--h);
+            box-shadow: 0 20px 38px rgba(0,0,0,0.34), 0 0 28px color-mix(in srgb, var(--h) 38%, transparent);
+            background: rgba(30, 41, 59, 0.58);
+            outline: none;
+        }
+        .history-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .history-era {
+            color: var(--h);
+            font-weight: 900;
+            font-size: 0.82rem;
+        }
+        .history-badge {
+            border: 1px solid color-mix(in srgb, var(--h) 44%, transparent);
+            background: color-mix(in srgb, var(--h) 16%, transparent);
+            color: var(--h);
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+        .history-title-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .history-icon {
+            font-size: 2.6rem;
+            line-height: 1;
+            filter: drop-shadow(0 0 10px color-mix(in srgb, var(--h) 45%, transparent));
+        }
+        .history-title {
+            margin: 0;
+            color: var(--h);
+            font-weight: 850;
+            font-size: 1.25rem;
+            line-height: 1.25;
+        }
+        .history-text {
+            margin: 0;
+            color: rgba(241,245,249,0.72);
+            line-height: 1.55;
+            font-size: 0.94rem;
+        }
+        .history-learned {
+            margin-top: 16px;
+            padding: 14px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: rgba(241,245,249,0.82);
+            line-height: 1.5;
+            font-size: 0.88rem;
+        }
+        .history-open {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 16px;
+            color: var(--h);
+            font-weight: 850;
+            font-size: 0.9rem;
+        }
+        .history-summary {
+            margin: 24px 0 0;
+            padding: 18px 20px;
+            border-radius: 16px;
+            background: rgba(56, 189, 248, 0.08);
+            border: 1px solid rgba(56, 189, 248, 0.22);
+            color: rgba(241,245,249,0.8);
+            line-height: 1.65;
+        }
+
         footer { margin-top: auto; padding: 50px; opacity: 0.5; font-size: 0.9rem; }
 
         @media (max-width: 600px) {
@@ -357,6 +568,29 @@
             .hero-card .play-btn, .hero-badge { align-self: center; }
             .journey-banner { flex-direction: column; text-align: center; }
             .journey-banner .jb-text { text-align: center; }
+            .history-panel { padding: 26px 18px; }
+            .history-line { left: 22px; transform: none; }
+            .history-track { gap: 22px; }
+            .history-item,
+            .history-item:nth-child(even) {
+                justify-content: flex-start;
+                min-height: auto;
+                padding-left: 54px;
+            }
+            .history-node {
+                left: 22px;
+                top: 32px;
+                width: 38px;
+                height: 38px;
+                font-size: 0.72rem;
+            }
+            .history-card { width: 100%; padding: 20px; }
+            .history-meta { align-items: flex-start; flex-direction: column; }
+        }
+
+        @media (min-width: 601px) and (max-width: 980px) {
+            .history-panel { padding: 30px 22px; }
+            .history-card { width: calc(50% - 34px); }
         }
     </style>
 </head>
@@ -364,7 +598,7 @@
     <div class="bg-fx"></div>
 
     <!-- Big clickable hero CTA: Ninja Turtles (above the fold) -->
-    <a href="ninja-turtles/index.html" class="hero-cta">
+    <a href="צבי-נינג'ה/index.html" class="hero-cta">
         <div class="game-card hero-card">
             <div class="hero-icon-wrap">
                 <svg class="tmnt-icon" viewBox="0 0 100 156" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="פח אשפה עם צב נינג'ה">
@@ -427,6 +661,19 @@
         </div>
     </header>
 
+    <section class="development-history" aria-labelledby="historyTitle">
+        <div class="history-panel">
+            <p class="history-kicker">מאחורי הקלעים</p>
+            <h2 id="historyTitle">המסע ההיסטורי של המשחקים</h2>
+            <p class="history-intro">כל משחק כאן נולד מתוך גרסה קטנה, ניסוי, תיקון ועוד שיפור. הטיימליין מסודר מהחדש ביותר לישן ביותר, כדי לראות איך כל משחק הוסיף שכבה חדשה של שליטה, עיצוב, פיזיקה או עולם משחק.</p>
+            <div class="history-track-wrap">
+                <div class="history-line" aria-hidden="true"></div>
+                <ol class="history-track" id="historyTrack"></ol>
+            </div>
+            <p class="history-summary">הקו המשותף: בונים משהו שאפשר לבדוק מהר, משחקים בו, מוצאים מה חסר, ואז מוסיפים עוד שכבה של תחושה, שליטה וסגנון. לכן המאגר הוא לא רק רשימת משחקים, אלא יומן התפתחות חי של ניסוי, למידה ושדרוג.</p>
+        </div>
+    </section>
+
     <main class="game-grid" id="grid">
         <!-- Cards injected by JS below this point -->
         <div class="no-results" id="noResults">😕 לא נמצאו משחקים תואמים.</div>
@@ -435,8 +682,8 @@
     <!-- Iteration journey -->
     <div class="journey-banner">
         <div class="jb-text">
-            <h3>🚀 תהליך הפיתוח: לנסות ולתקן</h3>
-            <p>מצגת אינטראקטיבית המציגה את המסע מאחורי הקלעים: איך איטרציות, פתרון בעיות ושיפורים מתמידים הופכים רעיונות למשחקי פרימיום.</p>
+            <h3>🚀 מצגת המסע: לנסות, לתקן, לשפר</h3>
+            <p>רוצים לראות את הסיפור כמו מצגת? כאן מופיע המסע מאחורי הקלעים: איך איטרציות, פתרון בעיות ושיפורים מתמידים הפכו רעיונות קטנים למשחקים שאפשר לפתוח ולשחק.</p>
         </div>
         <a href="iteration-journey.html" class="play-btn">צפה במסע <span class="arrow">←</span></a>
     </div>
@@ -446,64 +693,84 @@
     <script>
         // ===== Game catalog (data-driven) =====
         const GAMES = [
+            { title: "איש עכביש: נדנוד חופשי", icon: "🕸️", c: "#e62429", cat: "marvel",
+              tags: ["מארוול", "3D", "חדש", "Gamepad"], href: "איש-עכביש/index.html",
+              desc: "נדנדו על קורי עכביש ברחבי עיר תלת-מימדית פתוחה כאיש העכביש. בחרו חליפה, קפצו בין גגות, אספו סמלי עכביש, פחיות נוזל קורים ועיתוני Daily Bugle. אין אויבים — רק תחושת ריחוף וחופש. תמיכה מלאה במקלדת, מגע ושלט." },
+
+            { title: "Hulk Runner: Cinematic Rage", icon: "💚", c: "#58d66b", cat: "action",
+              tags: ["Action", "Fast", "Gamepad", "Howler"], href: "האלק-רץ/index.html",
+              desc: "Run as a powerful green giant in a fast, cinematic city sprint. Jump, ground-slam, collect gamma orbs, trigger rage mode, and use keyboard, touch, or PlayStation gamepad controls." },
+
+            { title: "Brick Borough: LEGO City Builder", icon: "🏙️", c: "#f59e0b", cat: "builder",
+              tags: ["Builder", "LEGO", "City", "Save"], href: "לגו-בונה-עיר/index.html",
+              desc: "Build a colorful brick city with roads, parks, homes and civic buildings. Place pieces, plan neighborhoods, save your city, load it again, and keep expanding the borough like a living LEGO workshop." },
+
+            { title: "הגרינץ': גונב המתנות", icon: "🎄", c: "#39ff14", cat: "action",
+              tags: ["אקשן", "חג המולד", "חדש", "Gamepad"], href: "גרינץ'/index.html",
+              desc: "הצטרפו לגרינץ' ולמקס הכלב בגניבת מתנות וצעצועים מעל גגות הוביל. שלטו בגודל הלב של הגרינץ' (✖ לכיווץ הלב, ⭕ להגדלה למקסימום, ⬜ להגדלה קלה) והפכו אותו לנחמד או רשע!" },
+
             { title: "Valkyre V2: Free Spin World", icon: "V2", c: "#ffd447", cat: "action",
-              tags: ["3D", "Gamepad", "Free Roam", "New"], href: "valkyre-v2/index.html",
+              tags: ["3D", "Gamepad", "Free Roam", "New"], href: "וולקירי-2/index.html",
               desc: "Roam a bright toy world as a controllable Valkyre V2 Beyblade. Built for gamepad first: left stick movement, R2 boost, A hop, B spin burst, ramps, bumpers, discoveries, and no enemies." },
 
+            { title: "וליארטק V2: ארגז חול פיזיקלי", icon: "V2", c: "#7dd3fc", cat: "builder",
+              tags: ["Sandbox", "Physics", "3D", "Builder"], href: "וליארטק-2/index.html",
+              desc: "סימולטור בייבלייד פתוח שבו בודקים סביבונים, משנים תכונות, מוסיפים יריבים וצופים בפיזיקה בזמן אמת. זה שלב המעבדה של משחקי הבייבלייד." },
+
             { title: "Beyblade Battle Builder 3D", icon: "🌀", c: "#00f2fe", cat: "action",
-              tags: ["3D", "אקשן", "חדש", "בונה"], href: "beyblade-battle/index.html",
+              tags: ["3D", "אקשן", "חדש", "בונה"], href: "קרב-בייבלייד/index.html",
               desc: "הרכיבו בייבלייד מותאם אישית מתוך מגוון טבעות תקיפה, דיסקים ותחתיות. הכנסו לזירה תלת-מימדית עם פיזיקה ריאליסטית, מהלכי דחף, ניצוצות ופיצוצי Burst Finish!" },
 
             { title: "Dragon Ball Z — גוקו", icon: "🐉", c: "#ff9f1c", cat: "anime",
-              tags: ["אנימה", "פלטפורמר", "חדש"], href: "dragonball-z/index.html",
+              tags: ["אנימה", "פלטפורמר", "חדש"], href: "דרגון-בול-זי/index.html",
               desc: "התאמנו כגוקו בפלטפורמר אקשן! קפצו, ירו כדורי קי ושחררו קאמהמהה. השתנו דרך דרגות סופר-סייאן (עד SS5★) עם הילות אנרגיה, ברקים ועוצמה גואה. תמיכה מלאה בשלט." },
 
             { title: "הרנג'ר הזהוב", icon: "⚡", c: "#fbbf24", cat: "action",
-              tags: ["אקשן", "אספן", "חדש"], href: "power-rangers/index.html",
+              tags: ["אקשן", "אספן", "חדש"], href: "הרנג'רים/index.html",
               desc: "התחפשו לרנג'ר הזהוב, אספו מטבעות זהב ומלאו את מד העוצמה כדי להפעיל \"Gold Rush\" אדיר. עלו דרגות, רדפו אחרי שיא הניקוד ותיהנו מפסקול דינמי. תומך בשלט." },
 
             { title: "גודזילה: 3D Rampage", icon: "🦖", c: "#22c55e", cat: "action",
-              tags: ["אקשן", "3D", "חדש"], href: "ninja-turtles/Godzilla/index.html",
+              tags: ["אקשן", "3D", "חדש"], href: "גודזילה/index.html",
               desc: "הפכו למפלצת האולטימטיבית והחריבו עיר תלת-מימדית שלמה. נופצו גורדי שחקים, זרעו הרס ושלטו ברחובות במנוע Three.js עוצר נשימה." },
 
             { title: "LEGO Batman 4: Gotham Chronicles", icon: "🦇", c: "#ffcc00", cat: "dc",
-              tags: ["DC", "3D", "לגו"], href: "lego-batman-4/index.html",
+              tags: ["DC", "3D", "לגו"], href: "לגו-באטמן-4/index.html",
               desc: "הצטרפו לבאטמן, רובין ופלאש (המהיר פי 7!) בהרפתקת לגו תלת-מימד. החליפו חליפות, זמנו ונהגו בבאטמוביל, נפצו חפצי לגו והילחמו בג'וקר-מך הענקי!" },
 
             { title: "Avengers 1: Battle of NY", icon: "🛡️", c: "#38bdf8", cat: "marvel",
-              tags: ["מארוול", "קרב"], href: "avengers-1/index.html",
+              tags: ["מארוול", "קרב"], href: "נוקמים-1/index.html",
               desc: "שחקו את אחד מששת הנוקמים המקוריים בקרב מול צבא הצ'יטאורי בניו יורק. אספו אנרגיית טסראקט ושרדו ככל האפשר." },
 
             { title: "LEGO Avengers 3: Ultra Proportions", icon: "🤖", c: "#a855f7", cat: "marvel",
-              tags: ["מארוול", "לגו"], href: "lego-avengers-3/index.html",
+              tags: ["מארוול", "לגו"], href: "לגו-נוקמים-3/index.html",
               desc: "הפכו לאולטרון פריים או לענק הירוק, גדלו לממדים קוסמיים והחריבו את העיר בסימולטור השמדה עם פיזיקת גודל מתקדמת." },
 
             { title: "Marvel 2: Ultra Edition", icon: "🦸", c: "#ef4444", cat: "marvel",
-              tags: ["מארוול"], href: "marvel-2/index.html",
+              tags: ["מארוול"], href: "מארוול-2/index.html",
               desc: "המשך הלהיט עם גמישות גודל חדשה! שחקו כענק הירוק (עד פי 9) או כאיירון מן (עד פי 63), השתמשו ב-Smash וב-Unibeam והשתלטו על העיר." },
 
             { title: "Marvel 2: Mobile Edition", icon: "📱", c: "#f472b6", cat: "marvel",
-              tags: ["מארוול", "מובייל"], href: "marvel-2-mobile/index.html",
+              tags: ["מארוול", "מובייל"], href: "מארוול-2-מובייל/index.html",
               desc: "גרסת המובייל המאוחדת של Marvel 2! שליטה מלאה בגיבורים, שינוי גודל דינמי ומצב ה-Legion הייחודי באריזת HTML אחת." },
 
             { title: "Iron Man Visor", icon: "🤖", c: "#f87171", cat: "marvel",
-              tags: ["מארוול", "חוויה"], href: "iron-man-visor/index.html",
+              tags: ["מארוול", "חוויה"], href: "מסך-איירון-מן/index.html",
               desc: "חוו את העולם דרך עיניו של טוני סטארק בקונספט HUD מתקדם עם אפקטים של חלקיקים אינטראקטיביים." },
 
             { title: "Stark Run: Infinite", icon: "🏃", c: "#fb923c", cat: "marvel",
-              tags: ["מארוול", "ריצה"], href: "marvel-runner/index.html",
+              tags: ["מארוול", "ריצה"], href: "מארוול-רץ/index.html",
               desc: "הצטרפו לאיירון מן בריצה אינסופית ברחובות ניו יורק. התחמקו ממכשולים, השתמשו בבוסטים והשיגו את הניקוד הגבוה ביותר!" },
 
             { title: "Pac-Man Retro", icon: "🍕", c: "#facc15", cat: "classic",
-              tags: ["קלאסי", "רטרו"], href: "pacman/index.html",
+              tags: ["קלאסי", "רטרו"], href: "פאקמן/index.html",
               desc: "הקלאסיקה האהובה בגרסה מודרנית וצבעונית עם מכניקת משחק מדויקת." },
 
             { title: "Snake Premium", icon: "🐍", c: "#4ade80", cat: "classic",
-              tags: ["קלאסי", "רטרו"], href: "snake/index.html",
+              tags: ["קלאסי", "רטרו"], href: "נחש/index.html",
               desc: "משחק הסנייק עם עיצוב נקי, בקרת מהירות ואפקטים חזותיים מרשימים." },
 
             { title: "Ninja Fruits", icon: "🥷", c: "#34d399", cat: "classic",
-              tags: ["אקשן", "ארקייד"], href: "ninja-fruits/index.html",
+              tags: ["אקשן", "ארקייד"], href: "נינגה-פירות/index.html",
               desc: "משחק חיתוך פירות ממכר עם אפקטים מרשימים, פצצות מאתגרות ודרגות קושי עולות. הוכיחו את כישורי הנינג'ה שלכם!" },
         ];
 
@@ -513,11 +780,142 @@
             { key: "dc", label: "DC" },
             { key: "anime", label: "אנימה" },
             { key: "action", label: "אקשן" },
+            { key: "builder", label: "בנייה" },
             { key: "classic", label: "קלאסי" },
+        ];
+
+        const DEVELOPMENT_HISTORY = [
+            {
+                order: 21, era: "הכי חדש", title: "איש עכביש: נדנוד חופשי", icon: "🕸️", c: "#e62429",
+                href: "איש-עכביש/index.html",
+                text: "משחק חדש שהתמקד בתחושת תנועה אחת: נדנוד קורים בין גורדי שחקים בעיר תלת-מימדית פתוחה, בלי אויבים או קרב.",
+                learned: "בנינו פיזיקת מטוטלת ריאליסטית לחבל הקורים, וטיפלנו בקלט משולש (מקלדת, מגע, שלט) כדי שהתנועה תרגיש חלקה בכל פלטפורמה."
+            },
+            {
+                order: 20, era: "חדש", title: "Valkyre V2: Free Spin World", icon: "V2", c: "#ffd447",
+                href: "וולקירי-2/index.html",
+                text: "עולם צעצוע פתוח שבו הסביבון כבר לא רק נלחם בזירה, אלא מסתובב, קופץ, מאיץ וחוקר מרחב חופשי.",
+                learned: "שיפרנו שליטה בשלט, תנועה חופשית, בוסט, קפיצה וסביבת משחק רגועה בלי אויבים."
+            },
+            {
+                order: 19, era: "חדש", title: "צבי הנינג'ה: שומרי הביוב 3D", icon: "🐢", c: "#39ff14",
+                href: "צבי-נינג'ה/index.html",
+                text: "משחק הדגל הוסיף עיר וביוב תלת-מימדיים, ארבע דמויות, איסוף, יכולות מיוחדות ותחושת הרפתקה גדולה יותר.",
+                learned: "כאן התחזקו מצלמה, שוטטות חופשית, החלפת דמויות ותמיכה מלאה בשלט."
+            },
+            {
+                order: 18, era: "חדש", title: "Brick Borough: LEGO City Builder", icon: "🏙️", c: "#f59e0b",
+                href: "לגו-בונה-עיר/index.html",
+                text: "במקום רק לרוץ או להילחם, המשחק הזה נתן לשחקן לבנות עיר מלבנים ולשמור את מה שיצר.",
+                learned: "למדנו לבנות כלי יצירה: בחירת חלקים, הצבה, שמירה, טעינה ותכנון עירוני קטן."
+            },
+            {
+                order: 17, era: "חדש", title: "Hulk Runner: Cinematic Rage", icon: "💚", c: "#58d66b",
+                href: "האלק-רץ/index.html",
+                text: "ריצת עיר מהירה עם קפיצות, סלאם, איסוף גאמא ומצב זעם שמרגיש קולנועי וחזק.",
+                learned: "הדגש היה על קצב, משוב מיידי, סאונד, אנימציות ותחושה של כוח בזמן ריצה."
+            },
+            {
+                order: 16, era: "חדש", title: "הגרינץ': גונב המתנות", icon: "🎄", c: "#39ff14",
+                href: "גרינץ'/index.html",
+                text: "משחק חגיגי שהוסיף מכניקה מצחיקה סביב גודל הלב של הגרינץ' ואיסוף מתנות על גגות.",
+                learned: "בדקנו איך מכניקה אחת ברורה יכולה להפוך אופי של דמות למשחקיות."
+            },
+            {
+                order: 15, era: "שלב בייבלייד", title: "Beyblade Battle Builder 3D", icon: "🌀", c: "#00f2fe",
+                href: "קרב-בייבלייד/index.html",
+                text: "מעבר מזירה מוכנה לכלי בנייה: מרכיבים סביבון מחלקים שונים ואז בודקים אותו בקרב.",
+                learned: "הוספנו התאמה אישית, פיזיקה, ניצוצות, דחיפות ותחושת Burst Finish."
+            },
+            {
+                order: 14, era: "מעבדה", title: "וליארטק V2: ארגז חול פיזיקלי", icon: "V2", c: "#7dd3fc",
+                href: "וליארטק-2/index.html",
+                text: "סימולטור פתוח לבדיקת סביבונים, יריבים והתנהגות פיזיקלית בזמן אמת.",
+                learned: "זה היה שלב ניסוי שבו הפרדנו בין משחק סגור לבין ארגז חול שאפשר לכוון ולבדוק."
+            },
+            {
+                order: 13, era: "עולם 3D", title: "LEGO Batman 4: Gotham Chronicles", icon: "🦇", c: "#ffcc00",
+                href: "לגו-באטמן-4/index.html",
+                text: "גותהאם הפכה למגרש משחקים עם באטמן, רובין, פלאש, חליפות, באטמוביל ובוס ענק.",
+                learned: "הוספנו רכבים, החלפת יכולות, מהירות דמות שונה, קרב בוס וסאונד דינמי."
+            },
+            {
+                order: 12, era: "אקשן", title: "הרנג'ר הזהוב", icon: "⚡", c: "#fbbf24",
+                href: "הרנג'רים/index.html",
+                text: "משחק איסוף אנרגטי סביב מטבעות, מד עוצמה ומצב Gold Rush.",
+                learned: "חיזקנו לולאת איסוף קצרה, מצב כוח זמני ופסקול שמגיב למה שקורה במשחק."
+            },
+            {
+                order: 11, era: "אנימה", title: "Dragon Ball Z — גוקו", icon: "🐉", c: "#ff9f1c",
+                href: "דרגון-בול-זי/index.html",
+                text: "פלטפורמר אקשן עם קפיצות, כדורי קי, קאמהמהה ודרגות סופר-סייאן.",
+                learned: "כאן התאמנו על טרנספורמציות, אפקטי אנרגיה, ברקים ותמיכה נוחה בשלט."
+            },
+            {
+                order: 10, era: "הרס 3D", title: "גודזילה: 3D Rampage", icon: "🦖", c: "#22c55e",
+                href: "גודזילה/index.html",
+                text: "המשחק לקח את רעיון הכוח לעיר תלת-מימדית שלמה שאפשר להרוס.",
+                learned: "בנינו קנה מידה גדול יותר, הרס סביבתי, עיר, פיצוצים ושליטה במפלצת."
+            },
+            {
+                order: 9, era: "מארוול 3D", title: "Marvel 2: Ultra Edition", icon: "🦸", c: "#ef4444",
+                href: "מארוול-2/index.html",
+                text: "המשך גדול יותר עם ענק ירוק ואיירון מן, שינויי גודל קיצוניים ויכולות התקפה.",
+                learned: "העמקנו קנה מידה דינמי, מצלמה, התקפות ותחושת גיבור גדול בתוך עיר."
+            },
+            {
+                order: 8, era: "מובייל", title: "Marvel 2: Mobile Edition", icon: "📱", c: "#f472b6",
+                href: "מארוול-2-מובייל/index.html",
+                text: "גרסה שנועדה להרגיש טוב יותר בטלפון עם שליטה וממשק מותאמים.",
+                learned: "התאמנו גודל מסך, מגע, כפתורי פעולה ואריזה נוחה של משחק בדף אחד."
+            },
+            {
+                order: 7, era: "לגו מארוול", title: "LEGO Avengers 3: Ultra Proportions", icon: "🤖", c: "#a855f7",
+                href: "לגו-נוקמים-3/index.html",
+                text: "סימולטור השמדה עם אולטרון והענק הירוק, גדילה לממדים ענקיים והרס עיר.",
+                learned: "בדקנו פיזיקת גודל, התנגשויות, חלקי לגו והרגשה של כוח שהולך וגדל."
+            },
+            {
+                order: 6, era: "קרבות", title: "Avengers 1: Battle of NY", icon: "🛡️", c: "#38bdf8",
+                href: "נוקמים-1/index.html",
+                text: "קרב מול צבא הצ'יטאורי עם ששת הנוקמים המקוריים ואיסוף אנרגיית טסראקט.",
+                learned: "התחלנו לעבוד עם רוסטר דמויות, אויבים מרובים, חיים, גלים ויכולות שונות."
+            },
+            {
+                order: 5, era: "חוויה", title: "Iron Man Visor", icon: "🤖", c: "#f87171",
+                href: "מסך-איירון-מן/index.html",
+                text: "חוויה אינטראקטיבית דרך עיני טוני סטארק, עם HUD וחלקיקים במקום משחק קלאסי.",
+                learned: "למדנו איך ממשק, זוהר, תנועה ומעקב עכבר יכולים להרגיש כמו עולם של דמות."
+            },
+            {
+                order: 4, era: "ריצה", title: "Stark Run: Infinite", icon: "🏃", c: "#fb923c",
+                href: "מארוול-רץ/index.html",
+                text: "ריצה אינסופית ברחובות עם מכשולים, בוסטים ושאיפה לשיא ניקוד.",
+                learned: "זה חיזק יצירת מסלול מתמשך, קצב עולה, תגובה מהירה וניקוד חוזר."
+            },
+            {
+                order: 3, era: "ארקייד", title: "Ninja Fruits", icon: "🥷", c: "#34d399",
+                href: "נינגה-פירות/index.html",
+                text: "משחק חיתוך פירות עם מחוות מהירות, פצצות ואפקטים צבעוניים.",
+                learned: "למדנו לזהות גרירה וחיתוך, לבנות חלקיקים ולתת משוב מספק לכל פעולה."
+            },
+            {
+                order: 2, era: "קלאסי", title: "Snake Premium", icon: "🐍", c: "#4ade80",
+                href: "נחש/index.html",
+                text: "אחד הצעדים הראשונים: לולאת משחק פשוטה, תנועה, אוכל, גדילה והתנגשות.",
+                learned: "כאן התבססו Canvas, מקלדת, מערכים, קצב משחק וכללי הפסד ברורים."
+            },
+            {
+                order: 1, era: "התחלה", title: "Pac-Man Retro", icon: "🍕", c: "#facc15",
+                href: "פאקמן/index.html",
+                text: "התחלה רטרו עם מבוך, נקודות, רוחות ותנועה בתוך רשת.",
+                learned: "זה לימד אותנו מפות דו-מימדיות, קירות, ניקוד, כוח זמני ואויבים פשוטים."
+            }
         ];
 
         const grid = document.getElementById('grid');
         const noResults = document.getElementById('noResults');
+        const historyTrack = document.getElementById('historyTrack');
         let activeCat = "all";
 
         // Build filter chips
@@ -543,16 +941,39 @@
         toolbar.appendChild(filters);
         grid.parentNode.insertBefore(toolbar, grid);
 
+        function renderHistory() {
+            const latestFirst = [...DEVELOPMENT_HISTORY].sort((a, b) => b.order - a.order);
+            historyTrack.innerHTML = latestFirst.map((step, index) => `
+                <li class="history-item" style="--h:${step.c}">
+                    <a class="history-card" href="${step.href}" aria-label="פתח את ${step.title}">
+                        <div class="history-meta">
+                            <span class="history-era">${step.era}</span>
+                            <span class="history-badge">${index === 0 ? "הכי עדכני" : `#${step.order}`}</span>
+                        </div>
+                        <div class="history-title-row">
+                            <span class="history-icon">${step.icon}</span>
+                            <h3 class="history-title">${step.title}</h3>
+                        </div>
+                        <p class="history-text">${step.text}</p>
+                        <div class="history-learned"><strong>מה למדנו ושיפרנו:</strong> ${step.learned}</div>
+                        <span class="history-open">שחק במשחק הזה <span class="arrow">←</span></span>
+                    </a>
+                    <div class="history-node" aria-hidden="true">${step.order}</div>
+                </li>`).join('');
+        }
+
         function makeCard(g) {
-            const card = document.createElement('div');
+            const card = document.createElement('a');
+            card.href = g.href;
             card.className = 'game-card enter';
+            card.setAttribute('aria-label', `שחקו עכשיו: ${g.title}`);
             card.style.setProperty('--c', g.c);
             card.innerHTML = `
                 <div class="card-tags">${g.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
                 <div class="game-icon">${g.icon}</div>
                 <div class="game-title">${g.title}</div>
                 <div class="game-desc">${g.desc}</div>
-                <a href="${g.href}" class="play-btn">שחק עכשיו <span class="arrow">←</span></a>`;
+                <span class="play-btn">שחק עכשיו <span class="arrow">←</span></span>`;
             return card;
         }
 
@@ -573,6 +994,7 @@
         }
 
         document.getElementById('stat-total').textContent = GAMES.length + 1; // +1 for the hero game
+        renderHistory();
         render();
     </script>
 </body>

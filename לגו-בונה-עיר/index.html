@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Brick Borough - LEGO City Builder</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --paper: #fff7dd;
+      --panel: #f7e6b7;
+      --panel-dark: #e4c979;
+      --red: #d93632;
+      --blue: #2376d8;
+      --yellow: #f2c231;
+      --green: #31a853;
+      --teal: #2bb6a3;
+      --purple: #8a5bd9;
+      --shadow: rgba(23, 32, 51, 0.24);
+      --line: rgba(23, 32, 51, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, #7ad0ff 0%, #b7e9ff 32%, #88c56d 32%, #66a950 100%);
+      color: var(--ink);
+      font-family: "Trebuchet MS", Arial, sans-serif;
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+    }
+
+    #app {
+      width: 100vw;
+      height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      grid-template-rows: auto minmax(0, 1fr);
+      background:
+        radial-gradient(circle at 12% 9%, rgba(255, 255, 255, 0.55), transparent 20%),
+        linear-gradient(180deg, rgba(255,255,255,0.18), transparent 36%);
+    }
+
+    .topbar {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-height: 74px;
+      padding: 12px 16px;
+      background: linear-gradient(180deg, #ffe17a, #f1bd32);
+      border-bottom: 5px solid #b97c1f;
+      box-shadow: 0 8px 24px var(--shadow);
+      z-index: 5;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 216px;
+    }
+
+    .brick-logo {
+      width: 58px;
+      height: 38px;
+      position: relative;
+      border-radius: 7px;
+      background: linear-gradient(180deg, #ff5b50, #c92724);
+      border: 2px solid rgba(0, 0, 0, 0.2);
+      box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.13), 0 4px 0 #8f1b17;
+      flex: 0 0 auto;
+    }
+
+    .brick-logo span {
+      position: absolute;
+      top: 7px;
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: #ff8279;
+      box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.16);
+    }
+
+    .brick-logo span:nth-child(1) { left: 9px; }
+    .brick-logo span:nth-child(2) { left: 23px; }
+    .brick-logo span:nth-child(3) { left: 37px; }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.08rem, 2.1vw, 1.55rem);
+      letter-spacing: 0;
+      line-height: 1.02;
+    }
+
+    .sub {
+      font-size: 0.78rem;
+      font-weight: 800;
+      opacity: 0.72;
+      text-transform: uppercase;
+    }
+
+    .meters {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(78px, 1fr));
+      gap: 8px;
+      width: 100%;
+    }
+
+    .meter {
+      min-width: 0;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.52);
+      border: 2px solid rgba(112, 72, 13, 0.18);
+      box-shadow: inset 0 -3px 0 rgba(123, 82, 19, 0.1);
+    }
+
+    .meter label {
+      display: block;
+      font-size: 0.68rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      opacity: 0.65;
+      line-height: 1;
+    }
+
+    .meter strong {
+      display: block;
+      margin-top: 3px;
+      font-size: clamp(1rem, 1.6vw, 1.32rem);
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .game {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: pointer;
+    }
+
+    .sound-toggle {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 46px;
+      height: 46px;
+      border: 3px solid rgba(23, 32, 51, 0.16);
+      border-radius: 12px;
+      background: rgba(255, 247, 221, 0.92);
+      box-shadow: 0 4px 0 #b78328;
+      font-size: 1.3rem;
+      line-height: 1;
+      cursor: pointer;
+      z-index: 6;
+      transition: transform 120ms ease, box-shadow 120ms ease;
+    }
+
+    .sound-toggle:hover,
+    .sound-toggle:focus-visible {
+      transform: translateY(-2px);
+      outline: none;
+      box-shadow: 0 6px 0 #b78328;
+    }
+
+    .sound-toggle.muted {
+      opacity: 0.6;
+      filter: grayscale(0.5);
+    }
+
+    .toast {
+      position: absolute;
+      left: 18px;
+      bottom: 18px;
+      max-width: min(520px, calc(100% - 36px));
+      padding: 12px 15px;
+      border-radius: 8px;
+      background: rgba(255, 247, 221, 0.95);
+      border: 3px solid rgba(23, 32, 51, 0.15);
+      box-shadow: 0 10px 30px var(--shadow);
+      font-weight: 900;
+      transform: translateY(120%);
+      opacity: 0;
+      transition: transform 220ms ease, opacity 220ms ease;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .sidebar {
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 14px;
+      background: linear-gradient(180deg, var(--panel), #efd28b);
+      border-left: 5px solid #bf8d2c;
+      box-shadow: -12px 0 26px var(--shadow);
+      overflow: auto;
+      z-index: 4;
+    }
+
+    .section {
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.42);
+      border: 2px solid rgba(91, 58, 10, 0.18);
+      box-shadow: inset 0 -4px 0 rgba(123, 82, 19, 0.1);
+      padding: 12px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 9px;
+      font-size: 0.78rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      opacity: 0.72;
+    }
+
+    .tools {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .tool {
+      position: relative;
+      display: grid;
+      grid-template-columns: 36px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+      min-height: 62px;
+      padding: 8px;
+      border: 3px solid rgba(23, 32, 51, 0.12);
+      border-radius: 8px;
+      background: #fff2c8;
+      box-shadow: 0 4px 0 #b78328;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+      overflow: hidden;
+    }
+
+    .tool:hover,
+    .tool:focus-visible {
+      transform: translateY(-2px);
+      outline: none;
+      box-shadow: 0 6px 0 #b78328;
+    }
+
+    .tool.active {
+      border-color: #172033;
+      background: #ffffff;
+      box-shadow: 0 4px 0 #172033;
+    }
+
+    .tool.disabled {
+      opacity: 0.48;
+      filter: grayscale(0.4);
+    }
+
+    .swatch {
+      width: 36px;
+      height: 28px;
+      border-radius: 6px;
+      position: relative;
+      border: 2px solid rgba(0, 0, 0, 0.18);
+      box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.14);
+    }
+
+    .swatch:before,
+    .swatch:after {
+      content: "";
+      position: absolute;
+      top: 6px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.34);
+      box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.12);
+    }
+
+    .swatch:before { left: 7px; }
+    .swatch:after { right: 7px; }
+
+    .tool span {
+      min-width: 0;
+    }
+
+    .tool b,
+    .tool small {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tool b {
+      font-size: 0.9rem;
+      line-height: 1.05;
+    }
+
+    .tool small {
+      margin-top: 4px;
+      font-size: 0.71rem;
+      opacity: 0.68;
+      font-weight: 900;
+    }
+
+    .goal-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .goal {
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      padding: 9px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.58);
+      border: 2px solid rgba(23, 32, 51, 0.1);
+      font-size: 0.86rem;
+      font-weight: 900;
+    }
+
+    .goal.done {
+      background: rgba(49, 168, 83, 0.18);
+      color: #17572e;
+    }
+
+    .tick {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 3px solid currentColor;
+      display: grid;
+      place-items: center;
+      font-size: 0.8rem;
+      line-height: 1;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .icon-button {
+      min-height: 44px;
+      border: 0;
+      border-radius: 8px;
+      background: #172033;
+      color: #fff7dd;
+      font-weight: 900;
+      box-shadow: 0 4px 0 #05070c;
+      cursor: pointer;
+    }
+
+    .icon-button:hover,
+    .icon-button:focus-visible {
+      transform: translateY(-1px);
+      outline: 3px solid rgba(255, 255, 255, 0.6);
+    }
+
+    .mini-map {
+      width: 100%;
+      aspect-ratio: 1.95;
+      border-radius: 8px;
+      border: 3px solid rgba(23, 32, 51, 0.14);
+      background: #8acb6a;
+      display: block;
+    }
+
+    @media (max-width: 900px) {
+      #app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+      }
+
+      .topbar {
+        min-height: 64px;
+        padding: 8px 10px;
+        gap: 8px;
+      }
+
+      .brand {
+        min-width: 150px;
+      }
+
+      .brick-logo {
+        width: 44px;
+        height: 30px;
+      }
+
+      .brick-logo span {
+        top: 5px;
+        width: 9px;
+        height: 9px;
+      }
+
+      .brick-logo span:nth-child(1) { left: 7px; }
+      .brick-logo span:nth-child(2) { left: 18px; }
+      .brick-logo span:nth-child(3) { left: 29px; }
+
+      .sub {
+        display: none;
+      }
+
+      .meters {
+        grid-template-columns: repeat(3, minmax(64px, 1fr));
+        gap: 5px;
+      }
+
+      .meter {
+        padding: 6px 7px;
+      }
+
+      .meter:nth-child(n + 4) {
+        display: none;
+      }
+
+      .sidebar {
+        border-left: 0;
+        border-top: 5px solid #bf8d2c;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        max-height: 42vh;
+        padding: 9px;
+      }
+
+      .tools {
+        grid-template-columns: repeat(4, minmax(74px, 1fr));
+        overflow-x: auto;
+        padding-bottom: 4px;
+      }
+
+      .tool {
+        grid-template-columns: 32px minmax(0, 1fr);
+        min-height: 56px;
+      }
+
+      .swatch {
+        width: 32px;
+      }
+
+      .section.optional {
+        display: none;
+      }
+    }
+
+    @media (max-width: 540px) {
+      h1 {
+        font-size: 1rem;
+      }
+
+      .brand {
+        min-width: 116px;
+      }
+
+      .meters {
+        grid-template-columns: repeat(2, minmax(62px, 1fr));
+      }
+
+      .meter:nth-child(n + 3) {
+        display: none;
+      }
+
+      .tools {
+        grid-template-columns: repeat(3, minmax(92px, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main id="app">
+    <header class="topbar">
+      <div class="brand" aria-label="Brick Borough">
+        <div class="brick-logo"><span></span><span></span><span></span></div>
+        <div>
+          <h1>Brick Borough</h1>
+          <div class="sub">Snap a tiny city together</div>
+        </div>
+      </div>
+      <div class="meters" aria-live="polite">
+        <div class="meter"><label>Coins</label><strong id="coins">0</strong></div>
+        <div class="meter"><label>Bricks</label><strong id="bricks">0</strong></div>
+        <div class="meter"><label>Citizens</label><strong id="people">0</strong></div>
+        <div class="meter"><label>Joy</label><strong id="joy">0</strong></div>
+        <div class="meter"><label>Day</label><strong id="day">1</strong></div>
+      </div>
+    </header>
+
+    <section class="game">
+      <canvas id="city" aria-label="Brick Borough build board"></canvas>
+      <button class="sound-toggle" id="soundBtn" title="Mute / unmute sounds" aria-label="Mute or unmute sounds">🔊</button>
+      <div class="toast" id="toast"></div>
+    </section>
+
+    <aside class="sidebar">
+      <section class="section">
+        <div class="section-title">
+          <span>Brick box</span>
+          <span id="selectedName">Road</span>
+        </div>
+        <div class="tools" id="tools"></div>
+      </section>
+
+      <section class="section">
+        <div class="section-title">
+          <span>Mayor goals</span>
+          <span id="score">0 pts</span>
+        </div>
+        <div class="goal-list" id="goals"></div>
+      </section>
+
+      <section class="section optional">
+        <div class="section-title">
+          <span>City map</span>
+          <span id="connected">0%</span>
+        </div>
+        <canvas class="mini-map" id="mini"></canvas>
+      </section>
+
+      <section class="section">
+        <div class="actions">
+          <button class="icon-button" id="saveBtn" title="Save city">Save</button>
+          <button class="icon-button" id="loadBtn" title="Load city">Load</button>
+          <button class="icon-button" id="newBtn" title="Start new city">New</button>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
+  <script>
+    /* ----------------------------------------------------------------
+       Audio engine (Howler.js)
+       Sound effects are synthesised at runtime into WAV data URIs so the
+       game stays fully self-contained (no external audio files needed).
+    ---------------------------------------------------------------- */
+    const SAMPLE_RATE = 44100;
+
+    function encodeWav(samples) {
+      const buffer = new ArrayBuffer(44 + samples.length * 2);
+      const view = new DataView(buffer);
+      const writeStr = (off, str) => {
+        for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i));
+      };
+      writeStr(0, "RIFF");
+      view.setUint32(4, 36 + samples.length * 2, true);
+      writeStr(8, "WAVE");
+      writeStr(12, "fmt ");
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, SAMPLE_RATE, true);
+      view.setUint32(28, SAMPLE_RATE * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeStr(36, "data");
+      view.setUint32(40, samples.length * 2, true);
+      let off = 44;
+      for (let i = 0; i < samples.length; i++) {
+        const s = Math.max(-1, Math.min(1, samples[i]));
+        view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        off += 2;
+      }
+      let binary = "";
+      const bytes = new Uint8Array(buffer);
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      return "data:audio/wav;base64," + btoa(binary);
+    }
+
+    // Build a sample buffer from one or more tonal/noise layers.
+    function synth(durationSec, render) {
+      const n = Math.floor(SAMPLE_RATE * durationSec);
+      const out = new Float32Array(n);
+      for (let i = 0; i < n; i++) out[i] = render(i / SAMPLE_RATE, i / n);
+      return encodeWav(out);
+    }
+
+    const sfxSources = {
+      // Bright two-part "snap" for clicking a brick into place.
+      snap: synth(0.16, (t, p) => {
+        const env = Math.exp(-t * 30);
+        const tick = (p < 0.06 ? (Math.random() * 2 - 1) * Math.exp(-t * 220) * 0.6 : 0);
+        const tone = Math.sin(2 * Math.PI * (720 - 180 * p) * t) * env * 0.5;
+        const tone2 = Math.sin(2 * Math.PI * 1240 * t) * Math.exp(-t * 60) * 0.25;
+        return tick + tone + tone2;
+      }),
+      // Low "thunk" for bulldozing.
+      bulldoze: synth(0.22, (t, p) => {
+        const env = Math.exp(-t * 16);
+        const body = Math.sin(2 * Math.PI * (180 - 90 * p) * t) * env * 0.6;
+        const noise = (Math.random() * 2 - 1) * Math.exp(-t * 30) * 0.35;
+        return body + noise;
+      }),
+      // Dull buzz when an action is blocked (can't afford / occupied).
+      error: synth(0.18, (t) => {
+        const env = Math.exp(-t * 12) * (Math.sin(2 * Math.PI * 30 * t) > 0 ? 1 : 0.4);
+        return Math.sin(2 * Math.PI * 150 * t) * env * 0.45;
+      }),
+      // Coin chime for the daily payout.
+      coin: synth(0.26, (t, p) => {
+        const env = Math.exp(-t * 11);
+        const a = Math.sin(2 * Math.PI * 988 * t);
+        const b = Math.sin(2 * Math.PI * 1319 * t) * (p > 0.3 ? 1 : 0);
+        return (a + b) * env * 0.32;
+      }),
+      // Ascending fanfare for completing a goal.
+      goal: synth(0.6, (t) => {
+        const notes = [523, 659, 784, 1047];
+        const idx = Math.min(notes.length - 1, Math.floor(t / 0.13));
+        const local = t - idx * 0.13;
+        const env = Math.exp(-local * 9);
+        return Math.sin(2 * Math.PI * notes[idx] * t) * env * 0.34;
+      }),
+      // Soft tick for selecting a tool.
+      ui: synth(0.06, (t) => Math.sin(2 * Math.PI * 1100 * t) * Math.exp(-t * 70) * 0.3)
+    };
+
+    const sfx = {};
+    Object.entries(sfxSources).forEach(([name, src]) => {
+      sfx[name] = new Howl({ src: [src], volume: name === "goal" ? 0.7 : 0.55 });
+    });
+
+    let muted = false;
+    function playSfx(name, rate) {
+      if (muted || !sfx[name]) return;
+      const id = sfx[name].play();
+      if (rate) sfx[name].rate(rate, id);
+    }
+
+    const canvas = document.getElementById("city");
+    const ctx = canvas.getContext("2d");
+    const mini = document.getElementById("mini");
+    const miniCtx = mini.getContext("2d");
+    const toast = document.getElementById("toast");
+
+    const size = 12;
+    const tileW = 74;
+    const tileH = 40;
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+    const types = {
+      road: {
+        name: "Road",
+        cost: [6, 2],
+        color: "#3f4654",
+        income: 0,
+        people: 0,
+        joy: 0,
+        jobs: 0,
+        pitch: 1.5,
+        key: "1"
+      },
+      home: {
+        name: "Home",
+        cost: [48, 12],
+        color: "#d93632",
+        income: 7,
+        people: 6,
+        joy: -1,
+        jobs: 0,
+        pitch: 1.25,
+        key: "2"
+      },
+      shop: {
+        name: "Shop",
+        cost: [82, 22],
+        color: "#f2c231",
+        income: 17,
+        people: 0,
+        joy: 3,
+        jobs: 8,
+        pitch: 1.1,
+        key: "3"
+      },
+      park: {
+        name: "Park",
+        cost: [34, 8],
+        color: "#31a853",
+        income: 0,
+        people: 0,
+        joy: 8,
+        jobs: 0,
+        pitch: 1.35,
+        key: "4"
+      },
+      workshop: {
+        name: "Workshop",
+        cost: [118, 32],
+        color: "#7d8796",
+        income: 20,
+        people: 0,
+        joy: -4,
+        jobs: 14,
+        pitch: 0.85,
+        key: "5"
+      },
+      tower: {
+        name: "Tower",
+        cost: [162, 44],
+        color: "#2376d8",
+        income: 19,
+        people: 14,
+        joy: -3,
+        jobs: 0,
+        pitch: 0.72,
+        key: "6"
+      },
+      school: {
+        name: "School",
+        cost: [136, 30],
+        color: "#8a5bd9",
+        income: 4,
+        people: 0,
+        joy: 9,
+        jobs: 5,
+        pitch: 0.95,
+        key: "7"
+      },
+      bulldoze: {
+        name: "Bulldoze",
+        cost: [0, 0],
+        color: "#ff8a2a",
+        key: "B"
+      }
+    };
+
+    const goals = [
+      { id: "starter", text: "Place 6 roads", reward: [42, 12], done: false, check: s => s.counts.road >= 6 },
+      { id: "homes", text: "House 24 citizens", reward: [88, 18], done: false, check: s => s.people >= 24 },
+      { id: "parks", text: "Reach 70 joy", reward: [75, 24], done: false, check: s => s.joy >= 70 },
+      { id: "jobs", text: "Create 20 jobs", reward: [96, 20], done: false, check: s => s.jobs >= 20 },
+      { id: "skyline", text: "Build 2 towers", reward: [140, 34], done: false, check: s => s.counts.tower >= 2 }
+    ];
+
+    let state;
+    let selected = "road";
+    let hover = null;
+    let originX = 0;
+    let originY = 0;
+    let dragging = false;
+    let lastTick = performance.now();
+    let toastTimer = 0;
+    let confetti = [];
+    let citizens = [];
+    let smoke = [];
+    let floaters = [];
+
+    function freshState() {
+      const grid = Array.from({ length: size }, () => Array.from({ length: size }, () => null));
+      const mid = Math.floor(size / 2);
+      for (let c = 3; c <= 8; c++) grid[mid][c] = { type: "road" };
+      for (let r = 4; r <= 7; r++) grid[r][mid] = { type: "road" };
+      grid[mid - 1][mid - 1] = { type: "civic", fixed: true };
+      return {
+        coins: 210,
+        bricks: 76,
+        day: 1,
+        score: 0,
+        grid,
+        goals: goals.map(g => ({ ...g, done: false })),
+        message: "Roads connect everything. Big happy cities pay out faster."
+      };
+    }
+
+    function init() {
+      state = freshState();
+      makeTools();
+      bindEvents();
+      spawnCitizens();
+      resize();
+      showToast(state.message);
+      requestAnimationFrame(loop);
+    }
+
+    function makeTools() {
+      const box = document.getElementById("tools");
+      box.innerHTML = "";
+      Object.entries(types).forEach(([id, type]) => {
+        const btn = document.createElement("button");
+        btn.className = "tool";
+        btn.dataset.tool = id;
+        btn.title = `${type.name} (${type.key})`;
+        btn.innerHTML = `
+          <i class="swatch" style="background:${type.color}"></i>
+          <span><b>${type.name}</b><small>${type.cost[0]}c ${type.cost[1]}b</small></span>
+        `;
+        btn.addEventListener("click", () => selectTool(id));
+        box.appendChild(btn);
+      });
+      updateUi();
+    }
+
+    function bindEvents() {
+      window.addEventListener("resize", resize);
+      canvas.addEventListener("pointermove", event => {
+        hover = eventToCell(event);
+        if (dragging && selected === "road") tryBuild(hover, true);
+      });
+      canvas.addEventListener("pointerdown", event => {
+        dragging = true;
+        canvas.setPointerCapture(event.pointerId);
+        hover = eventToCell(event);
+        tryBuild(hover, false);
+      });
+      canvas.addEventListener("pointerup", event => {
+        dragging = false;
+        canvas.releasePointerCapture(event.pointerId);
+      });
+      canvas.addEventListener("pointerleave", () => {
+        hover = null;
+        dragging = false;
+      });
+      window.addEventListener("keydown", event => {
+        const key = event.key.toUpperCase();
+        const found = Object.entries(types).find(([, t]) => t.key.toUpperCase() === key);
+        if (found) selectTool(found[0]);
+      });
+      const soundBtn = document.getElementById("soundBtn");
+      soundBtn.addEventListener("click", () => {
+        muted = !muted;
+        Howler.mute(muted);
+        soundBtn.textContent = muted ? "🔇" : "🔊";
+        soundBtn.classList.toggle("muted", muted);
+        if (!muted) playSfx("ui");
+      });
+      document.getElementById("saveBtn").addEventListener("click", saveGame);
+      document.getElementById("loadBtn").addEventListener("click", loadGame);
+      document.getElementById("newBtn").addEventListener("click", () => {
+        state = freshState();
+        floaters = [];
+        confetti = [];
+        smoke = [];
+        spawnCitizens();
+        playSfx("bulldoze");
+        showToast("Fresh baseplate. Start snapping.");
+        updateUi();
+      });
+    }
+
+    function selectTool(id) {
+      selected = id;
+      playSfx("ui");
+      document.getElementById("selectedName").textContent = types[id].name;
+      updateUi();
+    }
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const miniRect = mini.getBoundingClientRect();
+      mini.width = Math.max(1, Math.floor(miniRect.width * dpr));
+      mini.height = Math.max(1, Math.floor(miniRect.height * dpr));
+      miniCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      setOrigin();
+    }
+
+    function setOrigin() {
+      const rect = canvas.getBoundingClientRect();
+      originX = rect.width / 2;
+      originY = Math.max(72, rect.height * 0.12);
+    }
+
+    function eventToCell(event) {
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left - originX;
+      const y = event.clientY - rect.top - originY;
+      const col = Math.floor((y / (tileH / 2) + x / (tileW / 2)) / 2);
+      const row = Math.floor((y / (tileH / 2) - x / (tileW / 2)) / 2);
+      if (row < 0 || col < 0 || row >= size || col >= size) return null;
+      return { row, col };
+    }
+
+    function cellToScreen(row, col) {
+      return {
+        x: (col - row) * tileW / 2 + originX,
+        y: (col + row) * tileH / 2 + originY
+      };
+    }
+
+    function tryBuild(cell, quiet) {
+      if (!cell) return;
+      const tile = state.grid[cell.row][cell.col];
+      if (selected === "bulldoze") {
+        if (!tile || tile.fixed) {
+          if (!quiet && tile?.fixed) {
+            playSfx("error");
+            showToast("City Hall is glued down.");
+          }
+          return;
+        }
+        const spec = types[tile.type];
+        const backCoins = Math.floor((spec?.cost[0] || 0) * 0.35);
+        const backBricks = Math.floor((spec?.cost[1] || 0) * 0.35);
+        state.coins += backCoins;
+        state.bricks += backBricks;
+        state.grid[cell.row][cell.col] = null;
+        playSfx("bulldoze");
+        popConfetti(cell.row, cell.col, "#9aa4b1");
+        if (backCoins) addFloater(cell.row, cell.col, `+${backCoins}c`, "#f2c231");
+        showToast("Brick popped off. Some parts returned.");
+        spawnCitizens();
+        updateUi();
+        return;
+      }
+      if (tile) {
+        if (!quiet) {
+          playSfx("error");
+          showToast(tile.fixed ? "City Hall is glued down." : "That stud is already used.");
+        }
+        return;
+      }
+      const spec = types[selected];
+      if (state.coins < spec.cost[0] || state.bricks < spec.cost[1]) {
+        if (!quiet) {
+          playSfx("error");
+          showToast("Need more coins or bricks. Let the day meter pay out.");
+        }
+        return;
+      }
+      state.coins -= spec.cost[0];
+      state.bricks -= spec.cost[1];
+      state.grid[cell.row][cell.col] = { type: selected, placed: performance.now() };
+      popConfetti(cell.row, cell.col, spec.color);
+      playSfx("snap", spec.pitch || 1);
+      if (spec.income) addFloater(cell.row, cell.col, `+${spec.income}/day`, "#31a853");
+      if (!quiet) showToast(`${spec.name} snapped in.`);
+      spawnCitizens();
+      updateUi();
+    }
+
+    function neighbors(row, col) {
+      return [
+        [row - 1, col],
+        [row + 1, col],
+        [row, col - 1],
+        [row, col + 1]
+      ].filter(([r, c]) => r >= 0 && c >= 0 && r < size && c < size);
+    }
+
+    function hasRoad(row, col) {
+      return neighbors(row, col).some(([r, c]) => {
+        const tile = state.grid[r][c];
+        return tile && tile.type === "road";
+      });
+    }
+
+    function getStats() {
+      const stats = {
+        coins: state.coins,
+        bricks: state.bricks,
+        people: 0,
+        jobs: 0,
+        joy: 42,
+        income: 14,
+        brickIncome: 5,
+        connected: 0,
+        buildings: 0,
+        activeBuildings: 0,
+        counts: {}
+      };
+      forEachCell((tile, row, col) => {
+        if (!tile) return;
+        stats.counts[tile.type] = (stats.counts[tile.type] || 0) + 1;
+        if (tile.type === "road") return;
+        if (tile.type === "civic") {
+          stats.joy += 8;
+          stats.income += 8;
+          stats.activeBuildings += 1;
+          stats.buildings += 1;
+          return;
+        }
+        const spec = types[tile.type];
+        if (!spec) return;
+        stats.buildings += 1;
+        const active = hasRoad(row, col);
+        if (active) {
+          stats.activeBuildings += 1;
+          stats.people += spec.people;
+          stats.jobs += spec.jobs;
+          stats.joy += spec.joy;
+          stats.income += spec.income;
+          if (tile.type === "workshop") stats.brickIncome += 7;
+        } else {
+          stats.joy -= 3;
+        }
+      });
+      const parkBoost = (stats.counts.park || 0) * 2;
+      const jobBalance = Math.min(10, Math.max(-10, stats.jobs - stats.people / 2));
+      stats.joy = clamp(Math.round(stats.joy + parkBoost + jobBalance), 0, 100);
+      stats.income += Math.floor(stats.people * 0.5) + Math.floor(stats.joy / 12);
+      stats.connected = stats.buildings ? Math.round(stats.activeBuildings / stats.buildings * 100) : 100;
+      return stats;
+    }
+
+    function updateUi() {
+      const stats = getStats();
+      document.getElementById("coins").textContent = state.coins;
+      document.getElementById("bricks").textContent = state.bricks;
+      document.getElementById("people").textContent = stats.people;
+      document.getElementById("joy").textContent = `${stats.joy}%`;
+      document.getElementById("day").textContent = state.day;
+      document.getElementById("score").textContent = `${state.score} pts`;
+      document.getElementById("connected").textContent = `${stats.connected}%`;
+
+      document.querySelectorAll(".tool").forEach(btn => {
+        const id = btn.dataset.tool;
+        const spec = types[id];
+        btn.classList.toggle("active", id === selected);
+        btn.classList.toggle("disabled", id !== "bulldoze" && (state.coins < spec.cost[0] || state.bricks < spec.cost[1]));
+      });
+
+      const list = document.getElementById("goals");
+      list.innerHTML = "";
+      state.goals.forEach(goal => {
+        const row = document.createElement("div");
+        row.className = `goal${goal.done ? " done" : ""}`;
+        row.innerHTML = `<span class="tick">${goal.done ? "OK" : ""}</span><span>${goal.text}</span>`;
+        list.appendChild(row);
+      });
+      drawMiniMap(stats);
+    }
+
+    function checkGoals() {
+      const stats = getStats();
+      let completed = 0;
+      state.goals.forEach(goal => {
+        if (!goal.done && goal.check(stats)) {
+          goal.done = true;
+          completed += 1;
+          state.coins += goal.reward[0];
+          state.bricks += goal.reward[1];
+          state.score += 100;
+        }
+      });
+      if (completed) {
+        playSfx("goal");
+        showToast(`${completed} goal complete. Bonus bricks delivered.`);
+        burstCenter();
+      }
+      updateUi();
+    }
+
+    function nextDay() {
+      const stats = getStats();
+      state.day += 1;
+      state.coins += stats.income;
+      state.bricks += stats.brickIncome;
+      state.score += Math.max(1, Math.round((stats.people + stats.jobs + stats.joy) / 18));
+      if (stats.income > 0) {
+        playSfx("coin");
+        addScreenFloater(28, 44, `+${stats.income}c  +${stats.brickIncome}b`, "#f2c231");
+      }
+      if (stats.connected < 75 && state.day > 2) showToast("A few buildings need a road next to them.");
+      else if (state.day % 4 === 0) showToast(`Day ${state.day}: +${stats.income} coins, +${stats.brickIncome} bricks.`);
+      checkGoals();
+    }
+
+    function loop(now) {
+      const dt = Math.min(48, now - lastTick);
+      lastTick = now;
+      if (now - (state.lastDay || 0) > 8200) {
+        state.lastDay = now;
+        nextDay();
+      }
+      updateParticles(dt);
+      updateSmoke(dt);
+      updateFloaters(dt);
+      draw(now);
+      requestAnimationFrame(loop);
+    }
+
+    function draw(now) {
+      const rect = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      drawBackdrop(rect.width, rect.height, now);
+
+      for (let row = 0; row < size; row++) {
+        for (let col = 0; col < size; col++) drawBaseTile(row, col);
+      }
+
+      for (let layer = 0; layer < size * 2; layer++) {
+        for (let row = 0; row < size; row++) {
+          const col = layer - row;
+          if (col < 0 || col >= size) continue;
+          const tile = state.grid[row][col];
+          if (tile) drawThing(tile, row, col, now);
+        }
+      }
+
+      drawCitizens(now);
+      if (hover) drawHover(hover.row, hover.col);
+      drawParticles();
+      drawFloaters();
+      drawDayMeter(now, rect.width);
+    }
+
+    function drawBackdrop(w, h, now) {
+      const sky = ctx.createLinearGradient(0, 0, 0, h);
+      sky.addColorStop(0, "#73c9ff");
+      sky.addColorStop(0.34, "#c9efff");
+      sky.addColorStop(0.34, "#80c869");
+      sky.addColorStop(1, "#509444");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.fillStyle = "rgba(255,255,255,0.72)";
+      const drift = (now * 0.008) % (w + 260);
+      cloud(120 + drift * 0.3, 70, 1.1);
+      cloud(w - drift * 0.5, 118, 0.82);
+      cloud(0.48 * w + drift * 0.16, 48, 0.72);
+
+      ctx.fillStyle = "rgba(46, 92, 43, 0.15)";
+      for (let i = 0; i < 7; i++) {
+        const x = (i / 6) * w;
+        ctx.beginPath();
+        ctx.ellipse(x, h * 0.86 + Math.sin(i) * 12, w * 0.12, 38, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function cloud(x, y, s) {
+      ctx.beginPath();
+      ctx.arc(x, y, 20 * s, 0, Math.PI * 2);
+      ctx.arc(x + 24 * s, y - 8 * s, 28 * s, 0, Math.PI * 2);
+      ctx.arc(x + 55 * s, y, 18 * s, 0, Math.PI * 2);
+      ctx.rect(x - 6 * s, y, 66 * s, 18 * s);
+      ctx.fill();
+    }
+
+    function drawBaseTile(row, col) {
+      const p = cellToScreen(row, col);
+      diamond(p.x, p.y, tileW, tileH, "#7fc65f", "#5ea446");
+      ctx.fillStyle = "rgba(255,255,255,0.2)";
+      drawStud(p.x - 16, p.y - 2, 5, 2);
+      drawStud(p.x + 16, p.y - 2, 5, 2);
+      drawStud(p.x, p.y + 8, 5, 2);
+    }
+
+    function drawThing(tile, row, col, now) {
+      const p = cellToScreen(row, col);
+      if (tile.type === "road") {
+        drawRoad(p.x, p.y, row, col);
+      } else if (tile.type === "civic") {
+        drawCivic(p.x, p.y, now);
+      } else if (tile.type === "home") {
+        drawHome(p.x, p.y);
+      } else if (tile.type === "shop") {
+        drawShop(p.x, p.y);
+      } else if (tile.type === "park") {
+        drawPark(p.x, p.y, now);
+      } else if (tile.type === "workshop") {
+        drawWorkshop(p.x, p.y, row, col, now);
+      } else if (tile.type === "tower") {
+        drawTower(p.x, p.y);
+      } else if (tile.type === "school") {
+        drawSchool(p.x, p.y);
+      }
+      if (tile.type !== "road" && tile.type !== "civic" && !hasRoad(row, col)) {
+        drawDisconnected(p.x, p.y);
+      }
+    }
+
+    function drawRoad(x, y, row, col) {
+      diamond(x, y, tileW * 0.92, tileH * 0.9, "#424957", "#2f3540");
+      ctx.strokeStyle = "#f6df7a";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 9]);
+      ctx.beginPath();
+      if (neighbors(row, col).some(([r, c]) => c !== col && state.grid[r][c]?.type === "road")) {
+        ctx.moveTo(x - tileW * 0.3, y);
+        ctx.lineTo(x + tileW * 0.3, y);
+      }
+      if (neighbors(row, col).some(([r, c]) => r !== row && state.grid[r][c]?.type === "road")) {
+        ctx.moveTo(x, y - tileH * 0.25);
+        ctx.lineTo(x, y + tileH * 0.25);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    function drawHome(x, y) {
+      drawIsoBox(x, y + 4, 48, 26, 26, "#cf2f2c", "#ff665d");
+      drawIsoBox(x, y - 18, 54, 28, 14, "#26384d", "#3f5c7d");
+      drawStud(x - 12, y - 44, 5, 2, "#57799f");
+      drawStud(x + 12, y - 44, 5, 2, "#57799f");
+      windowRect(x - 10, y - 10, "#ffe88a");
+      windowRect(x + 9, y - 9, "#9fe5ff");
+    }
+
+    function drawShop(x, y) {
+      drawIsoBox(x, y + 5, 54, 28, 25, "#d89d18", "#ffd84d");
+      drawIsoBox(x, y - 18, 58, 30, 9, "#cc3043", "#ff5868");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(x - 20, y - 19, 40, 8);
+      ctx.fillStyle = "#2078cf";
+      for (let i = -18; i < 20; i += 12) ctx.fillRect(x + i, y - 19, 7, 8);
+      windowRect(x - 7, y - 5, "#9fe5ff");
+      ctx.fillStyle = "#51391d";
+      ctx.fillRect(x + 12, y - 1, 9, 14);
+    }
+
+    function drawPark(x, y, now) {
+      diamond(x, y, tileW * 0.86, tileH * 0.82, "#35b85f", "#248845");
+      ctx.fillStyle = "#f4d35e";
+      ctx.beginPath();
+      ctx.ellipse(x, y + 4, 20, 8, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+      tree(x - 16, y - 10, now);
+      tree(x + 19, y - 2, now + 600);
+      drawStud(x - 2, y - 7, 4, 2, "#ff6b97");
+    }
+
+    function drawWorkshop(x, y, row, col, now) {
+      drawIsoBox(x, y + 7, 58, 30, 29, "#6e7784", "#9aa4b1");
+      drawIsoBox(x - 19, y - 15, 15, 14, 44, "#515b66", "#7d8796");
+      ctx.fillStyle = "#fcbd30";
+      ctx.fillRect(x + 6, y - 13, 14, 11);
+      ctx.fillRect(x + 24, y - 8, 9, 8);
+      if (!smoke.some(s => s.row === row && s.col === col) && Math.random() < 0.04) {
+        smoke.push({ row, col, x: x - 19, y: y - 62, life: 1, vx: Math.random() * 0.35 - 0.1 });
+      }
+    }
+
+    function drawTower(x, y) {
+      drawIsoBox(x, y + 7, 50, 27, 28, "#1f65c7", "#49a2ff");
+      drawIsoBox(x, y - 19, 45, 25, 30, "#2376d8", "#65b9ff");
+      drawIsoBox(x, y - 47, 38, 22, 28, "#2d87e8", "#88d5ff");
+      for (let yy = -46; yy < 9; yy += 17) {
+        windowRect(x - 10, y + yy, "#f6e27b");
+        windowRect(x + 8, y + yy, "#aeeeff");
+      }
+    }
+
+    function drawSchool(x, y) {
+      drawIsoBox(x, y + 5, 60, 30, 26, "#6f45c5", "#a681ff");
+      drawIsoBox(x, y - 20, 36, 20, 19, "#e1b736", "#ffe56a");
+      ctx.fillStyle = "#fff7dd";
+      ctx.fillRect(x - 19, y - 17, 38, 9);
+      ctx.fillStyle = "#172033";
+      ctx.fillRect(x - 14, y - 15, 28, 4);
+      windowRect(x - 19, y - 2, "#9fe5ff");
+      windowRect(x + 18, y - 2, "#9fe5ff");
+    }
+
+    function drawCivic(x, y, now) {
+      drawIsoBox(x, y + 6, 62, 32, 30, "#f2c231", "#ffe675");
+      drawIsoBox(x, y - 22, 36, 20, 23, "#d93632", "#ff665d");
+      const wave = Math.sin(now / 280) * 3;
+      ctx.strokeStyle = "#172033";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(x + 4, y - 57);
+      ctx.lineTo(x + 4, y - 31);
+      ctx.stroke();
+      ctx.fillStyle = "#2376d8";
+      ctx.beginPath();
+      ctx.moveTo(x + 5, y - 56);
+      ctx.lineTo(x + 24 + wave, y - 50);
+      ctx.lineTo(x + 5, y - 44);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawDisconnected(x, y) {
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = "#fff7dd";
+      ctx.strokeStyle = "#172033";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x + 28, y - 36, 13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#d93632";
+      ctx.font = "900 18px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("!", x + 28, y - 35);
+      ctx.restore();
+    }
+
+    function drawHover(row, col) {
+      const p = cellToScreen(row, col);
+      const occupied = state.grid[row][col];
+      const spec = types[selected];
+      const canPay = selected === "bulldoze" || (state.coins >= spec.cost[0] && state.bricks >= spec.cost[1]);
+      ctx.save();
+      ctx.globalAlpha = 0.62;
+      diamond(p.x, p.y, tileW * 0.98, tileH * 0.96, selected === "bulldoze" ? "#ff8a2a" : canPay && !occupied ? "#ffffff" : "#d93632", "#ffffff");
+      ctx.restore();
+    }
+
+    function drawIsoBox(x, y, w, d, h, side, top) {
+      const left = shade(side, -18);
+      const right = shade(side, -8);
+      ctx.fillStyle = left;
+      ctx.beginPath();
+      ctx.moveTo(x - w / 2, y - h);
+      ctx.lineTo(x, y - h + d / 2);
+      ctx.lineTo(x, y + d / 2);
+      ctx.lineTo(x - w / 2, y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = right;
+      ctx.beginPath();
+      ctx.moveTo(x + w / 2, y - h);
+      ctx.lineTo(x, y - h + d / 2);
+      ctx.lineTo(x, y + d / 2);
+      ctx.lineTo(x + w / 2, y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = top;
+      ctx.beginPath();
+      ctx.moveTo(x, y - h - d / 2);
+      ctx.lineTo(x + w / 2, y - h);
+      ctx.lineTo(x, y - h + d / 2);
+      ctx.lineTo(x - w / 2, y - h);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "rgba(23,32,51,0.2)";
+      ctx.stroke();
+      drawStud(x - w * 0.18, y - h - 2, 5, 2, shade(top, 8));
+      drawStud(x + w * 0.18, y - h - 2, 5, 2, shade(top, 8));
+    }
+
+    function diamond(x, y, w, h, fill, stroke) {
+      ctx.beginPath();
+      ctx.moveTo(x, y - h / 2);
+      ctx.lineTo(x + w / 2, y);
+      ctx.lineTo(x, y + h / 2);
+      ctx.lineTo(x - w / 2, y);
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = stroke || "rgba(23,32,51,0.18)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    function drawStud(x, y, rx, ry, color) {
+      ctx.fillStyle = color || "rgba(255,255,255,0.22)";
+      ctx.beginPath();
+      ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(23,32,51,0.08)";
+      ctx.stroke();
+    }
+
+    function windowRect(x, y, color) {
+      ctx.fillStyle = color;
+      ctx.fillRect(x - 5, y - 5, 10, 10);
+      ctx.fillStyle = "rgba(255,255,255,0.42)";
+      ctx.fillRect(x - 3, y - 4, 3, 8);
+    }
+
+    function tree(x, y, now) {
+      const sway = Math.sin(now / 410 + x) * 2;
+      drawIsoBox(x, y + 10, 10, 8, 18, "#8c5a2e", "#a66d35");
+      ctx.fillStyle = "#1f8845";
+      ctx.beginPath();
+      ctx.arc(x + sway, y - 13, 15, 0, Math.PI * 2);
+      ctx.arc(x - 9 + sway, y - 4, 11, 0, Math.PI * 2);
+      ctx.arc(x + 9 + sway, y - 3, 12, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawCitizens(now) {
+      const roadCells = getRoadCells();
+      if (!roadCells.length) return;
+      citizens.forEach((person, index) => {
+        const cell = roadCells[(person.seed + Math.floor(now / person.speed)) % roadCells.length];
+        const p = cellToScreen(cell.row, cell.col);
+        const bob = Math.sin(now / 160 + index) * 2;
+        const x = p.x + Math.sin(now / person.speed + person.seed) * 13;
+        const y = p.y + Math.cos(now / person.speed + person.seed) * 6 + bob;
+        ctx.fillStyle = person.color;
+        ctx.beginPath();
+        ctx.arc(x, y - 17, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#f3c37a";
+        ctx.beginPath();
+        ctx.arc(x, y - 23, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#172033";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x - 3, y - 11);
+        ctx.lineTo(x - 6, y - 5);
+        ctx.moveTo(x + 3, y - 11);
+        ctx.lineTo(x + 6, y - 5);
+        ctx.stroke();
+      });
+    }
+
+    function spawnCitizens() {
+      const stats = getStats();
+      const count = clamp(Math.floor(stats.people / 8) + Math.floor(stats.jobs / 15), 2, 12);
+      citizens = Array.from({ length: count }, (_, i) => ({
+        seed: i * 7 + Math.floor(Math.random() * 6),
+        speed: 640 + Math.random() * 520,
+        color: ["#2376d8", "#d93632", "#31a853", "#8a5bd9", "#f2c231"][i % 5]
+      }));
+    }
+
+    function getRoadCells() {
+      const cells = [];
+      forEachCell((tile, row, col) => {
+        if (tile && tile.type === "road") cells.push({ row, col });
+      });
+      return cells;
+    }
+
+    function drawDayMeter(now, w) {
+      const progress = ((now - (state.lastDay || now)) % 8200) / 8200;
+      ctx.fillStyle = "rgba(23,32,51,0.16)";
+      ctx.fillRect(18, 18, Math.min(320, w - 36), 10);
+      ctx.fillStyle = "#f2c231";
+      ctx.fillRect(18, 18, Math.min(320, w - 36) * progress, 10);
+      ctx.strokeStyle = "rgba(23,32,51,0.2)";
+      ctx.strokeRect(18, 18, Math.min(320, w - 36), 10);
+    }
+
+    function drawMiniMap(stats) {
+      const rect = mini.getBoundingClientRect();
+      miniCtx.clearRect(0, 0, rect.width, rect.height);
+      miniCtx.fillStyle = "#8acb6a";
+      miniCtx.fillRect(0, 0, rect.width, rect.height);
+      const gap = 2;
+      const cell = Math.min((rect.width - gap * (size + 1)) / size, (rect.height - gap * (size + 1)) / size);
+      const startX = (rect.width - (cell * size + gap * (size - 1))) / 2;
+      const startY = (rect.height - (cell * size + gap * (size - 1))) / 2;
+      forEachCell((tile, row, col) => {
+        miniCtx.fillStyle = tile ? (types[tile.type]?.color || "#ffe17a") : "rgba(255,255,255,0.28)";
+        miniCtx.fillRect(startX + col * (cell + gap), startY + row * (cell + gap), cell, cell);
+        if (tile && tile.type !== "road" && tile.type !== "civic" && !hasRoad(row, col)) {
+          miniCtx.fillStyle = "#d93632";
+          miniCtx.fillRect(startX + col * (cell + gap) + cell * 0.62, startY + row * (cell + gap), cell * 0.34, cell * 0.34);
+        }
+      });
+      miniCtx.fillStyle = "rgba(23,32,51,0.8)";
+      miniCtx.font = "900 13px Arial";
+      miniCtx.fillText(`${stats.connected}% linked`, 8, rect.height - 9);
+    }
+
+    function updateParticles(dt) {
+      confetti.forEach(p => {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 0.0022 * dt;
+        p.life -= dt / 900;
+      });
+      confetti = confetti.filter(p => p.life > 0);
+    }
+
+    function updateSmoke(dt) {
+      smoke.forEach(s => {
+        s.y -= 0.028 * dt;
+        s.x += s.vx * dt;
+        s.life -= dt / 1550;
+      });
+      smoke = smoke.filter(s => s.life > 0);
+    }
+
+    function drawParticles() {
+      smoke.forEach(s => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, s.life) * 0.42;
+        ctx.fillStyle = "#f1f5f9";
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 14 * (1.1 - s.life), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+      confetti.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = p.life;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-3, -3, 6, 6);
+        ctx.restore();
+      });
+    }
+
+    function popConfetti(row, col, color) {
+      const p = cellToScreen(row, col);
+      for (let i = 0; i < 18; i++) {
+        confetti.push({
+          x: p.x,
+          y: p.y - 28,
+          vx: (Math.random() - 0.5) * 0.18,
+          vy: -0.18 - Math.random() * 0.16,
+          rot: Math.random() * Math.PI,
+          life: 1,
+          color: [color, "#f2c231", "#ffffff", "#2376d8"][i % 4]
+        });
+      }
+    }
+
+    function burstCenter() {
+      const center = cellToScreen(5, 5);
+      for (let i = 0; i < 44; i++) {
+        confetti.push({
+          x: center.x,
+          y: center.y - 70,
+          vx: (Math.random() - 0.5) * 0.32,
+          vy: -0.24 - Math.random() * 0.28,
+          rot: Math.random() * Math.PI,
+          life: 1,
+          color: ["#d93632", "#2376d8", "#f2c231", "#31a853", "#8a5bd9"][i % 5]
+        });
+      }
+    }
+
+    function addFloater(row, col, text, color) {
+      const p = cellToScreen(row, col);
+      floaters.push({ x: p.x, y: p.y - 40, text, color, life: 1 });
+    }
+
+    function addScreenFloater(x, y, text, color) {
+      floaters.push({ x, y: y + 22, text, color, life: 1, anchorLeft: true });
+    }
+
+    function updateFloaters(dt) {
+      floaters.forEach(f => {
+        f.y -= 0.03 * dt;
+        f.life -= dt / 1400;
+      });
+      floaters = floaters.filter(f => f.life > 0);
+    }
+
+    function drawFloaters() {
+      floaters.forEach(f => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, f.life * 1.4));
+        ctx.font = "900 17px Trebuchet MS, Arial";
+        ctx.textAlign = f.anchorLeft ? "left" : "center";
+        ctx.textBaseline = "middle";
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "rgba(23,32,51,0.85)";
+        ctx.strokeText(f.text, f.x, f.y);
+        ctx.fillStyle = f.color;
+        ctx.fillText(f.text, f.x, f.y);
+        ctx.restore();
+      });
+    }
+
+    function showToast(text) {
+      clearTimeout(toastTimer);
+      toast.textContent = text;
+      toast.classList.add("show");
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 2600);
+    }
+
+    function saveGame() {
+      localStorage.setItem("brick-borough-save", JSON.stringify({
+        coins: state.coins,
+        bricks: state.bricks,
+        day: state.day,
+        score: state.score,
+        grid: state.grid,
+        goals: state.goals.map(g => ({ id: g.id, done: g.done }))
+      }));
+      playSfx("coin");
+      showToast("City saved.");
+    }
+
+    function loadGame() {
+      const raw = localStorage.getItem("brick-borough-save");
+      if (!raw) {
+        showToast("No saved city yet.");
+        return;
+      }
+      try {
+        const data = JSON.parse(raw);
+        state = freshState();
+        state.coins = data.coins;
+        state.bricks = data.bricks;
+        state.day = data.day;
+        state.score = data.score || 0;
+        state.grid = data.grid;
+        state.goals.forEach(goal => {
+          const saved = data.goals?.find(g => g.id === goal.id);
+          if (saved) goal.done = saved.done;
+        });
+        spawnCitizens();
+        updateUi();
+        playSfx("ui");
+        showToast("City loaded.");
+      } catch (error) {
+        showToast("Save file could not be loaded.");
+      }
+    }
+
+    function forEachCell(fn) {
+      for (let row = 0; row < size; row++) {
+        for (let col = 0; col < size; col++) fn(state.grid[row][col], row, col);
+      }
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function shade(hex, amt) {
+      const n = parseInt(hex.slice(1), 16);
+      const r = clamp((n >> 16) + amt, 0, 255);
+      const g = clamp(((n >> 8) & 255) + amt, 0, 255);
+      const b = clamp((n & 255) + amt, 0, 255);
+      return `rgb(${r},${g},${b})`;
+    }
+
+    init();
+  </script>
+</body>
+</html>

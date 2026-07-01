@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>בייבלייד וליארטק V2: סימולטור פיזיקה וארגז חול</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Outfit:wght@300;400;700;900&family=Rubik:wght@300;400;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        :root {
+            --neon-gold: #ffde17;
+            --neon-cyan: #00f2fe;
+            --neon-pink: #f35588;
+            --neon-green: #00ff87;
+            --cyber-dark: #070a13;
+            --panel-bg: rgba(15, 23, 42, 0.8);
+            --panel-border: 1px solid rgba(255, 222, 23, 0.3);
+            --glow: 0 0 15px rgba(255, 222, 23, 0.25);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: var(--cyber-dark);
+            color: #ffffff;
+            font-family: 'Rubik', sans-serif;
+            height: 100vh;
+            display: flex;
+        }
+
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 25px;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: var(--panel-border);
+            border-radius: 16px;
+            padding: 15px 25px;
+            box-shadow: var(--glow);
+            transition: all 0.3s;
+        }
+
+        .glass-panel:hover {
+            border-color: rgba(255, 222, 23, 0.5);
+            box-shadow: 0 0 25px rgba(255, 222, 23, 0.4);
+        }
+
+        /* Top HUD */
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+
+        .hud-btn {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            font-weight: 700;
+        }
+
+        .hud-btn:hover {
+            background: var(--neon-cyan);
+            color: #000;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.5);
+            border-color: #fff;
+        }
+
+        .hud-btn.active-controller {
+            background: var(--neon-green);
+            color: #000;
+            border-color: #fff;
+            box-shadow: 0 0 15px var(--neon-green);
+        }
+
+        /* Sidebar Panels */
+        .sidebar {
+            position: absolute;
+            right: 25px;
+            top: 90px;
+            bottom: 25px;
+            width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 50;
+            pointer-events: auto;
+        }
+
+        .sidebar-section-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 900;
+            color: var(--neon-gold);
+            border-bottom: 2px solid rgba(255, 222, 23, 0.2);
+            padding-bottom: 6px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(255, 222, 23, 0.3);
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, var(--neon-gold), #e0a300);
+            color: #000;
+            font-weight: 900;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(255, 222, 23, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(255, 222, 23, 0.5);
+            background: linear-gradient(135deg, var(--neon-cyan), #00a8c6);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            box-shadow: none;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #fff;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+        }
+
+        /* Control Stats info */
+        .stat-badge {
+            background: rgba(0, 242, 254, 0.1);
+            border: 1px solid rgba(0, 242, 254, 0.2);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            color: var(--neon-cyan);
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Bottom Status HUD */
+        .hud-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            width: calc(100% - 370px);
+        }
+
+        .instructions-panel {
+            max-width: 400px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: #a5b4fc;
+        }
+
+        .instructions-panel span {
+            color: var(--neon-gold);
+            font-weight: bold;
+        }
+
+        .score-panel {
+            font-family: 'Orbitron', sans-serif;
+            text-align: right;
+            border-right: 4px solid var(--neon-gold);
+        }
+
+        .score-val {
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: var(--neon-gold);
+            text-shadow: 0 0 15px rgba(255, 222, 23, 0.5);
+        }
+
+        /* Announcer floating banner */
+        .announcer {
+            position: absolute;
+            top: 35%;
+            left: 40%;
+            transform: translate(-50%, -50%) scale(0.9);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: var(--neon-gold);
+            text-shadow: 0 0 30px rgba(255, 222, 23, 0.6);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 80;
+            text-align: center;
+        }
+
+        .announcer.active {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        .slider-row {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .slider-label {
+            font-size: 0.8rem;
+            color: #8da2c4;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .slider-input {
+            width: 100%;
+            accent-color: var(--neon-gold);
+            cursor: pointer;
+        }
+
+        /* Radio group for skin */
+        .radio-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+        }
+
+        .radio-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .radio-btn:hover {
+            background: rgba(255, 222, 23, 0.1);
+            border-color: rgba(255, 222, 23, 0.3);
+        }
+
+        .radio-btn.active {
+            background: rgba(255, 222, 23, 0.2);
+            border-color: var(--neon-gold);
+            font-weight: bold;
+        }
+
+        @media (max-width: 900px) {
+            .sidebar {
+                position: fixed;
+                bottom: 20px;
+                top: auto;
+                left: 20px;
+                right: 20px;
+                width: auto;
+                height: 250px;
+                flex-direction: row;
+                overflow-x: auto;
+            }
+            .sidebar .glass-panel {
+                min-width: 280px;
+            }
+            .hud-bottom {
+                width: 100%;
+                margin-bottom: 270px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Canvas Container -->
+    <div id="canvas-container" style="position: absolute; inset: 0; z-index: 1;"></div>
+
+    <!-- UI Overlay -->
+    <div class="overlay">
+        <!-- Top HUD Row -->
+        <div class="hud-top interactive">
+            <button class="hud-btn" onclick="window.location.href='../index.html'">
+                <span>🏠</span> פורטפוליו
+            </button>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="hud-btn" id="gamepad-indicator" style="opacity: 0.5; color: #8da2c4;">
+                    🎮 שלט PS5: מנותק
+                </button>
+                <button class="hud-btn" id="sound-btn" onclick="toggleSound()">
+                    🔊 סאונד: פעיל
+                </button>
+            </div>
+        </div>
+
+        <!-- Announcer floating text -->
+        <div class="announcer" id="announcer">LET IT RIP!</div>
+
+        <!-- Bottom HUD Row -->
+        <div class="hud-bottom interactive">
+            <div class="glass-panel instructions-panel">
+                <span>וליארטק V2 (Valiartec V2)</span> - סימולטור וארגז חול פיזיקלי.
+                <br>
+                השתמש ב-<span>WASD / מקשי החצים / ג'ויסטיק שמאל בשלט PS5</span> כדי לנהוג בסביבון בחופשיות. פגע בבלוקים כדי לנפץ אותם ולאסוף נקודות.
+            </div>
+
+            <div class="glass-panel score-panel">
+                <div style="font-size: 0.75rem; color: #8da2c4; text-transform: uppercase;">בלוקים שנפצו</div>
+                <div class="score-val" id="score-val">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Sidebar Controls -->
+    <div class="sidebar">
+        <!-- Sandbox Control Panel -->
+        <div class="glass-panel" style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="sidebar-section-title">ארגז חול (Sandbox)</div>
+            
+            <button class="btn-action" onclick="launchValiartec()">
+                🚀 שיגור וליארטק V2
+            </button>
+
+            <button class="btn-action btn-secondary" onclick="spawnExtraBeyblade()">
+                🌀 שיגור סביבון נוסף
+            </button>
+
+            <button class="btn-action btn-secondary" style="border-color: var(--neon-pink);" onclick="resetTargets()">
+                🧱 רענן בלוקים ומטרות
+            </button>
+        </div>
+
+        <!-- Customizer Panel -->
+        <div class="glass-panel" style="display: flex; flex-direction: column; gap: 10px;">
+            <div class="sidebar-section-title">התאמת וליארטק V2</div>
+            
+            <div class="slider-row">
+                <div class="slider-label"><span>מהירות סיבוב (RPM)</span><span id="lbl-rpm">1800</span></div>
+                <input type="range" class="slider-input" id="input-rpm" min="800" max="3000" step="100" value="1800">
+            </div>
+
+            <div class="slider-row">
+                <div class="slider-label"><span>מסה / משקל סביבון</span><span id="lbl-mass">4.5</span></div>
+                <input type="range" class="slider-input" id="input-mass" min="2" max="10" step="0.5" value="4.5">
+            </div>
+
+            <div class="slider-row" style="margin-bottom: 5px;">
+                <div class="slider-label">ערכת צבעים (Skin)</div>
+                <div class="radio-group">
+                    <button class="radio-btn active" id="skin-gold" onclick="setSkin('gold')">זהב סייבר</button>
+                    <button class="radio-btn" id="skin-cyan" onclick="setSkin('cyan')">ניאון כחול</button>
+                    <button class="radio-btn" id="skin-pink" onclick="setSkin('pink')">ספייק ורוד</button>
+                    <button class="radio-btn" id="skin-green" onclick="setSkin('green')">אסיד ירוק</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Tops Panel -->
+        <div class="glass-panel" style="flex: 1; display: flex; flex-direction: column;">
+            <div class="sidebar-section-title">סביבונים פעילים</div>
+            <div style="flex: 1; overflow-y: auto; font-size: 0.85rem; color: #a5b4fc; display: flex; flex-direction: column; gap: 8px;" id="active-tops-list">
+                <!-- Injected dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Web Audio API Audio Synthesizer -->
+    <script>
+        const audioManager = (function() {
+            let ctx = null;
+            let enabled = true;
+            let hums = [];
+
+            function initCtx() {
+                if (!ctx) {
+                    ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (ctx.state === 'suspended') {
+                    ctx.resume();
+                }
+            }
+
+            function playLaunch() {
+                if (!enabled) return;
+                initCtx();
+                try {
+                    const now = ctx.currentTime;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.exponentialRampToValueAtTime(1600, now + 0.4);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(now + 0.4);
+                } catch(e) {}
+            }
+
+            function playBounce() {
+                if (!enabled) return;
+                initCtx();
+                try {
+                    const now = ctx.currentTime;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(150, now + 0.25);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(now + 0.25);
+                } catch(e) {}
+            }
+
+            function playSmash() {
+                if (!enabled) return;
+                initCtx();
+                try {
+                    const now = ctx.currentTime;
+                    // White noise burst
+                    const bufSize = ctx.sampleRate * 0.15;
+                    const buffer = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufSize; i++) {
+                        data[i] = Math.random() * 2 - 1;
+                    }
+                    const noise = ctx.createBufferSource();
+                    noise.buffer = buffer;
+
+                    const filter = ctx.createBiquadFilter();
+                    filter.type = 'bandpass';
+                    filter.frequency.value = 800;
+
+                    const gain = ctx.createGain();
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(ctx.destination);
+                    noise.start();
+                } catch(e) {}
+            }
+
+            function playClash() {
+                if (!enabled) return;
+                initCtx();
+                try {
+                    const now = ctx.currentTime;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(1800, now);
+                    osc.frequency.exponentialRampToValueAtTime(400, now + 0.1);
+                    gain.gain.setValueAtTime(0.06, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(now + 0.1);
+                } catch(e) {}
+            }
+
+            function registerHum() {
+                if (!enabled) return null;
+                initCtx();
+                try {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = 60;
+                    gain.gain.value = 0.0;
+                    
+                    const lp = ctx.createBiquadFilter();
+                    lp.type = 'lowpass';
+                    lp.frequency.value = 160;
+
+                    osc.connect(lp);
+                    lp.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+
+                    const hum = { osc, gain };
+                    hums.push(hum);
+                    return hum;
+                } catch(e) { return null; }
+            }
+
+            function removeHum(hum) {
+                if (!hum) return;
+                try {
+                    hum.gain.gain.value = 0;
+                    hum.osc.stop();
+                } catch(e) {}
+                const idx = hums.indexOf(hum);
+                if (idx !== -1) hums.splice(idx, 1);
+            }
+
+            return {
+                toggle: function() {
+                    enabled = !enabled;
+                    if (!enabled) {
+                        hums.forEach(h => { h.gain.gain.value = 0; });
+                    }
+                    return enabled;
+                },
+                playLaunch,
+                playBounce,
+                playSmash,
+                playClash,
+                registerHum,
+                removeHum
+            };
+        })();
+
+        function toggleSound() {
+            const active = audioManager.toggle();
+            document.getElementById('sound-btn').textContent = active ? '🔊 סאונד: פעיל' : '🔇 סאונד: כבוי';
+        }
+    </script>
+
+    <!-- Main Game Engine (Three.js 3D physics Sandbox) -->
+    <script>
+        // Options & Configs
+        let score = 0;
+        let activeSkin = 'gold';
+
+        const SKINS = {
+            gold: { name: 'Cyber Gold', color: '#ffde17', secondary: '#ff6c00', shape: 'winged' },
+            cyan: { name: 'Neon Blue', color: '#00f2fe', secondary: '#0055ff', shape: 'circular' },
+            pink: { name: 'Spike Pink', color: '#f35588', secondary: '#9b00aa', shape: 'spiked' },
+            green: { name: 'Acid Green', color: '#00ff87', secondary: '#00aa50', shape: 'dragon' }
+        };
+
+        // UI Sliders Listener
+        const inputRpm = document.getElementById('input-rpm');
+        const lblRpm = document.getElementById('lbl-rpm');
+        inputRpm.oninput = function() { lblRpm.textContent = this.value; };
+
+        const inputMass = document.getElementById('input-mass');
+        const lblMass = document.getElementById('lbl-mass');
+        inputMass.oninput = function() { lblMass.textContent = this.value; };
+
+        function setSkin(skinKey) {
+            activeSkin = skinKey;
+            document.querySelectorAll('.radio-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`skin-${skinKey}`).classList.add('active');
+            
+            // Re-skin valiartec if spawned
+            beyblades.forEach(bey => {
+                if (bey.isValiartec) {
+                    rebuildMesh(bey.meshGroup, SKINS[skinKey]);
+                    bey.color = SKINS[skinKey].color;
+                }
+            });
+        }
+
+        // 3D Scene Setup
+        let scene, camera, renderer, container;
+        let arenaMesh;
+        let arenaRadius = 24;
+        let arenaBowlK = 0.03;
+
+        let beyblades = []; // List of active beyblades
+        let destructibles = []; // Target boxes
+        let bumperPads = []; // Bouncing pillars
+        let sparks = [];
+
+        // Controller / input
+        let keyboardInput = new THREE.Vector3();
+        let gamepadIndex = null;
+        let gamepadInput = new THREE.Vector3();
+
+        window.addEventListener('keydown', (e) => {
+            const f = 20;
+            if (e.key === 'w' || e.key === 'ArrowUp') keyboardInput.z = -f;
+            if (e.key === 's' || e.key === 'ArrowDown') keyboardInput.z = f;
+            if (e.key === 'a' || e.key === 'ArrowLeft') keyboardInput.x = -f;
+            if (e.key === 'd' || e.key === 'ArrowRight') keyboardInput.x = f;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'w' || e.key === 'ArrowUp' || e.key === 's' || e.key === 'ArrowDown') keyboardInput.z = 0;
+            if (e.key === 'a' || e.key === 'ArrowLeft' || e.key === 'd' || e.key === 'ArrowRight') keyboardInput.x = 0;
+        });
+
+        // PS5 Gamepad connection listener
+        window.addEventListener('gamepadconnected', (e) => {
+            gamepadIndex = e.gamepad.index;
+            const indicator = document.getElementById('gamepad-indicator');
+            indicator.style.opacity = '1.0';
+            indicator.style.color = 'var(--neon-green)';
+            indicator.textContent = '🎮 שלט PS5: מחובר!';
+            announcerText("שלט פלייסטיישן מחובר!", 1500);
+        });
+
+        window.addEventListener('gamepaddisconnected', (e) => {
+            if (gamepadIndex === e.gamepad.index) {
+                gamepadIndex = null;
+                const indicator = document.getElementById('gamepad-indicator');
+                indicator.style.opacity = '0.5';
+                indicator.style.color = '#8da2c4';
+                indicator.textContent = '🎮 שלט PS5: מנותק';
+            }
+        });
+
+        function pollGamepad() {
+            if (gamepadIndex === null) return;
+            const gp = navigator.getGamepads()[gamepadIndex];
+            if (!gp) return;
+
+            gamepadInput.set(0, 0, 0);
+
+            // Left Analog stick
+            const deadzone = 0.15;
+            let axisX = gp.axes[0];
+            let axisY = gp.axes[1];
+
+            if (Math.abs(axisX) > deadzone) gamepadInput.x = axisX * 20;
+            if (Math.abs(axisY) > deadzone) gamepadInput.z = axisY * 20;
+
+            // X button (Cross) trigger spawn
+            const btnCross = gp.buttons[0];
+            if (btnCross.pressed && !btnCross.lastState) {
+                spawnExtraBeyblade();
+            }
+            btnCross.lastState = btnCross.pressed;
+        }
+
+        function init3D() {
+            container = document.getElementById('canvas-container');
+            
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x0a1020, 0.006);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 22, 28);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambient = new THREE.AmbientLight(0xe0f2fe, 0.8);
+            scene.add(ambient);
+
+            const sun = new THREE.DirectionalLight(0xffffff, 1.4);
+            sun.position.set(30, 60, 30);
+            sun.castShadow = true;
+            sun.shadow.mapSize.width = 2048;
+            sun.shadow.mapSize.height = 2048;
+            scene.add(sun);
+
+            // Colorful spots
+            const spot1 = new THREE.SpotLight(0x00f2fe, 4, 60, Math.PI/3);
+            spot1.position.set(-20, 30, -20);
+            scene.add(spot1);
+
+            const spot2 = new THREE.SpotLight(0xffde17, 4, 60, Math.PI/3);
+            spot2.position.set(20, 30, 20);
+            scene.add(spot2);
+
+            // Starfield background
+            const starsGeo = new THREE.BufferGeometry();
+            const starsCount = 500;
+            const starPositions = new Float32Array(starsCount * 3);
+            for (let i = 0; i < starsCount * 3; i += 3) {
+                starPositions[i] = (Math.random() - 0.5) * 200;
+                starPositions[i+1] = Math.random() * 90 + 5;
+                starPositions[i+2] = (Math.random() - 0.5) * 200;
+            }
+            starsGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starPoints = new THREE.Points(starsGeo, new THREE.PointsMaterial({
+                color: 0xffde17,
+                size: 0.7,
+                transparent: true,
+                opacity: 0.8
+            }));
+            scene.add(starPoints);
+
+            buildArena();
+            resetTargets();
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function buildArena() {
+            // Cylinder wall
+            const wallGeo = new THREE.CylinderGeometry(arenaRadius + 3, arenaRadius - 1, 4, 64, 8, true);
+            const wallMat = new THREE.MeshStandardMaterial({
+                color: 0x334460,
+                roughness: 0.15,
+                metalness: 0.8,
+                side: THREE.DoubleSide
+            });
+            arenaMesh = new THREE.Mesh(wallGeo, wallMat);
+            arenaMesh.position.y = 1.5;
+            arenaMesh.receiveShadow = true;
+
+            // Parabolic floor
+            const floorGeo = new THREE.CylinderGeometry(arenaRadius, 0, 2.5, 64, 6);
+            const floorPos = floorGeo.attributes.position;
+            for (let i = 0; i < floorPos.count; i++) {
+                let x = floorPos.getX(i);
+                let z = floorPos.getZ(i);
+                let r2 = x*x + z*z;
+                floorPos.setY(i, arenaBowlK * r2 - 1.8);
+            }
+            floorGeo.computeVertexNormals();
+
+            const floorMesh = new THREE.Mesh(floorGeo, new THREE.MeshStandardMaterial({
+                color: 0x142035,
+                roughness: 0.25,
+                metalness: 0.85
+            }));
+            floorMesh.position.y = 1.5;
+            floorMesh.receiveShadow = true;
+            arenaMesh.add(floorMesh);
+
+            // Glowing Tron concentric rings
+            for (let r = 4; r <= arenaRadius - 2; r += 5) {
+                const ringGeo = new THREE.RingGeometry(r - 0.1, r + 0.1, 64);
+                const ringMat = new THREE.MeshBasicMaterial({
+                    color: r % 10 === 4 ? 0xffde17 : 0x00ff87,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = Math.PI / 2;
+                ring.position.y = 1.52;
+                arenaMesh.add(ring);
+            }
+
+            // Glow border ring
+            const borderRing = new THREE.Mesh(
+                new THREE.RingGeometry(arenaRadius - 0.2, arenaRadius + 0.1, 64),
+                new THREE.MeshBasicMaterial({ color: 0x00f2fe, side: THREE.DoubleSide })
+            );
+            borderRing.rotation.x = Math.PI / 2;
+            borderRing.position.y = 1.55;
+            arenaMesh.add(borderRing);
+
+            scene.add(arenaMesh);
+
+            // Spawn 3 static round neon bumpers
+            spawnBumpers();
+        }
+
+        function spawnBumpers() {
+            const bumperPos = [
+                new THREE.Vector3(-10, 0, -6),
+                new THREE.Vector3(10, 0, -6),
+                new THREE.Vector3(0, 0, 10)
+            ];
+
+            bumperPos.forEach((pos, index) => {
+                let r2 = pos.x*pos.x + pos.z*pos.z;
+                pos.y = arenaBowlK * r2 + 1.2;
+
+                const geo = new THREE.CylinderGeometry(1.6, 1.6, 1.2, 32);
+                const mat = new THREE.MeshStandardMaterial({
+                    color: index === 0 ? 0xf35588 : index === 1 ? 0x00ff87 : 0x00f2fe,
+                    roughness: 0.1,
+                    metalness: 0.9,
+                    emissive: index === 0 ? 0x660022 : index === 1 ? 0x006622 : 0x003366,
+                    emissiveIntensity: 0.5
+                });
+                
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.copy(pos);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                scene.add(mesh);
+
+                bumperPads.push({
+                    mesh,
+                    pos: pos.clone(),
+                    radius: 1.6,
+                    color: mat.color.getHex()
+                });
+            });
+        }
+
+        function resetTargets() {
+            // Clear old destructibles
+            destructibles.forEach(d => scene.remove(d.mesh));
+            destructibles = [];
+
+            // Spawn grid of blocks in the center
+            const brickMat = new THREE.MeshStandardMaterial({
+                color: 0x00f2fe,
+                roughness: 0.2,
+                metalness: 0.8,
+                emissive: 0x003355
+            });
+            const brickGeo = new THREE.BoxGeometry(1.4, 1.4, 1.4);
+
+            for (let x = -2; x <= 2; x += 2) {
+                for (let z = -2; z <= 2; z += 2) {
+                    if (x === 0 && z === 0) continue; // Leave exact center open
+
+                    const mesh = new THREE.Mesh(brickGeo, brickMat);
+                    const pos = new THREE.Vector3(x * 1.5, 0, z * 1.5);
+                    let r2 = pos.x*pos.x + pos.z*pos.z;
+                    pos.y = arenaBowlK * r2 + 1.6;
+
+                    mesh.position.copy(pos);
+                    mesh.castShadow = true;
+                    mesh.receiveShadow = true;
+                    scene.add(mesh);
+
+                    destructibles.push({
+                        mesh,
+                        pos: pos.clone(),
+                        radius: 0.8,
+                        integrity: 100
+                    });
+                }
+            }
+            announcerText("מטרות רועננו!", 1500);
+        }
+
+        function announcerText(txt, duration) {
+            const el = document.getElementById('announcer');
+            el.textContent = txt;
+            el.classList.add('active');
+            setTimeout(() => el.classList.remove('active'), duration);
+        }
+
+        function rebuildMesh(group, config) {
+            while (group.children.length > 0) {
+                group.remove(group.children[0]);
+            }
+
+            const spinner = new THREE.Group();
+            spinner.name = "spinner";
+            group.add(spinner);
+
+            // Layer
+            const layerMat = new THREE.MeshStandardMaterial({
+                color: config.color,
+                roughness: 0.25,
+                metalness: 0.85
+            });
+            const layerMesh = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.4, 0.45, 16), layerMat);
+            layerMesh.position.y = 0.4;
+            layerMesh.castShadow = true;
+            spinner.add(layerMesh);
+
+            // Wings
+            const wingsCount = config.shape === 'winged' ? 4 : config.shape === 'spiked' ? 8 : config.shape === 'dragon' ? 3 : 12;
+            const wingGeo = config.shape === 'winged' ? new THREE.BoxGeometry(0.5, 0.35, 0.9) :
+                            config.shape === 'spiked' ? new THREE.ConeGeometry(0.25, 0.5, 4) :
+                            config.shape === 'dragon' ? new THREE.BoxGeometry(0.7, 0.25, 1.1) :
+                            new THREE.SphereGeometry(0.2, 8, 8);
+
+            for (let i = 0; i < wingsCount; i++) {
+                const wing = new THREE.Mesh(wingGeo, layerMat);
+                const angle = (i / wingsCount) * Math.PI * 2;
+                wing.position.set(Math.cos(angle) * 1.5, 0.4, Math.sin(angle) * 1.5);
+                wing.rotation.y = -angle + 0.4;
+                if (config.shape === 'spiked') {
+                    wing.rotation.x = Math.PI / 2;
+                }
+                layerMesh.add(wing);
+            }
+
+            // Metal Ring
+            const ringMat = new THREE.MeshStandardMaterial({
+                color: config.secondary,
+                roughness: 0.1,
+                metalness: 0.95
+            });
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.22, 8, 16), ringMat);
+            ring.rotation.x = Math.PI / 2;
+            ring.position.y = 0.18;
+            ring.castShadow = true;
+            spinner.add(ring);
+
+            // Tip
+            const tip = new THREE.Mesh(new THREE.ConeGeometry(0.75, 0.45, 16), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+            tip.rotation.x = Math.PI;
+            tip.position.y = -0.15;
+            spinner.add(tip);
+        }
+
+        function launchValiartec() {
+            // Remove previous valiartec
+            for (let i = beyblades.length - 1; i >= 0; i--) {
+                if (beyblades[i].isValiartec) {
+                    audioManager.removeHum(beyblades[i].hum);
+                    scene.remove(beyblades[i].meshGroup);
+                    beyblades.splice(i, 1);
+                }
+            }
+
+            const activePreset = SKINS[activeSkin];
+            
+            const meshGroup = new THREE.Group();
+            scene.add(meshGroup);
+            rebuildMesh(meshGroup, activePreset);
+
+            const rpm = parseInt(inputRpm.value);
+            const mass = parseFloat(inputMass.value);
+
+            meshGroup.position.set(-6, 1.5, 0);
+
+            const hum = audioManager.registerHum();
+
+            const valiartec = {
+                meshGroup,
+                pos: new THREE.Vector3(-6, 0.5, 0),
+                vel: new THREE.Vector3(4, 0, 5),
+                omega: rpm,
+                maxOmega: 3000,
+                mass: mass,
+                color: activePreset.color,
+                isValiartec: true,
+                hum
+            };
+
+            beyblades.push(valiartec);
+            updateList();
+            audioManager.playLaunch();
+            announcerText("שיגור וליארטק V2!", 2000);
+        }
+
+        function spawnExtraBeyblade() {
+            const meshGroup = new THREE.Group();
+            scene.add(meshGroup);
+
+            // Random skin configuration
+            const skins = ['gold', 'cyan', 'pink', 'green'];
+            const randomSkin = SKINS[skins[Math.floor(Math.random() * skins.length)]];
+            rebuildMesh(meshGroup, randomSkin);
+
+            const startX = (Math.random() - 0.5) * 16;
+            const startZ = (Math.random() - 0.5) * 16;
+            meshGroup.position.set(startX, 1.5, startZ);
+
+            const hum = audioManager.registerHum();
+
+            const extra = {
+                meshGroup,
+                pos: new THREE.Vector3(startX, 0.5, startZ),
+                vel: new THREE.Vector3((Math.random() - 0.5) * 12, 0, (Math.random() - 0.5) * 12),
+                omega: 1400 + Math.random() * 800,
+                maxOmega: 2400,
+                mass: 3.5 + Math.random() * 3,
+                color: randomSkin.color,
+                isValiartec: false,
+                hum
+            };
+
+            beyblades.push(extra);
+            updateList();
+            audioManager.playLaunch();
+            announcerText("שיגור סביבון נוסף!", 1500);
+        }
+
+        function updateList() {
+            const list = document.getElementById('active-tops-list');
+            list.innerHTML = '';
+            beyblades.forEach((bey, idx) => {
+                const el = document.createElement('div');
+                el.className = 'hud-btn interactive';
+                el.style.borderColor = bey.color;
+                el.style.justifyContent = 'space-between';
+                el.innerHTML = `
+                    <span>${bey.isValiartec ? '👑 וליארטק V2' : '🌀 סביבון ' + (idx + 1)}</span>
+                    <span class="stat-badge">${Math.round(bey.omega)} RPM</span>
+                `;
+                list.appendChild(el);
+            });
+        }
+
+        function spawnSparks(position, colorHex, count) {
+            for (let i = 0; i < count; i++) {
+                const geo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+                const mat = new THREE.MeshBasicMaterial({ color: colorHex });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.copy(position);
+
+                const vel = new THREE.Vector3(
+                    (Math.random() - 0.5) * 14,
+                    Math.random() * 10 + 4,
+                    (Math.random() - 0.5) * 14
+                );
+
+                scene.add(mesh);
+                sparks.push({
+                    mesh,
+                    vel,
+                    life: 1.0,
+                    decay: Math.random() * 0.06 + 0.02
+                });
+            }
+        }
+
+        function resolveHeight(phys) {
+            let r2 = phys.pos.x*phys.pos.x + phys.pos.z*phys.pos.z;
+            phys.pos.y = arenaBowlK * r2 + 0.15;
+        }
+
+        // Main physical update loop
+        const dt = 1/60;
+        function updatePhysics() {
+            // Apply steering to Valiartec V2
+            let activeSteer = new THREE.Vector3().addVectors(keyboardInput, gamepadInput);
+            
+            beyblades.forEach(bey => {
+                // Free unlimited steering for Valiartec
+                if (bey.isValiartec && activeSteer.lengthSq() > 0) {
+                    const steerMag = Math.min(20, activeSteer.length());
+                    const steerDir = activeSteer.clone().normalize();
+                    bey.vel.addScaledVector(steerDir, steerMag * 1.5 * dt);
+                }
+
+                // Gravity pull towards center bowl
+                const r2 = bey.pos.x*bey.pos.x + bey.pos.z*bey.pos.z;
+                const centerPull = -9.8 * arenaBowlK * 1.5;
+                bey.vel.x += bey.pos.x * centerPull * dt;
+                bey.vel.z += bey.pos.z * centerPull * dt;
+
+                // Rotational friction
+                bey.omega = Math.max(0, bey.omega - 30 * dt);
+
+                // Translational drag
+                bey.vel.addScaledVector(bey.vel, -0.4 * dt);
+
+                // Position update
+                bey.pos.addScaledVector(bey.vel, dt);
+                resolveHeight(bey);
+                bey.meshGroup.position.copy(bey.pos);
+
+                // Rotate visual top
+                const spinner = bey.meshGroup.getObjectByName("spinner");
+                if (spinner) {
+                    spinner.rotation.y += (bey.omega / 60) * Math.PI * 2 * dt;
+                }
+
+                // Update sound hum frequency
+                if (bey.hum) {
+                    if (bey.omega > 10) {
+                        bey.hum.osc.frequency.setTargetAtTime(40 + (bey.omega / 16), audioManager.registerHum() ? 0 : 0.1, 0.1);
+                        bey.hum.gain.gain.setTargetAtTime(Math.min(0.04, bey.omega / 25000), audioManager.registerHum() ? 0 : 0.1, 0.1);
+                    } else {
+                        bey.hum.gain.gain.value = 0;
+                    }
+                }
+            });
+
+            // Boundary limit check (bounce off arena wall)
+            beyblades.forEach(bey => {
+                const dist = Math.sqrt(bey.pos.x*bey.pos.x + bey.pos.z*bey.pos.z);
+                if (dist > arenaRadius - 1.2) {
+                    const normal = new THREE.Vector3(-bey.pos.x, 0, -bey.pos.z).normalize();
+                    bey.vel.reflect(normal).multiplyScalar(0.7);
+                    // Push back inside
+                    bey.pos.copy(normal.clone().multiplyScalar(-(arenaRadius - 1.25)));
+                    audioManager.playBounce();
+                    spawnSparks(bey.pos, bey.color, 8);
+                }
+            });
+
+            // Bumper Collisions
+            beyblades.forEach(bey => {
+                bumperPads.forEach(pad => {
+                    const diff = new THREE.Vector3().subVectors(pad.pos, bey.pos);
+                    diff.y = 0;
+                    const dist = diff.length();
+                    const collRadius = pad.radius + 1.2;
+
+                    if (dist < collRadius) {
+                        const normal = diff.clone().normalize().negate();
+                        // Reflect and add high velocity bounce outward
+                        bey.vel.reflect(normal);
+                        bey.vel.addScaledVector(normal, 16);
+                        
+                        audioManager.playBounce();
+                        spawnSparks(bey.pos, pad.color, 15);
+                        
+                        // Shake bumper scale slightly
+                        pad.mesh.scale.set(1.2, 0.8, 1.2);
+                    }
+                });
+            });
+
+            // Restore bumper scale
+            bumperPads.forEach(pad => {
+                pad.mesh.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
+            });
+
+            // Destructible Brick Collisions
+            beyblades.forEach(bey => {
+                for (let i = destructibles.length - 1; i >= 0; i--) {
+                    const d = destructibles[i];
+                    const diff = new THREE.Vector3().subVectors(d.pos, bey.pos);
+                    diff.y = 0;
+                    const dist = diff.length();
+                    const collRadius = d.radius + 1.2;
+
+                    if (dist < collRadius) {
+                        const normal = diff.clone().normalize().negate();
+                        bey.vel.reflect(normal).multiplyScalar(0.7);
+
+                        // Smash target block
+                        d.integrity -= (bey.omega / 100) * bey.mass;
+                        audioManager.playClash();
+                        spawnSparks(d.pos, 0x00f2fe, 8);
+
+                        if (d.integrity <= 0) {
+                            // Destroyed block animation: spawn fragment cubes
+                            spawnDestroyedBlockFragments(d.pos, d.mesh.material.color.getHex());
+                            scene.remove(d.mesh);
+                            destructibles.splice(i, 1);
+                            
+                            score += 1;
+                            document.getElementById('score-val').textContent = score;
+                            audioManager.playSmash();
+                            announcerText("בלוק הושמד! +1", 1000);
+                        }
+                    }
+                }
+            });
+
+            // Beyblade vs Beyblade Collisions
+            for (let i = 0; i < beyblades.length; i++) {
+                for (let j = i + 1; j < beyblades.length; j++) {
+                    const b1 = beyblades[i];
+                    const b2 = beyblades[j];
+                    const diff = new THREE.Vector3().subVectors(b2.pos, b1.pos);
+                    diff.y = 0;
+                    const dist = diff.length();
+                    const collRadius = 2.4;
+
+                    if (dist < collRadius) {
+                        const normal = diff.clone().normalize();
+                        const relVel = new THREE.Vector3().subVectors(b2.vel, b1.vel);
+                        const speedAlongNormal = relVel.dot(normal);
+
+                        if (speedAlongNormal < 0) {
+                            const restitution = 0.8;
+                            let impulse = -(1 + restitution) * speedAlongNormal;
+                            impulse /= (1 / b1.mass + 1 / b2.mass);
+
+                            b1.vel.addScaledVector(normal, -impulse / b1.mass);
+                            b2.vel.addScaledVector(normal, impulse / b2.mass);
+
+                            // Speed loss
+                            b1.omega = Math.max(0, b1.omega - 50);
+                            b2.omega = Math.max(0, b2.omega - 50);
+
+                            audioManager.playClash();
+                            const midpoint = new THREE.Vector3().addVectors(b1.pos, b2.pos).multiplyScalar(0.5);
+                            spawnSparks(midpoint, 0xffde17, 10);
+                        }
+                    }
+                }
+            }
+
+            // Remove stop/dead tops from simulator
+            for (let i = beyblades.length - 1; i >= 0; i--) {
+                if (beyblades[i].omega <= 15) {
+                    audioManager.removeHum(beyblades[i].hum);
+                    scene.remove(beyblades[i].meshGroup);
+                    beyblades.splice(i, 1);
+                    updateList();
+                    announcerText("סביבון עצר וסולק", 1200);
+                }
+            }
+
+            // Update particles
+            for (let i = sparks.length - 1; i >= 0; i--) {
+                const s = sparks[i];
+                s.vel.y -= 9.8 * dt; // Gravity
+                s.mesh.position.addScaledVector(s.vel, dt);
+                s.life -= s.decay;
+                s.mesh.scale.setScalar(s.life);
+                if (s.life <= 0) {
+                    scene.remove(s.mesh);
+                    sparks.splice(i, 1);
+                }
+            }
+
+            // Update fragment blocks
+            for (let i = fragments.length - 1; i >= 0; i--) {
+                const f = fragments[i];
+                f.vel.y -= 9.8 * dt;
+                f.mesh.position.addScaledVector(f.vel, dt);
+                f.mesh.rotation.x += f.rotVel.x * dt;
+                f.mesh.rotation.y += f.rotVel.y * dt;
+                f.life -= dt * 0.8;
+                f.mesh.scale.setScalar(Math.max(0.01, f.life));
+                
+                // Ground collision
+                let r2 = f.mesh.position.x * f.mesh.position.x + f.mesh.position.z * f.mesh.position.z;
+                let floorH = arenaBowlK * r2 + 0.2;
+                if (f.mesh.position.y < floorH) {
+                    f.mesh.position.y = floorH;
+                    f.vel.y = -f.vel.y * 0.4;
+                    f.vel.x *= 0.8;
+                    f.vel.z *= 0.8;
+                }
+
+                if (f.life <= 0) {
+                    scene.remove(f.mesh);
+                    fragments.splice(i, 1);
+                }
+            }
+        }
+
+        let fragments = [];
+        function spawnDestroyedBlockFragments(pos, colorHex) {
+            const geo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+            const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.3 });
+            
+            for (let i = 0; i < 8; i++) {
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.copy(pos).add(new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.8,
+                    (Math.random() - 0.5) * 0.8,
+                    (Math.random() - 0.5) * 0.8
+                ));
+                scene.add(mesh);
+
+                fragments.push({
+                    mesh,
+                    vel: new THREE.Vector3(
+                        (Math.random() - 0.5) * 12,
+                        Math.random() * 8 + 4,
+                        (Math.random() - 0.5) * 12
+                    ),
+                    rotVel: new THREE.Vector3(Math.random() * 10, Math.random() * 10, Math.random() * 10),
+                    life: 1.2
+                });
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Camera Tracking
+        let camAngle = 0;
+        function updateCamera() {
+            // Find valiartec v2 position to focus camera
+            const valiartec = beyblades.find(b => b.isValiartec);
+            let targetLook = new THREE.Vector3();
+            let targetPos = new THREE.Vector3();
+
+            if (valiartec) {
+                targetLook.copy(valiartec.pos);
+                targetPos.set(valiartec.pos.x, 15, valiartec.pos.z + 18);
+            } else {
+                camAngle += 0.002;
+                targetLook.set(0, 0, 0);
+                targetPos.set(Math.cos(camAngle) * 22, 18, Math.sin(camAngle) * 22);
+            }
+
+            camera.position.lerp(targetPos, 0.08);
+            
+            const curLook = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).add(camera.position);
+            curLook.lerp(targetLook, 0.08);
+            camera.lookAt(curLook);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            pollGamepad();
+            updatePhysics();
+            updateCamera();
+
+            renderer.render(scene, camera);
+        }
+
+        window.onload = () => {
+            init3D();
+            launchValiartec();
+            animate();
+        };
+
+    </script>
+</body>
+</html>

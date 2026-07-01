@@ -1,0 +1,2483 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>בייבלייד תלת-מימד: בונה הסביבונים האולטימטיבי</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Outfit:wght@300;400;700;900&family=Rubik:wght@300;400;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        :root {
+            --neon-blue: #00f2fe;
+            --neon-pink: #f35588;
+            --neon-green: #00ff87;
+            --neon-yellow: #ffde17;
+            --cyber-dark: #0a0e17;
+            --panel-bg: rgba(13, 20, 35, 0.75);
+            --panel-border: 1px solid rgba(0, 242, 254, 0.25);
+            --glow: 0 0 15px rgba(0, 242, 254, 0.35);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: var(--cyber-dark);
+            color: #ffffff;
+            font-family: 'Rubik', 'Outfit', sans-serif;
+            height: 100vh;
+            display: flex;
+        }
+
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* UI Overlays */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* Glassmorphic Panel */
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: var(--panel-border);
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: var(--glow);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-panel:hover {
+            border-color: rgba(0, 242, 254, 0.45);
+            box-shadow: 0 0 25px rgba(0, 242, 254, 0.5);
+        }
+
+        /* Screens */
+        .screen {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            background: radial-gradient(circle at center, #111e40 0%, #06091f 100%);
+        }
+
+        .screen.hidden {
+            opacity: 0;
+            transform: scale(0.95);
+            pointer-events: none;
+        }
+
+        /* Welcome Screen */
+        .welcome-content {
+            text-align: center;
+            max-width: 600px;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .title-container h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 900;
+            margin: 0;
+            background: linear-gradient(135deg, var(--neon-blue), #9b51e0, var(--neon-pink));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 242, 254, 0.2);
+            letter-spacing: 2px;
+            animation: pulseGlow 2s infinite alternate;
+        }
+
+        .title-container h2 {
+            font-size: 1.5rem;
+            color: var(--neon-green);
+            margin: 5px 0 0 0;
+            letter-spacing: 5px;
+            font-weight: 700;
+        }
+
+        @keyframes pulseGlow {
+            0% { filter: drop-shadow(0 0 5px rgba(0, 242, 254, 0.2)); }
+            100% { filter: drop-shadow(0 0 25px rgba(0, 242, 254, 0.6)); }
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--neon-blue), #00b3ff);
+            color: #030508;
+            border: none;
+            padding: 15px 35px;
+            font-size: 1.2rem;
+            font-weight: 800;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 5px 15px rgba(0, 242, 254, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px) scale(1.03);
+            box-shadow: 0 8px 25px rgba(0, 242, 254, 0.5);
+            background: linear-gradient(135deg, var(--neon-green), #00d285);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #fff;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+        }
+
+        /* Builder Layout */
+        #builder-screen {
+            display: grid;
+            grid-template-columns: 380px 1fr 380px;
+            padding: 30px;
+            gap: 30px;
+            box-sizing: border-box;
+            background: radial-gradient(circle at center, #0f1f40 0%, #06091f 100%);
+        }
+
+        .builder-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 105;
+        }
+
+        .builder-canvas-container {
+            position: relative;
+            grid-column: 2;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .part-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .part-category-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--neon-blue);
+            border-bottom: 1px solid rgba(0, 242, 254, 0.2);
+            padding-bottom: 5px;
+            margin-bottom: 5px;
+        }
+
+        .option-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .option-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-radius: 8px;
+            padding: 12px 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            font-size: 0.9rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .option-btn span.icon {
+            font-size: 1.4rem;
+        }
+
+        .option-btn:hover {
+            background: rgba(0, 242, 254, 0.1);
+            border-color: rgba(0, 242, 254, 0.4);
+        }
+
+        .option-btn.active {
+            background: rgba(0, 242, 254, 0.2);
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.2);
+            font-weight: bold;
+        }
+
+        /* Colors Section */
+        .color-palette {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 5px;
+        }
+
+        .color-dot {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .color-dot:hover {
+            transform: scale(1.15);
+        }
+
+        .color-dot.active {
+            border-color: #ffffff;
+            box-shadow: 0 0 10px var(--color-val);
+        }
+
+        /* Stats Panel */
+        .stats-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .stat-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            opacity: 0.85;
+        }
+
+        .stat-bar-bg {
+            background: rgba(255, 255, 255, 0.08);
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .stat-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-pink));
+            width: 50%;
+            border-radius: 4px;
+            transition: width 0.3s cubic-bezier(0.1, 0.8, 0.2, 1);
+        }
+
+        /* HUD top & bottom */
+        .hud-panel {
+            position: absolute;
+            z-index: 50;
+            display: flex;
+            gap: 15px;
+        }
+
+        .hud-top-right {
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .hud-top-left {
+            top: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .hud-bottom-center {
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            width: 100%;
+            max-width: 600px;
+            justify-content: center;
+        }
+
+        .hud-btn {
+            background: rgba(13, 20, 35, 0.8);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            color: #fff;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            font-weight: 700;
+        }
+
+        .hud-btn:hover {
+            background: var(--neon-blue);
+            color: #030508;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.5);
+        }
+
+        /* Beyblade Battle HUD */
+        .battle-hud {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            display: none;
+            z-index: 40;
+            padding: 25px;
+            box-sizing: border-box;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .health-panels {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            gap: 40px;
+        }
+
+        .health-panel {
+            flex: 1;
+            max-width: 350px;
+            pointer-events: auto;
+        }
+
+        .health-name {
+            font-size: 1.15rem;
+            font-weight: 900;
+            color: var(--neon-blue);
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            text-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+        }
+
+        .enemy-panel .health-name {
+            color: var(--neon-pink);
+            text-shadow: 0 0 10px rgba(243, 85, 136, 0.3);
+            flex-direction: row-reverse;
+        }
+
+        .health-bar-container {
+            width: 100%;
+            height: 14px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 7px;
+            overflow: hidden;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.8);
+        }
+
+        .health-bar-fill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #00ff87, #00d2ff);
+            box-shadow: 0 0 10px rgba(0, 255, 135, 0.5);
+            transition: width 0.1s ease-out;
+        }
+
+        .enemy-panel .health-bar-fill {
+            background: linear-gradient(90deg, #ff007f, #f35588);
+            box-shadow: 0 0 10px rgba(243, 85, 136, 0.5);
+        }
+
+        .stamina-label {
+            font-size: 0.75rem;
+            color: #8da2c4;
+            margin-top: 4px;
+            font-family: 'Orbitron', sans-serif;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .enemy-panel .stamina-label {
+            flex-direction: row-reverse;
+        }
+
+        /* Ripcord Launcher Overlay */
+        .launcher-overlay {
+            position: absolute;
+            right: 40px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            pointer-events: auto;
+        }
+
+        .ripcord-track {
+            height: 300px;
+            width: 16px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(0, 242, 254, 0.4);
+            border-radius: 10px;
+            position: relative;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.1);
+        }
+
+        .ripcord-handle {
+            width: 36px;
+            height: 36px;
+            background: radial-gradient(circle, #f35588 0%, #a8254c 100%);
+            border: 2px solid #fff;
+            border-radius: 50%;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 0;
+            cursor: grab;
+            box-shadow: 0 0 15px rgba(243, 85, 136, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+        }
+
+        .ripcord-handle:active {
+            cursor: grabbing;
+        }
+
+        /* Battle instructions */
+        .battle-instructions {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            font-size: 0.8rem;
+            color: #8da2c4;
+            max-width: 250px;
+            line-height: 1.5;
+        }
+
+        .battle-instructions span {
+            color: var(--neon-blue);
+            font-weight: bold;
+        }
+
+        /* Large Floating Announcer text */
+        .announcer-text {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 4rem;
+            font-weight: 900;
+            color: var(--neon-yellow);
+            text-shadow: 0 0 30px rgba(255, 222, 23, 0.6);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 60;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .announcer-text.active {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        /* Quick Controls for Mobile / Action buttons during Battle */
+        .action-pad {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: auto;
+        }
+
+        .action-circle-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--panel-bg);
+            border: 2px solid var(--neon-blue);
+            color: #fff;
+            font-weight: 900;
+            font-size: 0.9rem;
+            cursor: pointer;
+            box-shadow: var(--glow);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .action-circle-btn:hover {
+            background: var(--neon-blue);
+            color: #030508;
+            box-shadow: 0 0 20px var(--neon-blue);
+        }
+
+        .action-circle-btn:active {
+            transform: scale(0.9);
+        }
+
+        /* Tournament Panel UI */
+        .tournament-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .boss-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .boss-card:hover {
+            background: rgba(243, 85, 136, 0.1);
+            border-color: rgba(243, 85, 136, 0.4);
+        }
+
+        .boss-card.active {
+            background: rgba(0, 242, 254, 0.12);
+            border-color: var(--neon-blue);
+        }
+
+        .boss-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .boss-name-title {
+            font-weight: bold;
+            font-size: 1rem;
+            color: var(--neon-pink);
+        }
+
+        .boss-stats-text {
+            font-size: 0.75rem;
+            color: #8da2c4;
+        }
+
+        /* Sound toggles and layout responsiveness */
+        @media (max-width: 1100px) {
+            #builder-screen {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 350px auto;
+                overflow-y: auto;
+                padding: 15px;
+                gap: 15px;
+            }
+            .builder-column {
+                grid-column: 1 !important;
+            }
+            .builder-canvas-container {
+                grid-column: 1 !important;
+                grid-row: 2;
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Canvas for 3D graphics -->
+    <div id="canvas-container" style="position: absolute; inset: 0; z-index: 1;"></div>
+
+    <!-- UI Overlay for Game state -->
+    <div class="overlay">
+        <!-- Top HUD -->
+        <div class="hud-panel hud-top-left">
+            <button class="hud-btn interactive" onclick="goToMenu()">
+                <span>🏠</span> בית
+            </button>
+            <div class="glass-panel" id="credits-hud" style="padding: 6px 12px; font-size: 0.85rem; font-weight: 700; color: var(--neon-yellow);">
+                🪙 קרדיטים: <span id="user-credits">100</span>
+            </div>
+        </div>
+
+        <div class="hud-panel hud-top-right">
+            <button class="hud-btn interactive" id="gamepad-btn" style="opacity: 0.5; color: #8da2c4;" onclick="alert('הוראות שלט פלייסטיישן:\n\n1. חבר את השלט למחשב דרך USB או בלוטות\'.\n2. לחץ על כפתור כלשהו בשלט כדי להפעיל אותו.\n3. ג\'ויסטיק שמאלי מנווט בבונה או מניע את הסביבון בקרב.\n4. כפתור X בוחר חלקים, מושך את חוט השיגור או מפעיל דחף (Boost) בקרב!')">
+                🎮 שלט: מנותק
+            </button>
+            <button class="hud-btn interactive" id="sound-btn" onclick="toggleSound()">
+                🔊 סאונד: פעיל
+            </button>
+        </div>
+
+        <!-- Float Announcer -->
+        <div class="announcer-text" id="announcer">LETS PLAY</div>
+
+        <!-- Battle HUD Overlay -->
+        <div class="battle-hud" id="battle-hud-overlay">
+            <div class="health-panels">
+                <!-- Player Beyblade -->
+                <div class="glass-panel health-panel player-panel">
+                    <div class="health-name">
+                        <span id="hud-player-name">הבייבלייד שלך</span>
+                        <span id="hud-player-rpm" style="font-family:'Orbitron'">0 RPM</span>
+                    </div>
+                    <div class="health-bar-container">
+                        <div class="health-bar-fill" id="hud-player-bar"></div>
+                    </div>
+                    <div class="stamina-label">
+                        <span>סיבולת</span>
+                        <span id="hud-player-percent">100%</span>
+                    </div>
+                    <div style="margin-top: 6px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #ffde17; font-family: 'Orbitron'; margin-bottom: 2px;">
+                            <span>⚡ BOOST</span><span id="hud-boost-pct">100%</span>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.5); height: 7px; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,222,23,0.3);">
+                            <div id="hud-boost-bar" style="height:100%; width:100%; background: linear-gradient(90deg,#ffde17,#ff6c00); border-radius:4px; transition: width 0.08s;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Opponent Beyblade -->
+                <div class="glass-panel health-panel enemy-panel">
+                    <div class="health-name">
+                        <span id="hud-enemy-name">יריב</span>
+                        <span id="hud-enemy-rpm" style="font-family:'Orbitron'">0 RPM</span>
+                    </div>
+                    <div class="health-bar-container">
+                        <div class="health-bar-fill" id="hud-enemy-bar"></div>
+                    </div>
+                    <div class="stamina-label">
+                        <span>סיבולת</span>
+                        <span id="hud-enemy-percent">100%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ripcord Launcher UI -->
+            <div class="launcher-overlay" id="launcher-container">
+                <div style="font-size: 0.85rem; font-weight: bold; color: var(--neon-yellow); text-shadow: 0 0 5px rgba(255,222,23,0.5);">Pull the Ripcord!</div>
+                <div class="ripcord-track" id="ripcord-track">
+                    <div class="ripcord-handle" id="ripcord-handle">⚡</div>
+                </div>
+                <div style="font-size: 0.85rem; color: #8da2c4;" id="launch-power-label">Power: 0%</div>
+                <div style="font-size: 0.75rem; color: var(--neon-blue); text-align: center; margin-top: 4px;" id="gp-launch-hint" style="display:none;">🎮 Hold R2 to charge</div>
+            </div>
+
+            <!-- Battle control instructions -->
+            <div class="battle-instructions" id="battle-instructions-kb">
+                <span>WASD</span> / <span>Arrows</span> = Move &nbsp;|&nbsp; <span>Boost btn</span> = Dash
+            </div>
+            <div class="battle-instructions" id="battle-instructions-gp" style="display:none;">
+                <span style="font-size:1rem;">🎮</span> Left Stick = Move &nbsp;|&nbsp; <span>X</span> = Boost Dash &nbsp;|&nbsp; <span>R2</span> = Charge Launch
+            </div>
+
+            <!-- Mobile interactive buttons -->
+            <div class="action-pad">
+                <button class="action-circle-btn interactive" id="boost-btn" style="border-color: var(--neon-green);">דחף</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCREENS -->
+
+    <!-- Welcome / Main Menu Screen -->
+    <div class="screen" id="welcome-screen">
+        <div class="welcome-content glass-panel" style="pointer-events: auto;">
+            <div class="title-container">
+                <h1>BEYBLADE 3D</h1>
+                <h2>BATTLE BUILDER</h2>
+            </div>
+            <p style="opacity: 0.8; font-size: 0.95rem; line-height: 1.6;">
+                ברוכים הבאים למרכז קרבות הבייבלייד של guybuilds! עצב וסגנן סביבון אישי, הרכב שילוב של טבעות תקיפה, דיסקים כבדים ותחתיות ביצועים מיוחדות, וצא לקרב אקטיבי תלת-מימדי בזירה עתידנית.
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
+                <button class="btn" onclick="startBuilder('sandbox')">
+                    🎮 מצב אימון (Sandbox)
+                </button>
+                <button class="btn" onclick="startBuilder('tournament')" style="background: linear-gradient(135deg, var(--neon-pink), #e23e70); box-shadow: 0 5px 15px rgba(243, 85, 136, 0.3);">
+                    🏆 טורניר אלופים
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Builder Screen -->
+    <div class="screen hidden" id="builder-screen">
+        <!-- Left Panel: Customizer Options -->
+        <div class="builder-column">
+            <div class="glass-panel" style="flex: 1; display: flex; flex-direction: column; gap: 15px; overflow-y: auto;">
+                <h3 style="margin: 0; font-size: 1.3rem; color: var(--neon-blue); text-align: center;">הגדרת סביבון 🌀</h3>
+                
+                <!-- Attack Layer Select -->
+                <div class="part-selector">
+                    <div class="part-category-title">טבעת תקיפה (Layer)</div>
+                    <div class="option-grid">
+                        <button class="option-btn active" onclick="selectPart('layer', 'pegasus')" id="opt-layer-pegasus">
+                            <span class="icon">🦅</span>
+                            <span>כנפי פגסוס</span>
+                        </button>
+                        <button class="option-btn" onclick="selectPart('layer', 'leone')" id="opt-layer-leone">
+                            <span class="icon">🦁</span>
+                            <span>מגן ליאו</span>
+                        </button>
+                        <button class="option-btn" onclick="selectPart('layer', 'drago')" id="opt-layer-drago">
+                            <span class="icon">🐉</span>
+                            <span>טפרי דרגו</span>
+                        </button>
+                        <button class="option-btn" onclick="selectPart('layer', 'eagle')" id="opt-layer-eagle">
+                            <span class="icon">🦅</span>
+                            <span>נשר המצולות</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Weight Disk Select -->
+                <div class="part-selector">
+                    <div class="part-category-title">דיסק משקל (Weight Disk)</div>
+                    <div class="option-grid">
+                        <button class="option-btn active" onclick="selectPart('disk', 'heavy')" id="opt-disk-heavy">
+                            <span class="icon">⚙️</span>
+                            <span>ברזל כבד</span>
+                        </button>
+                        <button class="option-btn" onclick="selectPart('disk', 'light')" id="opt-disk-light">
+                            <span class="icon">✨</span>
+                            <span>סיבי פחמן</span>
+                        </button>
+                        <button class="option-btn" onclick="selectPart('disk', 'balanced')" id="opt-disk-balanced">
+                            <span class="icon">🔱</span>
+                            <span>פליז כוכב</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Driver Select -->
+                <div class="part-selector">
+                    <div class="part-category-title">תחתית ביצועים (Driver)</div>
+                    <div class="option-grid">
+                        <button class="option-btn active" onclick="selectPart('driver', 'flat')" id="opt-driver-flat">
+                            <span class="icon">🛑</span>
+                            <span>שטוח (התקפה)</span>
+                        </button>
+                        <button class="option-btn" onclick="selectPart('driver', 'ball')" id="opt-driver-ball">
+                            <span class="icon">🔵</span>
+                            <span>כדור (יציבות)</span>
+                        </button>
+                        <button class="option-btn" onclick="selectPart('driver', 'sharp')" id="opt-driver-sharp">
+                            <span class="icon">📍</span>
+                            <span>מחט (סיבולת)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center 3D Preview (Rendered in background canvas, handled by wrapper) -->
+        <div class="builder-canvas-container">
+            <div style="position: absolute; top: 15px; color: rgba(255, 255, 255, 0.6); pointer-events: none; font-size: 0.9rem;">
+                הסביבון שלך מוכן להרכבה. שנה פרמטרים וראה את המודל מתעדכן בשידור חי!
+            </div>
+        </div>
+
+        <!-- Right Panel: Colors & Stats -->
+        <div class="builder-column">
+            <!-- Colors Selection -->
+            <div class="glass-panel">
+                <div class="part-category-title">צבעי ניאון מוזהבים</div>
+                <div class="color-palette">
+                    <div class="color-dot active" style="background-color: #00f2fe; --color-val: #00f2fe;" onclick="selectColor('#00f2fe', this)"></div>
+                    <div class="color-dot" style="background-color: #f35588; --color-val: #f35588;" onclick="selectColor('#f35588', this)"></div>
+                    <div class="color-dot" style="background-color: #00ff87; --color-val: #00ff87;" onclick="selectColor('#00ff87', this)"></div>
+                    <div class="color-dot" style="background-color: #ffde17; --color-val: #ffde17;" onclick="selectColor('#ffde17', this)"></div>
+                    <div class="color-dot" style="background-color: #a855f7; --color-val: #a855f7;" onclick="selectColor('#a855f7', this)"></div>
+                    <div class="color-dot" style="background-color: #ff6c00; --color-val: #ff6c00;" onclick="selectColor('#ff6c00', this)"></div>
+                </div>
+            </div>
+
+            <!-- Stats display -->
+            <div class="glass-panel stats-container">
+                <h4 style="margin: 0; font-size: 1.1rem; color: var(--neon-blue);">נתוני ביצועים</h4>
+                <div class="stat-row">
+                    <div class="stat-label"><span>התקפה (Attack)</span><span id="val-attack">50</span></div>
+                    <div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-attack" style="width: 50%;"></div></div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-label"><span>הגנה (Defense)</span><span id="val-defense">50</span></div>
+                    <div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-defense" style="width: 50%;"></div></div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-label"><span>סיבולת (Stamina)</span><span id="val-stamina">50</span></div>
+                    <div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-stamina" style="width: 50%;"></div></div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-label"><span>משקל (Weight)</span><span id="val-weight">50</span></div>
+                    <div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-weight" style="width: 50%;"></div></div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-label"><span>מהירות (Speed)</span><span id="val-speed">50</span></div>
+                    <div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-speed" style="width: 50%;"></div></div>
+                </div>
+            </div>
+
+            <!-- Tournament Opponent selector if tournament mode is active -->
+            <div class="glass-panel" id="tournament-panel" style="display: none;">
+                <h4 style="margin: 0 0 5px 0; font-size: 1.1rem; color: var(--neon-pink);">בחירת יריב בטורניר</h4>
+                <div class="tournament-list">
+                    <div class="boss-card active" onclick="selectBoss('scorpion', this)">
+                        <div class="boss-info">
+                            <span class="boss-name-title">עקרב המדבר (Scorpion)</span>
+                            <span class="boss-stats-text">סוג: התקפה מהירה | קושי: קל</span>
+                        </div>
+                        <span>🦂</span>
+                    </div>
+                    <div class="boss-card" onclick="selectBoss('aegis', this)">
+                        <div class="boss-info">
+                            <span class="boss-name-title">חומת הברזל (Aegis)</span>
+                            <span class="boss-stats-text">סוג: הגנה כבדה | קושי: בינוני</span>
+                        </div>
+                        <span>🛡️</span>
+                    </div>
+                    <div class="boss-card" onclick="selectBoss('phantom', this)">
+                        <div class="boss-info">
+                            <span class="boss-name-title">פנטום נשר (Phantom)</span>
+                            <span class="boss-stats-text">סוג: סיבולת אינסופית | קושי: קשה</span>
+                        </div>
+                        <span>🦅</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Button to Launch -->
+            <button class="btn" style="width: 100%;" onclick="launchGame()">
+                🚀 הכנס לזירת הקרב!
+            </button>
+        </div>
+    </div>
+
+    <!-- Web Audio API Synthesizer Implementation -->
+    <script>
+        const audioManager = (function() {
+            let ctx = null;
+            let enabled = true;
+            let spinHumOsc = null;
+            let spinHumGain = null;
+            let enemyHumOsc = null;
+            let enemyHumGain = null;
+            let musicInterval = null;
+            let isMusicPlaying = false;
+
+            function initCtx() {
+                if (!ctx) {
+                    ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (ctx.state === 'suspended') {
+                    ctx.resume();
+                }
+            }
+
+            function startSpinHum() {
+                if (!enabled) return;
+                initCtx();
+                try {
+                    // Player hum
+                    spinHumOsc = ctx.createOscillator();
+                    spinHumGain = ctx.createGain();
+                    spinHumOsc.type = 'sawtooth';
+                    spinHumOsc.frequency.value = 60; 
+                    spinHumGain.gain.value = 0.0;
+                    
+                    const lowpass = ctx.createBiquadFilter();
+                    lowpass.type = 'lowpass';
+                    lowpass.frequency.value = 180;
+
+                    spinHumOsc.connect(lowpass);
+                    lowpass.connect(spinHumGain);
+                    spinHumGain.connect(ctx.destination);
+                    spinHumOsc.start();
+
+                    // Enemy hum
+                    enemyHumOsc = ctx.createOscillator();
+                    enemyHumGain = ctx.createGain();
+                    enemyHumOsc.type = 'sawtooth';
+                    enemyHumOsc.frequency.value = 60;
+                    enemyHumGain.gain.value = 0.0;
+
+                    const lowpass2 = ctx.createBiquadFilter();
+                    lowpass2.type = 'lowpass';
+                    lowpass2.frequency.value = 180;
+
+                    enemyHumOsc.connect(lowpass2);
+                    lowpass2.connect(enemyHumGain);
+                    enemyHumGain.connect(ctx.destination);
+                    enemyHumOsc.start();
+                } catch(e) {}
+            }
+
+            function updateSpinHum(playerRPM, enemyRPM) {
+                if (!enabled || !ctx) return;
+                try {
+                    if (spinHumGain && playerRPM > 10) {
+                        const targetFreq = 40 + (playerRPM / 15);
+                        spinHumOsc.frequency.setTargetAtTime(targetFreq, ctx.currentTime, 0.1);
+                        spinHumGain.gain.setTargetAtTime(Math.min(0.04, playerRPM / 30000), ctx.currentTime, 0.1);
+                    } else if (spinHumGain) {
+                        spinHumGain.gain.setTargetAtTime(0, ctx.currentTime, 0.1);
+                    }
+
+                    if (enemyHumGain && enemyRPM > 10) {
+                        const targetFreq = 38 + (enemyRPM / 15);
+                        enemyHumOsc.frequency.setTargetAtTime(targetFreq, ctx.currentTime, 0.1);
+                        enemyHumGain.gain.setTargetAtTime(Math.min(0.04, enemyRPM / 30000), ctx.currentTime, 0.1);
+                    } else if (enemyHumGain) {
+                        enemyHumGain.gain.setTargetAtTime(0, ctx.currentTime, 0.1);
+                    }
+                } catch(e) {}
+            }
+
+            function stopSpinHum() {
+                try {
+                    if (spinHumGain) spinHumGain.gain.value = 0;
+                    if (enemyHumGain) enemyHumGain.gain.value = 0;
+                } catch(e){}
+            }
+
+            function playLaunch() {
+                if (!enabled) return;
+                initCtx();
+                try {
+                    const now = ctx.currentTime;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(120, now);
+                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.45);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+                    
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.45);
+                } catch(e) {}
+            }
+
+            function playClash(intensity) {
+                if (!enabled) return;
+                initCtx();
+                try {
+                    const now = ctx.currentTime;
+                    const osc = ctx.createOscillator();
+                    const noise = ctx.createOscillator(); // Or white noise
+                    const gain = ctx.createGain();
+                    
+                    // Synthesize short high metal click
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(2000, now);
+                    osc.frequency.exponentialRampToValueAtTime(300, now + 0.08);
+
+                    const vol = Math.min(0.2, intensity * 0.15);
+                    gain.gain.setValueAtTime(vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } catch(e) {}
+            }
+
+            function playBurst() {
+                if (!enabled) return;
+                initCtx();
+                try {
+                    const now = ctx.currentTime;
+                    const osc = ctx.createOscillator();
+                    const lowOsc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.linearRampToValueAtTime(40, now + 0.5);
+
+                    lowOsc.type = 'sine';
+                    lowOsc.frequency.setValueAtTime(100, now);
+                    lowOsc.frequency.linearRampToValueAtTime(10, now + 0.6);
+
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+
+                    osc.connect(gain);
+                    lowOsc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    osc.start(now);
+                    lowOsc.start(now);
+                    osc.stop(now + 0.65);
+                    lowOsc.stop(now + 0.65);
+                } catch(e) {}
+            }
+
+            function playNudge() {
+                if (!enabled) return;
+                initCtx();
+                try {
+                    const now = ctx.currentTime;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+                    gain.gain.setValueAtTime(0.03, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } catch(e) {}
+            }
+
+            function startCyberBeat() {
+                if (!enabled || isMusicPlaying) return;
+                initCtx();
+                isMusicPlaying = true;
+                let beatCount = 0;
+                
+                musicInterval = setInterval(() => {
+                    if (!enabled) return;
+                    try {
+                        const now = ctx.currentTime;
+                        
+                        // Kick Drum on beat 0, 2
+                        if (beatCount % 2 === 0) {
+                            const kick = ctx.createOscillator();
+                            const kickGain = ctx.createGain();
+                            kick.frequency.setValueAtTime(150, now);
+                            kick.frequency.exponentialRampToValueAtTime(40, now + 0.2);
+                            kickGain.gain.setValueAtTime(0.08, now);
+                            kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                            kick.connect(kickGain);
+                            kickGain.connect(ctx.destination);
+                            kick.start(now);
+                            kick.stop(now + 0.2);
+                        }
+
+                        // High Hat on beat 1, 3
+                        if (beatCount % 2 === 1) {
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            const filter = ctx.createBiquadFilter();
+                            filter.type = 'highpass';
+                            filter.frequency.setValueAtTime(8000, now);
+                            
+                            osc.type = 'square';
+                            osc.frequency.setValueAtTime(10000, now);
+                            gain.gain.setValueAtTime(0.015, now);
+                            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+                            osc.connect(filter);
+                            filter.connect(gain);
+                            gain.connect(ctx.destination);
+                            osc.start(now);
+                            osc.stop(now + 0.08);
+                        }
+
+                        beatCount = (beatCount + 1) % 4;
+                    } catch(e) {}
+                }, 350); // BPM 170 ish
+            }
+
+            function stopCyberBeat() {
+                if (musicInterval) clearInterval(musicInterval);
+                isMusicPlaying = false;
+            }
+
+            return {
+                toggle: function() {
+                    enabled = !enabled;
+                    if (!enabled) {
+                        stopSpinHum();
+                        stopCyberBeat();
+                    } else {
+                        startCyberBeat();
+                    }
+                    return enabled;
+                },
+                playLaunch,
+                playClash,
+                playBurst,
+                playNudge,
+                startSpinHum,
+                updateSpinHum,
+                stopSpinHum,
+                startCyberBeat,
+                stopCyberBeat
+            };
+        })();
+
+        function toggleSound() {
+            const active = audioManager.toggle();
+            document.getElementById('sound-btn').textContent = active ? '🔊 סאונד: פעיל' : '🔇 סאונד: כבוי';
+        }
+    </script>
+
+    <!-- Main Game Logic and 3D Rendering (Three.js) -->
+    <script>
+        // Game States
+        let gameState = 'MENU'; // 'MENU', 'BUILDER', 'BATTLE_LAUNCH', 'BATTLE', 'FINISHED'
+        let gameMode = 'sandbox'; // 'sandbox', 'tournament'
+        let currentBoss = 'scorpion';
+        let credits = 100;
+
+        // Parts Configuration and Stats Influences
+        const PARTS = {
+            layer: {
+                pegasus: { name: 'כנפי פגסוס', stats: { attack: 85, defense: 30, stamina: 40, weight: 45, speed: 80 }, color: '#00f2fe', shape: 'winged' },
+                leone: { name: 'מגן ליאו', stats: { attack: 30, defense: 90, stamina: 55, weight: 75, speed: 30 }, color: '#00ff87', shape: 'shield' },
+                drago: { name: 'טפרי דרגו', stats: { attack: 90, defense: 25, stamina: 30, weight: 50, speed: 85 }, color: '#f35588', shape: 'dragon' },
+                eagle: { name: 'נשר המצולות', stats: { attack: 40, defense: 45, stamina: 85, weight: 50, speed: 60 }, color: '#ffde17', shape: 'circular' }
+            },
+            disk: {
+                heavy: { name: 'ברזל כבד', stats: { attack: +10, defense: +20, stamina: -15, weight: +35, speed: -20 }, color: '#888888', material: 'heavy' },
+                light: { name: 'סיבי פחמן', stats: { attack: -5, defense: -15, stamina: +25, weight: -20, speed: +25 }, color: '#333333', material: 'light' },
+                balanced: { name: 'פליז כוכב', stats: { attack: +5, defense: +5, stamina: +5, weight: +10, speed: +5 }, color: '#d4af37', material: 'balanced' }
+            },
+            driver: {
+                flat: { name: 'שטוח', stats: { attack: +30, defense: -10, stamina: -20, weight: 0, speed: +30 }, type: 'attack' },
+                ball: { name: 'כדור', stats: { attack: -10, defense: +30, stamina: +10, weight: 0, speed: -10 }, type: 'defense' },
+                sharp: { name: 'מחט', stats: { attack: -20, defense: -10, stamina: +40, weight: 0, speed: 0 }, type: 'stamina' }
+            }
+        };
+
+        // User Customization Selection
+        const userSelection = {
+            layer: 'pegasus',
+            disk: 'heavy',
+            driver: 'flat',
+            color: '#00f2fe'
+        };
+
+        // Opponents configurations
+        const BOSS_PRESETS = {
+            scorpion: {
+                name: 'עקרב המדבר (Scorpion)',
+                layer: 'drago',
+                disk: 'light',
+                driver: 'flat',
+                color: '#ff6c00',
+                difficulty: 1
+            },
+            aegis: {
+                name: 'חומת הברזל (Aegis)',
+                layer: 'leone',
+                disk: 'heavy',
+                driver: 'ball',
+                color: '#00ff87',
+                difficulty: 2
+            },
+            phantom: {
+                name: 'פנטום נשר (Phantom)',
+                layer: 'eagle',
+                disk: 'balanced',
+                driver: 'sharp',
+                color: '#a855f7',
+                difficulty: 3
+            }
+        };
+
+        // UI Helpers
+        function updateCreditsDisplay() {
+            document.getElementById('user-credits').textContent = credits;
+        }
+
+        function selectPart(category, partKey) {
+            userSelection[category] = partKey;
+            
+            // Toggle active styling
+            document.querySelectorAll(`.part-selector button[id^="opt-${category}-"]`).forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`opt-${category}-${partKey}`).classList.add('active');
+
+            calculateStats();
+            rebuildBeybladeMesh(playerBeyblade3D, userSelection);
+        }
+
+        function selectColor(hex, dotEl) {
+            userSelection.color = hex;
+            document.querySelectorAll('.color-dot').forEach(dot => dot.classList.remove('active'));
+            dotEl.classList.add('active');
+            rebuildBeybladeMesh(playerBeyblade3D, userSelection);
+        }
+
+        function selectBoss(bossKey, cardEl) {
+            currentBoss = bossKey;
+            document.querySelectorAll('.boss-card').forEach(card => card.classList.remove('active'));
+            cardEl.classList.add('active');
+        }
+
+        function calculateStats() {
+            const layerObj = PARTS.layer[userSelection.layer];
+            const diskObj = PARTS.disk[userSelection.disk];
+            const driverObj = PARTS.driver[userSelection.driver];
+
+            // Base stats
+            let attack = layerObj.stats.attack + diskObj.stats.attack + driverObj.stats.attack;
+            let defense = layerObj.stats.defense + diskObj.stats.defense + driverObj.stats.defense;
+            let stamina = layerObj.stats.stamina + diskObj.stats.stamina + driverObj.stats.stamina;
+            let weight = layerObj.stats.weight + diskObj.stats.weight + driverObj.stats.weight;
+            let speed = layerObj.stats.speed + diskObj.stats.speed + driverObj.stats.speed;
+
+            // Clamp 10-100
+            const clamp = (val) => Math.max(10, Math.min(100, val));
+            attack = clamp(attack);
+            defense = clamp(defense);
+            stamina = clamp(stamina);
+            weight = clamp(weight);
+            speed = clamp(speed);
+
+            // Update DOM bars
+            document.getElementById('val-attack').textContent = attack;
+            document.getElementById('bar-attack').style.width = attack + '%';
+            document.getElementById('val-defense').textContent = defense;
+            document.getElementById('bar-defense').style.width = defense + '%';
+            document.getElementById('val-stamina').textContent = stamina;
+            document.getElementById('bar-stamina').style.width = stamina + '%';
+            document.getElementById('val-weight').textContent = weight;
+            document.getElementById('bar-weight').style.width = weight + '%';
+            document.getElementById('val-speed').textContent = speed;
+            document.getElementById('bar-speed').style.width = speed + '%';
+
+            // Cache calculated stats
+            userSelection.calculatedStats = { attack, defense, stamina, weight, speed };
+        }
+
+        // Screens management
+        function goToMenu() {
+            gameState = 'MENU';
+            document.getElementById('welcome-screen').classList.remove('hidden');
+            document.getElementById('builder-screen').classList.add('hidden');
+            document.getElementById('battle-hud-overlay').style.display = 'none';
+            audioManager.stopCyberBeat();
+            audioManager.stopSpinHum();
+
+            // Set camera to cinematic menu orbit
+            targetCamAngle = 0;
+            cameraMode = 'menu';
+        }
+
+        function startBuilder(mode) {
+            gameState = 'BUILDER';
+            gameMode = mode;
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('builder-screen').classList.remove('hidden');
+            document.getElementById('battle-hud-overlay').style.display = 'none';
+
+            if (mode === 'tournament') {
+                document.getElementById('tournament-panel').style.display = 'block';
+            } else {
+                document.getElementById('tournament-panel').style.display = 'none';
+            }
+
+            calculateStats();
+            audioManager.startCyberBeat();
+
+            // Transition camera to focus on preview beyblade
+            cameraMode = 'preview';
+            
+            // Make sure preview bey is centered and spinning gently
+            playerBeyblade3D.position.set(0, 1.5, 0);
+            playerBeyblade3D.rotation.set(0.1, 0, 0);
+            playerBeyblade3D.visible = true;
+            enemyBeyblade3D.visible = false;
+            stadiumMesh.visible = false;
+        }
+
+        // WebGL 3D setup
+        let scene, camera, renderer, container;
+        let playerBeyblade3D, enemyBeyblade3D, stadiumMesh;
+        let stadiumFloorRadius = 16;
+        let stadiumBowlK = 0.05; // Bowl parabolic factor
+        
+        let sparkParticles = [];
+        let trails = { player: [], enemy: [] };
+
+        let cameraMode = 'menu'; // 'menu', 'preview', 'battle_launch', 'battle', 'burst_slow'
+        let targetCamAngle = 0;
+        let cameraRadius = 24;
+
+        function init3D() {
+            container = document.getElementById('canvas-container');
+            
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x0e182b, 0.003);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.setClearColor(0x060d1e, 1);
+            container.appendChild(renderer.domElement);
+
+            // Lighting — bright neon arena
+            const ambientLight = new THREE.AmbientLight(0xdbeafe, 1.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 2.4);
+            dirLight.position.set(20, 50, 20);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            const centerLight = new THREE.PointLight(0xffffff, 5.0, 65);
+            centerLight.position.set(0, 10, 0);
+            scene.add(centerLight);
+
+            const blueSpot = new THREE.SpotLight(0x00f2fe, 8, 60, Math.PI / 3, 0.5, 1);
+            blueSpot.position.set(-15, 25, -15);
+            scene.add(blueSpot);
+
+            const pinkSpot = new THREE.SpotLight(0xf35588, 8, 60, Math.PI / 3, 0.5, 1);
+            pinkSpot.position.set(15, 25, 15);
+            scene.add(pinkSpot);
+
+            const greenSpot = new THREE.SpotLight(0x00ff87, 4, 50, Math.PI / 4, 0.5, 1);
+            greenSpot.position.set(0, 30, -20);
+            scene.add(greenSpot);
+
+            // Cyber background star/grid particles
+            const starsGeo = new THREE.BufferGeometry();
+            const starsCount = 400;
+            const starPositions = new Float32Array(starsCount * 3);
+            for (let i = 0; i < starsCount * 3; i += 3) {
+                starPositions[i] = (Math.random() - 0.5) * 160;
+                starPositions[i+1] = Math.random() * 80 + 5;
+                starPositions[i+2] = (Math.random() - 0.5) * 160;
+            }
+            starsGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starsMat = new THREE.PointsMaterial({
+                color: 0x00f2fe,
+                size: 0.6,
+                transparent: true,
+                opacity: 0.8
+            });
+            const starPoints = new THREE.Points(starsGeo, starsMat);
+            scene.add(starPoints);
+
+            // Build Beystadium
+            createBeystadium();
+
+            // Create Beyblade Groups
+            playerBeyblade3D = new THREE.Group();
+            enemyBeyblade3D = new THREE.Group();
+            scene.add(playerBeyblade3D);
+            scene.add(enemyBeyblade3D);
+
+            // Assemble default mesh elements
+            rebuildBeybladeMesh(playerBeyblade3D, userSelection);
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function createBeystadium() {
+            // Bright cyber-silver/steel cylinder wall
+            const stadiumGeo = new THREE.CylinderGeometry(stadiumFloorRadius + 2, stadiumFloorRadius - 1, 3, 64, 8, true);
+            const stadiumMat = new THREE.MeshStandardMaterial({
+                color: 0x6080aa,
+                roughness: 0.1,
+                metalness: 0.9,
+                side: THREE.DoubleSide
+            });
+            stadiumMesh = new THREE.Mesh(stadiumGeo, stadiumMat);
+            stadiumMesh.position.y = 1;
+            stadiumMesh.receiveShadow = true;
+
+            // Vibrant glossy cyber-blue metallic bowl
+            const bowlGeo = new THREE.CylinderGeometry(stadiumFloorRadius, 0, 2, 64, 4);
+            const bowlMat = new THREE.MeshStandardMaterial({
+                color: 0x1e3a6e,
+                roughness: 0.18,
+                metalness: 0.9
+            });
+            
+            // Warp vertices of the bowl to be parabolic
+            const pos = bowlGeo.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+                let x = pos.getX(i);
+                let z = pos.getZ(i);
+                let r2 = x*x + z*z;
+                pos.setY(i, stadiumBowlK * r2 - 1.5);
+            }
+            bowlGeo.computeVertexNormals();
+
+            const bowlMesh = new THREE.Mesh(bowlGeo, bowlMat);
+            bowlMesh.position.y = 1;
+            bowlMesh.receiveShadow = true;
+            stadiumMesh.add(bowlMesh);
+
+            // Multiple colorful glowing concentric Tron lines
+            for (let r = 4; r <= stadiumFloorRadius - 1; r += 4) {
+                const gRing = new THREE.RingGeometry(r - 0.08, r + 0.08, 64);
+                const gMat = new THREE.MeshBasicMaterial({
+                    color: r % 8 === 4 ? 0xf35588 : 0x00ff87,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.65
+                });
+                const meshRing = new THREE.Mesh(gRing, gMat);
+                meshRing.rotation.x = Math.PI / 2;
+                meshRing.position.y = 1.02;
+                stadiumMesh.add(meshRing);
+            }
+
+            // Main Outer Glowing ring outline
+            const ringGeo = new THREE.RingGeometry(stadiumFloorRadius - 0.2, stadiumFloorRadius + 0.1, 64);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: 0x00f2fe,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.9
+            });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = Math.PI / 2;
+            ring.position.y = 1.05;
+            stadiumMesh.add(ring);
+
+            scene.add(stadiumMesh);
+        }
+
+        function rebuildBeybladeMesh(group, config) {
+            // Clear existing children
+            while(group.children.length > 0) {
+                group.remove(group.children[0]);
+            }
+
+            // Subgroup that holds the physical models so we can spin them
+            const spinnerGroup = new THREE.Group();
+            spinnerGroup.name = "spinner";
+            group.add(spinnerGroup);
+
+            // Layer / Attack Ring
+            const layerGeo = new THREE.CylinderGeometry(1.6, 1.4, 0.4, 16);
+            const layerMat = new THREE.MeshStandardMaterial({
+                color: config.color,
+                roughness: 0.3,
+                metalness: 0.8
+            });
+            const layerMesh = new THREE.Mesh(layerGeo, layerMat);
+            layerMesh.position.y = 0.45;
+            layerMesh.castShadow = true;
+            layerMesh.name = "part_layer";
+            spinnerGroup.add(layerMesh);
+
+            // Wings/blades on Layer based on shape selection
+            const wingsCount = config.layer === 'pegasus' ? 3 : config.layer === 'leone' ? 12 : config.layer === 'drago' ? 2 : 4;
+            const wingGeo = config.layer === 'pegasus' ? new THREE.BoxGeometry(0.5, 0.3, 0.8) :
+                            config.layer === 'leone' ? new THREE.SphereGeometry(0.18, 8, 8) :
+                            config.layer === 'drago' ? new THREE.BoxGeometry(0.7, 0.2, 1.1) :
+                            new THREE.CylinderGeometry(0.2, 0.2, 0.3, 8);
+
+            for (let i = 0; i < wingsCount; i++) {
+                const wing = new THREE.Mesh(wingGeo, layerMat);
+                const angle = (i / wingsCount) * Math.PI * 2;
+                wing.position.set(Math.cos(angle) * 1.5, 0.45, Math.sin(angle) * 1.5);
+                wing.rotation.y = -angle + 0.3; // Angle style
+                layerMesh.add(wing);
+            }
+
+            // Weight Disk (Middle Ring)
+            const diskColor = PARTS.disk[config.disk].color;
+            const diskGeo = new THREE.TorusGeometry(1.2, 0.25, 8, 16);
+            const diskMat = new THREE.MeshStandardMaterial({
+                color: diskColor,
+                roughness: 0.2,
+                metalness: 0.95
+            });
+            const diskMesh = new THREE.Mesh(diskGeo, diskMat);
+            diskMesh.rotation.x = Math.PI / 2;
+            diskMesh.position.y = 0.2;
+            diskMesh.castShadow = true;
+            diskMesh.name = "part_disk";
+            spinnerGroup.add(diskMesh);
+
+            // Performance Tip (Driver)
+            const tipGeo = new THREE.ConeGeometry(0.8, 0.5, 16);
+            const tipMat = new THREE.MeshStandardMaterial({
+                color: 0x222222,
+                roughness: 0.4,
+                metalness: 0.5
+            });
+            const tipMesh = new THREE.Mesh(tipGeo, tipMat);
+            tipMesh.rotation.x = Math.PI;
+            tipMesh.position.y = -0.15;
+            tipMesh.castShadow = true;
+            tipMesh.name = "part_tip";
+            spinnerGroup.add(tipMesh);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // PHYSICS ENGINE & SIMULATION VARIABLES
+        let physicsObjects = [];
+        
+        function launchGame() {
+            gameState = 'BATTLE_LAUNCH';
+            document.getElementById('builder-screen').classList.add('hidden');
+            document.getElementById('battle-hud-overlay').style.display = 'flex';
+            document.getElementById('launcher-container').style.display = 'flex';
+
+            // Show Beystadium
+            stadiumMesh.visible = true;
+            enemyBeyblade3D.visible = true;
+
+            // Place player beyblade in launch position
+            playerBeyblade3D.position.set(-6, 3, 0);
+            playerBeyblade3D.rotation.set(0, 0, 0);
+            playerBeyblade3D.scale.set(1, 1, 1);
+            playerBeyblade3D.visible = true;
+
+            // Rebuild enemy beyblade based on current selected boss
+            const bossConfig = BOSS_PRESETS[currentBoss];
+            rebuildBeybladeMesh(enemyBeyblade3D, bossConfig);
+            enemyBeyblade3D.position.set(6, 3, 0);
+            enemyBeyblade3D.rotation.set(0, 0, 0);
+            enemyBeyblade3D.scale.set(1, 1, 1);
+            enemyBeyblade3D.visible = true;
+
+            // Reset HUD bars
+            document.getElementById('hud-player-name').textContent = 'הבייבלייד שלך (' + PARTS.layer[userSelection.layer].name + ')';
+            document.getElementById('hud-enemy-name').textContent = bossConfig.name;
+            document.getElementById('hud-player-bar').style.width = '100%';
+            document.getElementById('hud-enemy-bar').style.width = '100%';
+
+            cameraMode = 'battle_launch';
+            targetCamAngle = 0;
+            gpChargePower = 0;
+
+            // Show gamepad launch hint if controller is connected
+            const gpLaunchHint = document.getElementById('gp-launch-hint');
+            if (gpLaunchHint) gpLaunchHint.style.display = gamepadIndex !== null ? 'block' : 'none';
+
+            // Initialize Ripcord launcher logic
+            initRipcordLauncher();
+            announcerText("Ready... Let it Rip!", 2000);
+        }
+
+        // Ripcord pull variables
+        let launchPower = 0;
+        let hasLaunched = false;
+
+        function initRipcordLauncher() {
+            const handle = document.getElementById('ripcord-handle');
+            const track = document.getElementById('ripcord-track');
+            launchPower = 0;
+            hasLaunched = false;
+            handle.style.top = '0px';
+            document.getElementById('launch-power-label').textContent = 'כוח: 0%';
+
+            let isDragging = false;
+            let startY = 0;
+            let trackHeight = track.clientHeight - handle.clientHeight;
+
+            function dragStart(e) {
+                isDragging = true;
+                startY = e.clientY || e.touches[0].clientY;
+                handle.style.transition = 'none';
+            }
+
+            function dragMove(e) {
+                if (!isDragging) return;
+                const clientY = e.clientY || e.touches[0].clientY;
+                let deltaY = clientY - startY;
+                if (deltaY < 0) deltaY = 0;
+                if (deltaY > trackHeight) deltaY = trackHeight;
+
+                handle.style.top = deltaY + 'px';
+                
+                // Calculate power
+                launchPower = deltaY / trackHeight;
+                document.getElementById('launch-power-label').textContent = `כוח: ${Math.round(launchPower * 100)}%`;
+            }
+
+            function dragEnd() {
+                if (!isDragging) return;
+                isDragging = false;
+                
+                if (launchPower > 0.35) {
+                    // Trigger Launch!
+                    triggerLaunch();
+                } else {
+                    // Snap back
+                    handle.style.transition = 'top 0.3s';
+                    handle.style.top = '0px';
+                    launchPower = 0;
+                    document.getElementById('launch-power-label').textContent = 'כוח: 0%';
+                }
+            }
+
+            handle.addEventListener('mousedown', dragStart);
+            window.addEventListener('mousemove', dragMove);
+            window.addEventListener('mouseup', dragEnd);
+
+            handle.addEventListener('touchstart', dragStart);
+            window.addEventListener('touchmove', dragMove);
+            window.addEventListener('touchend', dragEnd);
+        }
+
+        // Rigidbody states
+        let playerPhys = {
+            pos: new THREE.Vector3(),
+            vel: new THREE.Vector3(),
+            omega: 0, // Spin RPM
+            maxOmega: 0,
+            mass: 0,
+            stability: 100, // Reduced by hard clashes
+            maxStability: 100,
+            tipType: 'attack',
+            layerShape: 'winged',
+            burst: false,
+            boostEnergy: 100
+        };
+
+        let enemyPhys = {
+            pos: new THREE.Vector3(),
+            vel: new THREE.Vector3(),
+            omega: 0,
+            maxOmega: 0,
+            mass: 0,
+            stability: 100,
+            maxStability: 100,
+            tipType: 'attack',
+            layerShape: 'winged',
+            burst: false
+        };
+
+        function triggerLaunch() {
+            if (hasLaunched) return;
+            hasLaunched = true;
+            document.getElementById('launcher-container').style.display = 'none';
+
+            audioManager.playLaunch();
+            audioManager.startSpinHum();
+
+            // Set up player physics stats based on selections
+            const pStats = userSelection.calculatedStats;
+            playerPhys.mass = pStats.weight / 10 + 1.0;
+            playerPhys.omega = launchPower * 2400 + 1400; // RPM up to 3800
+            playerPhys.maxOmega = 3800;
+            playerPhys.stability = 100;
+            playerPhys.maxStability = 100;
+            playerPhys.tipType = PARTS.driver[userSelection.driver].type;
+            playerPhys.layerShape = PARTS.layer[userSelection.layer].shape;
+            playerPhys.pos.set(-4.5, 0.2, (Math.random() - 0.5) * 2);
+            playerPhys.vel.set(3 + launchPower * 8, 0, (Math.random() - 0.5) * 5);
+            playerPhys.burst = false;
+            playerPhys.boostEnergy = 100;
+
+            // Opponent Launch
+            const boss = BOSS_PRESETS[currentBoss];
+            const bStats = PARTS.layer[boss.layer].stats; // Base boss stats
+            
+            enemyPhys.mass = (bStats.weight + 20) / 10 + 1.0;
+            enemyPhys.omega = 2000 + boss.difficulty * 350;
+            enemyPhys.maxOmega = 3800;
+            enemyPhys.stability = 100;
+            enemyPhys.maxStability = 100;
+            enemyPhys.tipType = PARTS.driver[boss.driver].type;
+            enemyPhys.layerShape = PARTS.layer[boss.layer].shape;
+            enemyPhys.pos.set(4.5, 0.2, (Math.random() - 0.5) * 2);
+            // AI launches towards center
+            enemyPhys.vel.set(-6 - boss.difficulty * 2, 0, (Math.random() - 0.5) * 4);
+            enemyPhys.burst = false;
+
+            gameState = 'BATTLE';
+            cameraMode = 'battle';
+            announcerText("LET IT RIP!", 1500);
+
+            // Re-anchor to arena ground height (parabolic z at radial pos)
+            resolveHeight(playerPhys);
+            resolveHeight(enemyPhys);
+        }
+
+        function resolveHeight(phys) {
+            let r2 = phys.pos.x * phys.pos.x + phys.pos.z * phys.pos.z;
+            phys.pos.y = stadiumBowlK * r2 + 0.15; // Placed slightly above Beystadium floor
+        }
+
+        // User Interactive keyboard nudging/boosting
+        let keyboardBoost = new THREE.Vector3();
+        window.addEventListener('keydown', (e) => {
+            if (gameState !== 'BATTLE' || playerPhys.burst) return;
+            const nudgeForce = 6;
+            if (e.key === 'w' || e.key === 'ArrowUp') keyboardBoost.z = -nudgeForce;
+            if (e.key === 's' || e.key === 'ArrowDown') keyboardBoost.z = nudgeForce;
+            if (e.key === 'a' || e.key === 'ArrowLeft') keyboardBoost.x = -nudgeForce;
+            if (e.key === 'd' || e.key === 'ArrowRight') keyboardBoost.x = nudgeForce;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'w' || e.key === 'ArrowUp' || e.key === 's' || e.key === 'ArrowDown') keyboardBoost.z = 0;
+            if (e.key === 'a' || e.key === 'ArrowLeft' || e.key === 'd' || e.key === 'ArrowRight') keyboardBoost.x = 0;
+        });
+
+        // PlayStation Gamepad API integration
+        let gamepadIndex = null;
+        let lastGamepadButtons = [];
+        let gamepadBoost = new THREE.Vector3();
+        let currentBuilderCategory = 'layer';
+
+        window.addEventListener('gamepadconnected', (e) => {
+            gamepadIndex = e.gamepad.index;
+            const btn = document.getElementById('gamepad-btn');
+            if (btn) {
+                btn.style.opacity = '1.0';
+                btn.style.color = 'var(--neon-green)';
+                btn.style.borderColor = 'var(--neon-green)';
+                btn.textContent = '🎮 Gamepad: Connected!';
+            }
+            const kbHint = document.getElementById('battle-instructions-kb');
+            const gpHint = document.getElementById('battle-instructions-gp');
+            if (kbHint) kbHint.style.display = 'none';
+            if (gpHint) gpHint.style.display = 'block';
+            announcerText('🎮 Gamepad Connected!', 2000);
+        });
+
+        window.addEventListener('gamepaddisconnected', (e) => {
+            if (gamepadIndex === e.gamepad.index) {
+                gamepadIndex = null;
+                const btn = document.getElementById('gamepad-btn');
+                if (btn) {
+                    btn.style.opacity = '0.5';
+                    btn.style.color = '#8da2c4';
+                    btn.style.borderColor = '';
+                    btn.textContent = '🎮 Gamepad: Off';
+                }
+                const kbHint = document.getElementById('battle-instructions-kb');
+                const gpHint = document.getElementById('battle-instructions-gp');
+                if (kbHint) kbHint.style.display = 'block';
+                if (gpHint) gpHint.style.display = 'none';
+                announcerText('🎮 Gamepad Disconnected', 2000);
+            }
+        });
+
+        // Gamepad charge state for ripcord
+        let gpCharging = false;
+        let gpChargePower = 0;
+
+        function pollGamepadInput() {
+            if (gamepadIndex === null) return;
+            const gamepads = navigator.getGamepads();
+            const gamepad = gamepads[gamepadIndex];
+            if (!gamepad) return;
+
+            gamepadBoost.set(0, 0, 0);
+
+            // Left stick axes with deadzone
+            const deadzone = 0.12;
+            let axisX = gamepad.axes[0];
+            let axisY = gamepad.axes[1];
+            if (Math.abs(axisX) < deadzone) axisX = 0;
+            if (Math.abs(axisY) < deadzone) axisY = 0;
+
+            const nudgeForce = 6;
+
+            // Button mapping
+            const btnCross    = gamepad.buttons[0];  // X
+            const btnCircle   = gamepad.buttons[1];  // Circle
+            const btnL1       = gamepad.buttons[4];  // L1
+            const btnR1       = gamepad.buttons[5];  // R1
+            const btnL2       = gamepad.buttons[6];  // L2 (analog)
+            const btnR2       = gamepad.buttons[7];  // R2 (analog)
+
+            const isPressed  = (btn) => typeof btn === 'object' ? btn.pressed : btn === 1.0;
+            const axisValue  = (btn) => typeof btn === 'object' ? btn.value : (btn === 1.0 ? 1.0 : 0);
+
+            const isJustPressed = (btn, index) => {
+                const pressed = isPressed(btn);
+                const lastState = lastGamepadButtons[index] || false;
+                lastGamepadButtons[index] = pressed;
+                return pressed && !lastState;
+            };
+
+            const crossPressed    = isJustPressed(btnCross, 0);
+            const circlePressed   = isJustPressed(btnCircle, 1);
+            const l1Pressed       = isJustPressed(btnL1, 4);
+            const r1Pressed       = isJustPressed(btnR1, 5);
+            const l2Pressed       = isJustPressed(btnL2, 6);
+            const r2Pressed       = isJustPressed(btnR2, 7);
+            const r2Held          = isPressed(btnR2);
+            const r2Value         = axisValue(btnR2);
+
+            if (gameState === 'BUILDER') {
+                const categories = ['layer', 'disk', 'driver'];
+                if (l1Pressed || r1Pressed) {
+                    let idx = categories.indexOf(currentBuilderCategory);
+                    if (l1Pressed) idx = (idx - 1 + categories.length) % categories.length;
+                    if (r1Pressed) idx = (idx + 1) % categories.length;
+                    currentBuilderCategory = categories[idx];
+                    announcerText(`Category: ${currentBuilderCategory.toUpperCase()}`, 1000);
+                }
+                if (l2Pressed || r2Pressed) {
+                    const keys = Object.keys(PARTS[currentBuilderCategory]);
+                    let idx = keys.indexOf(userSelection[currentBuilderCategory]);
+                    if (l2Pressed) idx = (idx - 1 + keys.length) % keys.length;
+                    if (r2Pressed) idx = (idx + 1) % keys.length;
+                    selectPart(currentBuilderCategory, keys[idx]);
+                }
+                if (crossPressed) launchGame();
+
+            } else if (gameState === 'BATTLE_LAUNCH') {
+                // Hold R2 to charge the ripcord, release to launch
+                if (r2Held) {
+                    gpChargePower = Math.min(1.0, gpChargePower + 0.018);
+                    launchPower = gpChargePower;
+                    const handle = document.getElementById('ripcord-handle');
+                    const track = document.getElementById('ripcord-track');
+                    if (handle && track) {
+                        let trackHeight = track.clientHeight - handle.clientHeight;
+                        handle.style.top = (launchPower * trackHeight) + 'px';
+                        document.getElementById('launch-power-label').textContent = `Power: ${Math.round(launchPower * 100)}%`;
+                    }
+                } else if (gpChargePower > 0.35) {
+                    // Released R2 with enough charge — launch!
+                    triggerLaunch();
+                    gpChargePower = 0;
+                }
+
+                // Also allow left-stick Y + cross like before
+                if (axisY > 0.1) {
+                    launchPower = Math.max(launchPower, axisY);
+                    const handle = document.getElementById('ripcord-handle');
+                    const track = document.getElementById('ripcord-track');
+                    if (handle && track) {
+                        let trackHeight = track.clientHeight - handle.clientHeight;
+                        handle.style.top = (launchPower * trackHeight) + 'px';
+                        document.getElementById('launch-power-label').textContent = `Power: ${Math.round(launchPower * 100)}%`;
+                    }
+                }
+                if (crossPressed && launchPower > 0.35) {
+                    triggerLaunch();
+                    gpChargePower = 0;
+                }
+
+            } else if (gameState === 'BATTLE') {
+                if (!playerPhys.burst) {
+                    // Left stick drives the beyblade
+                    if (axisX !== 0 || axisY !== 0) {
+                        gamepadBoost.set(axisX * nudgeForce, 0, axisY * nudgeForce);
+                    }
+                    // X or Circle = boost dash
+                    if (crossPressed || circlePressed) applyNudgeBurst();
+                    // R2 also boosts (analog — fires once per press)
+                    if (r2Pressed) applyNudgeBurst();
+                }
+            }
+        }
+
+        // Boost touch triggers
+        document.getElementById('boost-btn').addEventListener('touchstart', (e) => {
+            if (gameState !== 'BATTLE' || playerPhys.burst) return;
+            applyNudgeBurst();
+        });
+        document.getElementById('boost-btn').addEventListener('click', (e) => {
+            if (gameState !== 'BATTLE' || playerPhys.burst) return;
+            applyNudgeBurst();
+        });
+
+        function applyNudgeBurst() {
+            if (playerPhys.boostEnergy < 20) return;
+            playerPhys.boostEnergy -= 30;
+
+            audioManager.playNudge();
+
+            // Dash towards enemy with a strong impulse
+            let dir = new THREE.Vector3().subVectors(enemyPhys.pos, playerPhys.pos).normalize();
+            playerPhys.vel.addScaledVector(dir, 14);
+
+            // Visual burst sparks
+            spawnSparks(playerPhys.pos, 0x00f2fe, 25);
+            camShake = 0.25;
+        }
+
+        // Particle sparks generator
+        function spawnSparks(position, colorHex, count) {
+            for (let i = 0; i < count; i++) {
+                const geo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+                const mat = new THREE.MeshBasicMaterial({ color: colorHex });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.copy(position);
+                
+                const velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 15,
+                    Math.random() * 12 + 4,
+                    (Math.random() - 0.5) * 15
+                );
+
+                scene.add(mesh);
+                sparkParticles.push({
+                    mesh,
+                    vel: velocity,
+                    life: 1.0,
+                    decay: Math.random() * 0.05 + 0.02
+                });
+            }
+        }
+
+        // Visual trails system
+        function updateTrails(playerPos, enemyPos) {
+            // Trails geometry
+            const playerTrailObj = new THREE.Mesh(
+                new THREE.SphereGeometry(0.1, 8, 8),
+                new THREE.MeshBasicMaterial({ color: userSelection.color, transparent: true, opacity: 0.5 })
+            );
+            playerTrailObj.position.copy(playerPos);
+            scene.add(playerTrailObj);
+            trails.player.push({ mesh: playerTrailObj, age: 0 });
+
+            const bossConfig = BOSS_PRESETS[currentBoss];
+            const enemyTrailObj = new THREE.Mesh(
+                new THREE.SphereGeometry(0.1, 8, 8),
+                new THREE.MeshBasicMaterial({ color: bossConfig.color, transparent: true, opacity: 0.5 })
+            );
+            enemyTrailObj.position.copy(enemyPos);
+            scene.add(enemyTrailObj);
+            trails.enemy.push({ mesh: enemyTrailObj, age: 0 });
+
+            // Manage ages
+            for (let i = trails.player.length - 1; i >= 0; i--) {
+                const tr = trails.player[i];
+                tr.age += 1;
+                tr.mesh.scale.setScalar(1 - tr.age / 12);
+                tr.mesh.material.opacity = 0.5 * (1 - tr.age / 12);
+                if (tr.age >= 12) {
+                    scene.remove(tr.mesh);
+                    trails.player.splice(i, 1);
+                }
+            }
+
+            for (let i = trails.enemy.length - 1; i >= 0; i--) {
+                const tr = trails.enemy[i];
+                tr.age += 1;
+                tr.mesh.scale.setScalar(1 - tr.age / 12);
+                tr.mesh.material.opacity = 0.5 * (1 - tr.age / 12);
+                if (tr.age >= 12) {
+                    scene.remove(tr.mesh);
+                    trails.enemy.splice(i, 1);
+                }
+            }
+        }
+
+        // Announcer overlay text trigger
+        function announcerText(text, duration) {
+            const el = document.getElementById('announcer');
+            el.textContent = text;
+            el.classList.add('active');
+            setTimeout(() => {
+                el.classList.remove('active');
+            }, duration);
+        }
+
+        // Trigger Burst Finish (breaking parts apart)
+        function triggerBurst(phys, group) {
+            phys.burst = true;
+            audioManager.playBurst();
+
+            const spinner = group.getObjectByName("spinner");
+            if (!spinner) return;
+
+            const layer = spinner.getObjectByName("part_layer");
+            const disk = spinner.getObjectByName("part_disk");
+            const tip = spinner.getObjectByName("part_tip");
+
+            // Dissociate from spinning hierarchy
+            const parts = [layer, disk, tip];
+            parts.forEach(part => {
+                if (!part) return;
+                
+                // Get world transform
+                const worldPos = new THREE.Vector3();
+                part.getWorldPosition(worldPos);
+                
+                const worldQuat = new THREE.Quaternion();
+                part.getWorldQuaternion(worldQuat);
+                
+                const worldScale = new THREE.Vector3();
+                part.getWorldScale(worldScale);
+                
+                // Remove from parent and add directly to scene root
+                spinner.remove(part);
+                scene.add(part);
+                
+                // Restore world transform
+                part.position.copy(worldPos);
+                part.quaternion.copy(worldQuat);
+                part.scale.copy(worldScale);
+                
+                // Apply physics to parts
+                const partVel = new THREE.Vector3(
+                    (Math.random() - 0.5) * 12,
+                    Math.random() * 8 + 6,
+                    (Math.random() - 0.5) * 12
+                ).addScaledVector(phys.vel, 0.5);
+
+                const partRot = new THREE.Vector3(
+                    Math.random() * 10,
+                    Math.random() * 10,
+                    Math.random() * 10
+                );
+
+                physicsObjects.push({
+                    mesh: part,
+                    vel: partVel,
+                    rotVel: partRot,
+                    pos: part.position,
+                    isFragment: true
+                });
+            });
+
+            group.visible = false;
+        }
+
+        // MAIN PHYSICS LOOP TICK
+        const dt = 1/60;
+        function updatePhysics() {
+            if (gameState !== 'BATTLE') {
+                // Keep fragments jumping/falling if sandbox ended
+                updateFragments();
+                return;
+            }
+
+            // --- 1. Keyboard/Gamepad/Impulse forces ---
+            let activeBoost = new THREE.Vector3().addVectors(keyboardBoost, gamepadBoost);
+            if (!playerPhys.burst) {
+                if (activeBoost.lengthSq() > 0) {
+                    const steeringForce = 55.0;
+                    const mag = Math.min(6, activeBoost.length());
+                    const dir = activeBoost.clone().normalize();
+                    playerPhys.vel.addScaledVector(dir, (mag / 6) * steeringForce * dt);
+                }
+                playerPhys.boostEnergy = Math.min(100, playerPhys.boostEnergy + dt * 40);
+                // Velocity cap so control stays crisp
+                const maxSpeed = 22;
+                if (playerPhys.vel.length() > maxSpeed) playerPhys.vel.setLength(maxSpeed);
+            }
+            if (!enemyPhys.burst) {
+                const maxSpeed = 22;
+                if (enemyPhys.vel.length() > maxSpeed) enemyPhys.vel.setLength(maxSpeed);
+            }
+
+            // --- 2. Gravity bowl slope pull ---
+            // Gradient of parabolic bowl z = K*(x^2 + y^2) is grad = 2K*x, 2K*z
+            const applyBowlForces = (phys) => {
+                if (phys.burst) return;
+                const r2 = phys.pos.x * phys.pos.x + phys.pos.z * phys.pos.z;
+                
+                // Inward gravity pull
+                const gravityPull = -9.8 * stadiumBowlK * 1.8;
+                phys.vel.x += phys.pos.x * gravityPull * dt;
+                phys.vel.z += phys.pos.z * gravityPull * dt;
+
+                // --- 3. Tip performance behavior ---
+                if (phys.tipType === 'attack') {
+                    // Aggressive orbit: drive perpendicular to center radial vector
+                    const radial = new THREE.Vector3(phys.pos.x, 0, phys.pos.z).normalize();
+                    const orbitDir = new THREE.Vector3(-radial.z, 0, radial.x);
+                    
+                    const driveForce = 7.0 * (phys.omega / phys.maxOmega);
+                    phys.vel.addScaledVector(orbitDir, driveForce * dt);
+                } else if (phys.tipType === 'defense') {
+                    // Stay grounded, seek center slightly
+                    const radial = new THREE.Vector3(phys.pos.x, 0, phys.pos.z).normalize();
+                    phys.vel.addScaledVector(radial, -2.5 * dt);
+                } else {
+                    // Stamina: perfectly balanced center seek
+                    const radial = new THREE.Vector3(phys.pos.x, 0, phys.pos.z).normalize();
+                    phys.vel.addScaledVector(radial, -4.5 * dt);
+                }
+
+                // Drag/friction
+                const translationalDrag = -0.32;
+                phys.vel.addScaledVector(phys.vel, translationalDrag * dt);
+
+                // RPM reduction — slow decay for longer battles
+                const rotationalDrag = phys.tipType === 'stamina' ? -4 : phys.tipType === 'defense' ? -8 : -13;
+                phys.omega = Math.max(0, phys.omega + rotationalDrag * dt);
+            };
+
+            applyBowlForces(playerPhys);
+            applyBowlForces(enemyPhys);
+
+            // Simple AI logic for opponent: drive towards player
+            if (!enemyPhys.burst) {
+                let driveDir = new THREE.Vector3().subVectors(playerPhys.pos, enemyPhys.pos).normalize();
+                const aiStats = BOSS_PRESETS[currentBoss];
+                const aiIntelligence = aiStats.difficulty * 2.5;
+                enemyPhys.vel.addScaledVector(driveDir, aiIntelligence * dt);
+            }
+
+            // --- 4. Integrator ---
+            if (!playerPhys.burst) {
+                playerPhys.pos.addScaledVector(playerPhys.vel, dt);
+                resolveHeight(playerPhys);
+                playerBeyblade3D.position.copy(playerPhys.pos);
+                
+                // Spin visual
+                const spinner = playerBeyblade3D.getObjectByName("spinner");
+                if (spinner) {
+                    spinner.rotation.y += (playerPhys.omega / 60) * Math.PI * 2 * dt;
+                }
+            }
+
+            if (!enemyPhys.burst) {
+                enemyPhys.pos.addScaledVector(enemyPhys.vel, dt);
+                resolveHeight(enemyPhys);
+                enemyBeyblade3D.position.copy(enemyPhys.pos);
+
+                // Spin visual
+                const spinner = enemyBeyblade3D.getObjectByName("spinner");
+                if (spinner) {
+                    spinner.rotation.y += (enemyPhys.omega / 60) * Math.PI * 2 * dt;
+                }
+            }
+
+            // Update sound hum frequency
+            audioManager.updateSpinHum(playerPhys.omega, enemyPhys.omega);
+
+            // Trails
+            if (!playerPhys.burst && !enemyPhys.burst) {
+                updateTrails(playerPhys.pos, enemyPhys.pos);
+            }
+
+            // --- 5. Collision Checks ---
+            // Stadium out check
+            const checkOut = (phys, name, group) => {
+                if (phys.burst) return;
+                const dist = Math.sqrt(phys.pos.x * phys.pos.x + phys.pos.z * phys.pos.z);
+                if (dist > stadiumFloorRadius + 0.8) {
+                    announcerText(name + " עף מחוץ לזירה!", 2500);
+                    triggerBurst(phys, group);
+                    endBattle(name === 'הבייבלייד שלך' ? 'LOSS' : 'WIN');
+                }
+            };
+            checkOut(playerPhys, 'הבייבלייד שלך', playerBeyblade3D);
+            checkOut(enemyPhys, 'הבייבלייד היריב', enemyBeyblade3D);
+
+            // Beyblade vs Beyblade collision
+            if (!playerPhys.burst && !enemyPhys.burst) {
+                const diff = new THREE.Vector3().subVectors(enemyPhys.pos, playerPhys.pos);
+                const dist = diff.length();
+                const collisionRadius = 2.6; // sum of radial boundaries
+
+                if (dist < collisionRadius) {
+                    // Elastic clash resolution
+                    const normal = diff.clone().normalize();
+                    
+                    // Relative velocity along collision normal
+                    const relVel = new THREE.Vector3().subVectors(enemyPhys.vel, playerPhys.vel);
+                    const speedAlongNormal = relVel.dot(normal);
+
+                    if (speedAlongNormal < 0) { // Moving towards each other
+                        const restitution = 0.85; // Bouncy
+                        let impulseScalar = -(1 + restitution) * speedAlongNormal;
+                        impulseScalar /= (1 / playerPhys.mass + 1 / enemyPhys.mass);
+
+                        // Apply impulses
+                        playerPhys.vel.addScaledVector(normal, -impulseScalar / playerPhys.mass);
+                        enemyPhys.vel.addScaledVector(normal, impulseScalar / enemyPhys.mass);
+
+                        // Loss of rotational speed (RPM) upon hit
+                        const impactIntensity = Math.abs(speedAlongNormal);
+                        playerPhys.omega = Math.max(0, playerPhys.omega - impactIntensity * 20);
+                        enemyPhys.omega = Math.max(0, enemyPhys.omega - impactIntensity * 20);
+
+                        // Stability damage
+                        playerPhys.stability -= impactIntensity * 2.5;
+                        enemyPhys.stability -= impactIntensity * 2.5;
+
+                        // Play sound
+                        audioManager.playClash(impactIntensity);
+
+                        // Spark effect
+                        const midpoint = new THREE.Vector3().addVectors(playerPhys.pos, enemyPhys.pos).multiplyScalar(0.5);
+                        spawnSparks(midpoint, 0xffaa00, Math.round(impactIntensity * 4 + 5));
+
+                        // Shake camera slightly
+                        camShake = impactIntensity * 0.18;
+
+                        // CLASH announcer on big hits
+                        if (impactIntensity > 5) announcerText("⚡ CLASH! ⚡", 800);
+
+                        // Check Burst Finish criteria
+                        if (playerPhys.stability <= 0 || playerPhys.omega < 30) {
+                            announcerText("💥 BURST FINISH! 💥", 3000);
+                            triggerBurst(playerPhys, playerBeyblade3D);
+                            endBattle('LOSS');
+                        } else if (enemyPhys.stability <= 0 || enemyPhys.omega < 30) {
+                            announcerText("💥 BURST FINISH! 💥", 3000);
+                            triggerBurst(enemyPhys, enemyBeyblade3D);
+                            endBattle('WIN');
+                        }
+                    }
+                }
+            }
+
+            // Stamina finish condition (runs out of spin)
+            if (!playerPhys.burst && !enemyPhys.burst) {
+                if (playerPhys.omega <= 5) {
+                    announcerText("הסביבון שלך עצר! (Spin Out)", 3000);
+                    endBattle('LOSS');
+                } else if (enemyPhys.omega <= 5) {
+                    announcerText("ניצחון בסיבוב! (Spin Out)", 3000);
+                    endBattle('WIN');
+                }
+            }
+
+            // Update UI bars
+            document.getElementById('hud-player-rpm').textContent = Math.round(playerPhys.omega) + ' RPM';
+            document.getElementById('hud-enemy-rpm').textContent = Math.round(enemyPhys.omega) + ' RPM';
+
+            const playerHealthPercent = Math.max(0, Math.min(100, Math.round((playerPhys.omega / playerPhys.maxOmega) * 100)));
+            const enemyHealthPercent = Math.max(0, Math.min(100, Math.round((enemyPhys.omega / enemyPhys.maxOmega) * 100)));
+
+            document.getElementById('hud-player-bar').style.width = playerHealthPercent + '%';
+            document.getElementById('hud-enemy-bar').style.width = enemyHealthPercent + '%';
+            document.getElementById('hud-player-percent').textContent = playerHealthPercent + '%';
+            document.getElementById('hud-enemy-percent').textContent = enemyHealthPercent + '%';
+
+            const boostPct = Math.round(playerPhys.boostEnergy);
+            document.getElementById('hud-boost-bar').style.width = boostPct + '%';
+            document.getElementById('hud-boost-pct').textContent = boostPct + '%';
+
+            updateFragments();
+        }
+
+        function updateFragments() {
+            // Update physical fragments that fly apart during Burst
+            for (let i = physicsObjects.length - 1; i >= 0; i--) {
+                let obj = physicsObjects[i];
+                obj.vel.y -= 9.8 * dt; // Gravity
+                obj.pos.addScaledVector(obj.vel, dt);
+                
+                // Rotate fragment
+                obj.mesh.rotation.x += obj.rotVel.x * dt;
+                obj.mesh.rotation.y += obj.rotVel.y * dt;
+                obj.mesh.rotation.z += obj.rotVel.z * dt;
+
+                // Bounce on stadium floor
+                let floorHeight = stadiumBowlK * (obj.pos.x * obj.pos.x + obj.pos.z * obj.pos.z) + 0.1;
+                if (obj.pos.y < floorHeight) {
+                    obj.pos.y = floorHeight;
+                    obj.vel.y = -obj.vel.y * 0.55; // damp bounce
+                    obj.vel.x *= 0.8;
+                    obj.vel.z *= 0.8;
+                    obj.rotVel.multiplyScalar(0.7);
+                }
+
+                // Fade out/remove old fragments after some time or when they stop moving
+                if (Math.abs(obj.vel.y) < 0.1 && obj.pos.y <= floorHeight + 0.2) {
+                    // Let them lie on ground
+                }
+            }
+        }
+
+        function endBattle(result) {
+            gameState = 'FINISHED';
+            audioManager.stopSpinHum();
+
+            if (result === 'WIN') {
+                const payout = gameMode === 'tournament' ? 100 : 25;
+                credits += payout;
+                updateCreditsDisplay();
+                
+                setTimeout(() => {
+                    announcerText(`🏆 ניצחת! זיכוי: +${payout}🪙`, 4000);
+                }, 2000);
+            } else {
+                setTimeout(() => {
+                    announcerText(`💔 הפסדת! נסה שילוב חלקים אחר`, 4000);
+                }, 2000);
+            }
+
+            // Cinematic slow-motion camera orbit on finish
+            cameraMode = 'burst_slow';
+
+            // Show Return/Retry buttons in HUD
+            setTimeout(() => {
+                goToMenu();
+            }, 5000);
+        }
+
+        // Cam variables for animation
+        let camAngle = 0;
+        let camShake = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotate preview model in builder screen
+            if (gameState === 'BUILDER') {
+                const spinner = playerBeyblade3D.getObjectByName("spinner");
+                if (spinner) {
+                    spinner.rotation.y += 0.015;
+                }
+            }
+
+            // Sparks management
+            for (let i = sparkParticles.length - 1; i >= 0; i--) {
+                const p = sparkParticles[i];
+                p.vel.y -= 9.8 * dt; // Gravity
+                p.mesh.position.addScaledVector(p.vel, dt);
+                p.life -= p.decay;
+                p.mesh.scale.setScalar(p.life);
+                
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    sparkParticles.splice(i, 1);
+                }
+            }
+
+            // Camera Controller & Angles
+            let targetPos = new THREE.Vector3();
+            let targetLook = new THREE.Vector3();
+
+            if (cameraMode === 'menu') {
+                camAngle += 0.003;
+                targetPos.set(Math.cos(camAngle) * 20, 15, Math.sin(camAngle) * 20);
+                targetLook.set(0, 2, 0);
+            } else if (cameraMode === 'preview') {
+                targetPos.set(0, 2.5, 4.8);
+                targetLook.set(0, 1.4, 0);
+            } else if (cameraMode === 'battle_launch') {
+                // Diagonal view showing stadium and the launcher ripcord
+                targetPos.set(-10, 10, 15);
+                targetLook.set(0, 0, 0);
+            } else if (cameraMode === 'battle') {
+                // Focus camera dynamically between the two Beyblades
+                if (playerPhys.burst) {
+                    targetPos.copy(enemyPhys.pos).add(new THREE.Vector3(5, 5, 5));
+                    targetLook.copy(enemyPhys.pos);
+                } else if (enemyPhys.burst) {
+                    targetPos.copy(playerPhys.pos).add(new THREE.Vector3(5, 5, 5));
+                    targetLook.copy(playerPhys.pos);
+                } else {
+                    const midpoint = new THREE.Vector3().addVectors(playerPhys.pos, enemyPhys.pos).multiplyScalar(0.5);
+                    const dist = playerPhys.pos.distanceTo(enemyPhys.pos);
+                    
+                    camAngle += 0.005; // slight slow orbit
+                    const height = Math.max(8, dist * 0.8);
+                    targetPos.set(
+                        midpoint.x + Math.cos(camAngle) * (dist * 0.9 + 10),
+                        height + 4,
+                        midpoint.z + Math.sin(camAngle) * (dist * 0.9 + 10)
+                    );
+                    targetLook.copy(midpoint);
+                }
+            } else if (cameraMode === 'burst_slow') {
+                // Camera orbits the burst site rapidly
+                camAngle += 0.035;
+                const focusPoint = playerPhys.burst ? playerPhys.pos : enemyPhys.pos;
+                targetPos.set(
+                    focusPoint.x + Math.cos(camAngle) * 8,
+                    focusPoint.y + 4,
+                    focusPoint.z + Math.sin(camAngle) * 8
+                );
+                targetLook.copy(focusPoint);
+            }
+
+            // Apply camera shake if any
+            if (camShake > 0.01) {
+                targetPos.x += (Math.random() - 0.5) * camShake;
+                targetPos.y += (Math.random() - 0.5) * camShake;
+                targetPos.z += (Math.random() - 0.5) * camShake;
+                camShake *= 0.9; // decay
+            }
+
+            // Lerp camera
+            camera.position.lerp(targetPos, 0.08);
+            
+            // Apply camera look-at helper (interpolate what it looks at to be smooth)
+            const currentLook = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).add(camera.position);
+            currentLook.lerp(targetLook, 0.08);
+            camera.lookAt(currentLook);
+
+            // Poll gamepad input
+            pollGamepadInput();
+
+            // Tick physics
+            updatePhysics();
+
+            renderer.render(scene, camera);
+        }
+
+        // Init Everything on load
+        window.onload = () => {
+            init3D();
+            updateCreditsDisplay();
+            goToMenu();
+            animate();
+        };
+
+    </script>
+</body>
+</html>
