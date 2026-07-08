@@ -1,0 +1,1808 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=no">
+    <title>ספיידרמן 2099: נואבה יורק Cyberpunk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;700;800&family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-red: #ff0055;
+            --neon-blue: #00f0ff;
+            --neon-purple: #bd00ff;
+            --dark-bg: #03030d;
+            --glass: rgba(6, 6, 20, 0.85);
+            --glow-red: 0 0 15px rgba(255, 0, 85, 0.6);
+            --glow-blue: 0 0 15px rgba(0, 240, 255, 0.6);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--dark-bg);
+            font-family: 'Assistant', 'Outfit', sans-serif;
+            color: #fff;
+            user-select: none;
+            touch-action: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ===== Main Menu / Suit Selection ===== */
+        #menu-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, rgba(15, 5, 25, 0.96) 0%, rgba(3, 3, 10, 0.99) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .title-glow {
+            font-family: 'Outfit', 'Assistant', sans-serif;
+            font-size: 3.8rem;
+            font-weight: 900;
+            color: #fff;
+            text-align: center;
+            margin: 0 0 5px;
+            text-shadow: var(--glow-red), 0 0 30px rgba(255, 0, 85, 0.4);
+            letter-spacing: 2px;
+            animation: titlePulse 2s infinite alternate;
+        }
+
+        .subtitle {
+            font-size: 1.3rem;
+            color: var(--neon-blue);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: var(--glow-blue);
+            text-align: center;
+        }
+
+        @keyframes titlePulse {
+            0% { text-shadow: var(--glow-red); }
+            100% { text-shadow: 0 0 25px var(--neon-red), 0 0 50px rgba(255, 0, 85, 0.8); }
+        }
+
+        .mode-description {
+            font-size: 0.95rem;
+            color: #b0c4de;
+            margin-bottom: 25px;
+            max-width: 650px;
+            text-align: center;
+            line-height: 1.6;
+            background: rgba(0, 240, 255, 0.05);
+            border: 1px dashed rgba(0, 240, 255, 0.2);
+            padding: 12px 18px;
+            border-radius: 12px;
+        }
+
+        .roster-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            max-width: 950px;
+            width: 100%;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .roster-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+            .title-glow { font-size: 2.3rem; }
+            .subtitle { font-size: 1rem; }
+        }
+
+        .char-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .char-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 4px;
+            transition: background 0.3s;
+        }
+
+        .char-card[data-suit="classic"]::before { background: var(--neon-red); }
+        .char-card[data-suit="white"]::before { background: #fff; }
+        .char-card[data-suit="atsv"]::before { background: var(--neon-purple); }
+        .char-card[data-suit="cyborg"]::before { background: #facc15; }
+
+        .char-card:hover, .char-card.selected {
+            transform: translateY(-6px);
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+
+        .char-card.selected[data-suit="classic"] { border-color: var(--neon-red); box-shadow: 0 0 20px rgba(255, 0, 85, 0.4); }
+        .char-card.selected[data-suit="white"] { border-color: #fff; box-shadow: 0 0 20px rgba(255,255,255,0.4); }
+        .char-card.selected[data-suit="atsv"] { border-color: var(--neon-purple); box-shadow: 0 0 20px rgba(189, 0, 255, 0.4); }
+        .char-card.selected[data-suit="cyborg"] { border-color: #facc15; box-shadow: 0 0 20px rgba(250, 204, 21, 0.4); }
+
+        .char-avatar {
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            color: #fff;
+            border: 2px solid rgba(255,255,255,0.15);
+        }
+
+        .char-card[data-suit="classic"] .char-avatar { background: rgba(255, 0, 85, 0.15); border-color: var(--neon-red); }
+        .char-card[data-suit="white"] .char-avatar { background: rgba(255, 255, 255, 0.15); border-color: #fff; }
+        .char-card[data-suit="atsv"] .char-avatar { background: rgba(189, 0, 255, 0.15); border-color: var(--neon-purple); }
+        .char-card[data-suit="cyborg"] .char-avatar { background: rgba(250, 204, 21, 0.15); border-color: #facc15; }
+
+        .char-name {
+            font-size: 1.15rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .char-ability-desc {
+            font-size: 0.75rem;
+            color: #a0aec0;
+            line-height: 1.4;
+        }
+
+        .play-btn {
+            background: linear-gradient(135deg, var(--neon-red) 0%, #a00035 100%);
+            border: none;
+            color: #fff;
+            padding: 14px 46px;
+            font-size: 1.25rem;
+            font-weight: 800;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: var(--glow-red);
+            transition: all 0.2s ease;
+            letter-spacing: 1px;
+            margin-top: 10px;
+        }
+
+        .play-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 22px rgba(255, 0, 85, 0.7);
+        }
+
+        /* ===== HUD UI ===== */
+        #hud {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .hud-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .hud-panel {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 12px;
+            padding: 12px 18px;
+            pointer-events: auto;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+
+        .player-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-right: 4px solid var(--neon-red);
+            border-radius: 0 4px 4px 0;
+            min-width: 200px;
+        }
+
+        .gauge-container {
+            position: relative;
+            width: 50px;
+            height: 50px;
+        }
+
+        .gauge-svg {
+            width: 100%; height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .gauge-bg {
+            fill: none;
+            stroke: rgba(255,255,255,0.1);
+            stroke-width: 6;
+        }
+
+        .gauge-fill {
+            fill: none;
+            stroke: var(--neon-blue);
+            stroke-width: 6;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.1s linear;
+        }
+
+        .hud-stats {
+            text-align: right;
+        }
+
+        .hud-char-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 2px;
+            text-shadow: var(--glow-blue);
+        }
+
+        .hud-ability-tip {
+            font-size: 0.72rem;
+            color: #a0c0ff;
+        }
+
+        .score-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            min-width: 160px;
+            border-left: 4px solid var(--neon-blue);
+            border-radius: 4px 0 0 4px;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--neon-blue);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+        }
+
+        .stat-value {
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: var(--neon-red);
+            text-shadow: var(--glow-red);
+        }
+
+        #gamepad-hud-status {
+            font-size: 0.72rem;
+            margin-top: 4px;
+            color: #888;
+        }
+
+        /* ===== Announcement & Help ===== */
+        #announcer-log {
+            position: absolute;
+            top: 110px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #fff;
+            background: rgba(255, 0, 85, 0.25);
+            border: 1px solid var(--neon-red);
+            padding: 8px 24px;
+            border-radius: 30px;
+            pointer-events: none;
+            z-index: 90;
+            opacity: 0;
+            transition: all 0.3s ease;
+            text-align: center;
+            box-shadow: var(--glow-red);
+        }
+
+        #help-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--glass);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 10px;
+            padding: 10px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            font-size: 0.78rem;
+            opacity: 0.85;
+            pointer-events: none;
+            max-width: 80%;
+            text-align: center;
+        }
+
+        .help-item { display: flex; align-items: center; gap: 6px; }
+        .key-badge {
+            background: rgba(0, 240, 255, 0.15);
+            border: 1px solid var(--neon-blue);
+            border-radius: 4px;
+            padding: 1px 5px;
+            font-weight: bold;
+            color: var(--neon-blue);
+        }
+
+        /* ===== Mobile virtual controls ===== */
+        #mobile-controls {
+            position: absolute;
+            bottom: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            display: none;
+            z-index: 200;
+        }
+
+        .joystick-zone {
+            position: absolute;
+            bottom: 25px; right: 25px;
+            width: 130px; height: 130px;
+            pointer-events: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0,0,0,0.3);
+            border: 1.5px dashed rgba(0, 240, 255, 0.25);
+            border-radius: 50%;
+        }
+
+        .joystick-knob {
+            width: 55px; height: 55px;
+            background: radial-gradient(circle, rgba(0, 240, 255, 0.2) 0%, rgba(0, 240, 255, 0.05) 100%);
+            border: 2px solid var(--neon-blue);
+            border-radius: 50%;
+            box-shadow: var(--glow-blue);
+            position: absolute;
+        }
+
+        .action-buttons {
+            position: absolute;
+            bottom: 25px; left: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: auto;
+        }
+
+        .row-btns {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            width: 65px; height: 65px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            background: var(--glass);
+            color: #fff;
+            font-size: 0.85rem;
+            font-weight: 800;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(6px);
+            transition: all 0.1s;
+        }
+
+        .action-btn:active { transform: scale(0.92); }
+
+        .btn-web { border-color: var(--neon-red); color: var(--neon-red); box-shadow: var(--glow-red); width: 75px; height: 75px; font-size: 1rem; }
+        .btn-web:active { background: var(--neon-red); color: #fff; }
+
+        .btn-jump { border-color: var(--neon-blue); color: var(--neon-blue); box-shadow: var(--glow-blue); }
+        .btn-jump:active { background: var(--neon-blue); color: #000; }
+
+        .btn-dash { border-color: #ffd700; color: #ffd700; }
+        .btn-dash:active { background: #ffd700; color: #000; }
+
+        .sound-toggle {
+            position: absolute;
+            top: 20px; left: 50%;
+            transform: translateX(-50%);
+            background: var(--glass);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            z-index: 150;
+            transition: all 0.2s;
+        }
+
+        .sound-toggle:hover {
+            border-color: var(--neon-red);
+            box-shadow: var(--glow-red);
+        }
+
+        /* ===== Overlays (Win / Lose) ===== */
+        .overlay-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(3, 3, 10, 0.94);
+            backdrop-filter: blur(15px);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .screen-title {
+            font-size: 3.5rem;
+            font-weight: 900;
+            margin-bottom: 15px;
+            text-shadow: 0 0 20px currentColor;
+        }
+
+        .screen-text {
+            font-size: 1.15rem;
+            color: #b0c4de;
+            margin-bottom: 30px;
+            max-width: 520px;
+            line-height: 1.6;
+        }
+
+        .btn-restart {
+            background: #fff;
+            color: #000;
+            border: none;
+            padding: 14px 44px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 0 15px rgba(255,255,255,0.3);
+        }
+
+        .btn-restart:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(255,255,255,0.6);
+        }
+
+        @media (max-width: 900px) {
+            #mobile-controls { display: block; }
+            #help-overlay { display: none; }
+            .hud-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+            .score-panel { align-items: flex-start; min-width: auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main Menu -->
+    <div id="menu-container">
+        <h1 class="title-glow">ספיידרמן 2099: נואבה יורק</h1>
+        <p class="subtitle">הגנת הסייבר של אלקמקס</p>
+
+        <div class="mode-description">
+            <b>משימה:</b> נדנד בין גורדי השחקים הזוהרים של Nueva York, השתמש בקייפ האנרגיה לדאייה, וחסל את רחפני האבטחה העוינים של תאגיד "אלקמקס" המאיימים על השמיים.
+            <br>
+            🎮 תמיכה מלאה במקלדת, מגע ושלט משחק.
+        </div>
+
+        <div class="roster-grid">
+            <div class="char-card selected" data-suit="classic">
+                <div class="char-avatar">🤖</div>
+                <div class="char-name">חליפת 2099 קלאסית</div>
+                <div class="char-ability-desc">החליפה הכחולה-אדומה האגדית של מיגל. מצוידת בקייפ אנרגיה אדום זוהר.</div>
+            </div>
+            <div class="char-card" data-suit="white">
+                <div class="char-avatar">⚡</div>
+                <div class="char-name">חליפת אלקמקס הלבנה</div>
+                <div class="char-ability-desc">חליפה מתקדמת בצבעי לבן-אדום עם קייפ אנרגיה זהוב ויכולות דאייה משופרות.</div>
+            </div>
+            <div class="char-card" data-suit="atsv">
+                <div class="char-avatar">🌀</div>
+                <div class="char-name">ממד העכביש (ATSV)</div>
+                <div class="char-ability-desc">חליפה כוחנית ומסיבית במיוחד עם הילות אנרגיה כהות ושובל זוהר סגול.</div>
+            </div>
+            <div class="char-card" data-suit="cyborg">
+                <div class="char-avatar">⚙️</div>
+                <div class="char-name">ספיידר-סייבורג 2099</div>
+                <div class="char-ability-desc">חצי מכונה, חצי עכביש. מעניקה מד דחיפה (Boost) מהיר במיוחד למעוף וקפיצות.</div>
+            </div>
+        </div>
+
+        <button class="play-btn" id="start-btn">התחל משימה 🕸️</button>
+        <label style="margin-top: 18px; display: flex; align-items: center; gap: 8px; cursor: pointer; color: #b0c4de; font-size: 1rem; user-select: none;">
+            <input type="checkbox" id="immortal-checkbox" style="width: 18px; height: 18px; accent-color: var(--neon-red);">
+            ללא פסילות (מצב אל-מוות)
+        </label>
+    </div>
+
+    <!-- HUD Overlay -->
+    <div id="hud">
+        <div class="hud-header">
+            <div class="hud-panel player-info">
+                <div class="gauge-container" title="קייפ אנרגיה / דאייה">
+                    <svg class="gauge-svg" viewBox="0 0 100 100">
+                        <circle class="gauge-bg" cx="50" cy="50" r="42"/>
+                        <circle class="gauge-fill" id="energy-fill-ring" cx="50" cy="50" r="42" stroke-dasharray="264" stroke-dashoffset="0"/>
+                    </svg>
+                </div>
+                <div class="hud-stats">
+                    <div class="hud-char-title" id="hud-char-name">חליפה קלאסית</div>
+                    <div class="hud-ability-tip" id="hud-energy-label">אנרגיית קייפ: 100%</div>
+                </div>
+            </div>
+
+            <div class="hud-panel score-panel">
+                <div class="stat-label">רחפני אלקמקס שחוסלו</div>
+                <div class="stat-value" id="hud-score">0 / 12</div>
+                <div id="gamepad-hud-status">🎮 שלט לא מחובר</div>
+            </div>
+        </div>
+
+        <!-- Help controls -->
+        <div id="help-overlay">
+            <div class="help-item"><span class="key-badge">WASD</span> תנועה</div>
+            <div class="help-item"><span class="key-badge">רווח</span> קפיצה / דאייה (החזק באוויר)</div>
+            <div class="help-item"><span class="key-badge">קליק / F</span> ירי קורים (נדנוד / חיסול רחפנים)</div>
+            <div class="help-item"><span class="key-badge">Shift</span> דאש מהיר (Air Dash)</div>
+        </div>
+    </div>
+
+    <!-- Announcer -->
+    <div id="announcer-log">כוחות אלקמקס מתקרבים!</div>
+
+    <!-- Mobile Virtual Controls -->
+    <div id="mobile-controls">
+        <div class="joystick-zone" id="touch-joystick">
+            <div class="joystick-knob" id="touch-knob"></div>
+        </div>
+        <div class="action-buttons">
+            <button class="action-btn btn-web" id="touch-web">קורים</button>
+            <div class="row-btns">
+                <button class="action-btn btn-jump" id="touch-jump">קפוץ/דאה</button>
+                <button class="action-btn btn-dash" id="touch-dash">דאש</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sound Control -->
+    <button class="sound-toggle" id="sound-btn">
+        <span id="sound-icon">🔊</span> <span id="sound-text">מוזיקה דולקת</span>
+    </button>
+
+    <!-- Overlay Screen (Win / Lose) -->
+    <div class="overlay-screen" id="end-screen">
+        <h2 class="screen-title" id="end-title">המשימה הושלמה!</h2>
+        <p class="screen-text" id="end-text"></p>
+        <button class="btn-restart" id="restart-btn">שחק שוב 🕸️</button>
+    </div>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Game Settings
+        const CONFIG = {
+            DRONES_TO_WIN: 12,
+            CITY_SIZE: 300,
+            BUILDING_COUNT: 75,
+            SUITS: {
+                classic: { name: "חליפת 2099 קלאסית", primary: 0x0011ff, secondary: 0xff0044, cape: 0xff0044, webColor: 0xff0044 },
+                white: { name: "חליפת אלקמקס הלבנה", primary: 0xeeeeee, secondary: 0xff0044, cape: 0xffaa00, webColor: 0xffffff },
+                atsv: { name: "ממד העכביש (ATSV)", primary: 0x00021a, secondary: 0xff00aa, cape: 0xbd00ff, webColor: 0xbd00ff },
+                cyborg: { name: "ספיידר-סייבורג 2099", primary: 0x333333, secondary: 0xfacc15, cape: 0xfacc15, webColor: 0x00f0ff }
+            },
+            PHYSICS: {
+                gravity: 0.015,
+                airResistance: 0.98,
+                groundResistance: 0.85,
+                glideGravity: 0.0035,
+                glideSpeedLimit: 0.15,
+                swingPullSpeed: 0.024,
+                jumpForce: 0.38,
+                moveForce: 0.02,
+                dashForce: 0.55
+            }
+        };
+
+        // ================= Web Audio Synthesizer (procedural Darksynth/Cyberpunk) =================
+        class CyberSoundSynth {
+            constructor() {
+                this.ctx = null;
+                this.musicInterval = null;
+                this.isMuted = false;
+                this.tempo = 142; // BPM
+                this.beatIndex = 0;
+                this.bassSeq = [73.42, 73.42, 82.41, 82.41, 65.41, 65.41, 55.00, 55.00]; // Cyberpunk minor bassline (D2 -> E2 -> C2 -> A1)
+            }
+
+            init() {
+                if (this.ctx) return;
+                try {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    console.error("Web Audio not supported");
+                }
+            }
+
+            playTone(freq, type, duration, volume = 0.08, slideToFreq = null) {
+                if (this.isMuted || !this.ctx) return;
+                this.init();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                if (slideToFreq) {
+                    osc.frequency.exponentialRampToValueAtTime(slideToFreq, this.ctx.currentTime + duration);
+                }
+
+                gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+
+            playNoise(duration, volume = 0.05, lowPassFreq = null) {
+                if (this.isMuted || !this.ctx) return;
+                this.init();
+
+                const bufferSize = this.ctx.sampleRate * duration;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+
+                if (lowPassFreq) {
+                    const filter = this.ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(lowPassFreq, this.ctx.currentTime);
+                    noise.connect(filter);
+                    filter.connect(gain);
+                } else {
+                    noise.connect(gain);
+                }
+
+                gain.connect(this.ctx.destination);
+                noise.start();
+            }
+
+            playWebShoot() {
+                this.playTone(1600, 'sawtooth', 0.16, 0.04, 250);
+                this.playNoise(0.12, 0.03, 800);
+            }
+
+            playGlide() {
+                this.playTone(120, 'sine', 0.35, 0.05, 180);
+                this.playNoise(0.3, 0.02, 300);
+            }
+
+            playDash() {
+                this.playTone(180, 'sawtooth', 0.22, 0.08, 900);
+                this.playNoise(0.2, 0.05, 1200);
+            }
+
+            playDestroyDrone() {
+                this.playTone(100, 'sawtooth', 0.45, 0.12, 40);
+                this.playNoise(0.5, 0.15, 600);
+            }
+
+            playLaser() {
+                this.playTone(880, 'sawtooth', 0.2, 0.03, 110);
+            }
+
+            playHit() {
+                this.playTone(150, 'triangle', 0.18, 0.09);
+                this.playNoise(0.15, 0.06, 400);
+            }
+
+            startMusic() {
+                this.init();
+                if (this.musicInterval) clearInterval(this.musicInterval);
+                const beatDuration = (60 / this.tempo) * 1000;
+
+                this.musicInterval = setInterval(() => {
+                    if (this.isMuted) return;
+
+                    const step = this.beatIndex % 16;
+                    const bassNote = this.bassSeq[Math.floor(step / 2) % this.bassSeq.length];
+
+                    // Bass Synth Line (Cyber Darksynth feel)
+                    if (step % 2 === 0) {
+                        this.playTone(bassNote, 'sawtooth', 0.2, 0.045);
+                    } else {
+                        this.playTone(bassNote * 1.5, 'triangle', 0.15, 0.02);
+                    }
+
+                    // Synth snare/kick beats
+                    if (step % 4 === 0) {
+                        // Cyber Kick
+                        this.playTone(55, 'sine', 0.1, 0.08, 20);
+                    }
+                    if (step % 4 === 2) {
+                        // Snare Noise
+                        this.playNoise(0.08, 0.02, 1000);
+                    }
+
+                    // Cyber arpeggiator melody
+                    if (step % 8 === 0) {
+                        this.playTone(bassNote * 4, 'sawtooth', 0.12, 0.012);
+                    } else if (step % 8 === 3) {
+                        this.playTone(bassNote * 5, 'sawtooth', 0.12, 0.012);
+                    } else if (step % 8 === 6) {
+                        this.playTone(bassNote * 6, 'sawtooth', 0.12, 0.012);
+                    }
+
+                    this.beatIndex++;
+                }, beatDuration / 2);
+            }
+
+            stopMusic() {
+                if (this.musicInterval) {
+                    clearInterval(this.musicInterval);
+                    this.musicInterval = null;
+                }
+            }
+
+            toggle() {
+                this.isMuted = !this.isMuted;
+                if (this.isMuted) this.stopMusic();
+                else this.startMusic();
+                return this.isMuted;
+            }
+        }
+
+        const sound = new CyberSoundSynth();
+
+        // ================= Game Engine =================
+        class Spiderman2099Game {
+            constructor() {
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.clock = null;
+
+                // Game States
+                this.activeSuit = 'classic';
+                this.score = 0;
+                this.lives = 100;
+                this.isDead = false;
+                this.isWon = false;
+                this.gameStarted = false;
+                this.energy = 100; // Used for gliding & boosting
+
+                // Gameplay Elements
+                this.player = {
+                    pos: new THREE.Vector3(0, 80, 0),
+                    vel: new THREE.Vector3(0, 0, 0),
+                    mesh: null,
+                    isGliding: false,
+                    isSwinging: false,
+                    isWallRunning: false,
+                    wallNormal: new THREE.Vector3(0,0,0),
+                    dashCooldown: 0,
+                    swingPoint: new THREE.Vector3(),
+                    swingDist: 0
+                };
+
+                this.buildings = [];
+                this.drones = [];
+                this.lasers = [];
+                this.particles = [];
+                this.skyParticles = [];
+
+                // Visual trails & capes
+                this.capeMesh = null;
+                this.capeTrail = [];
+                this.webLine = null;
+
+                // Inputs
+                this.keys = {};
+                this.joystickInput = { x: 0, z: 0 };
+                this.isJoystickDragging = false;
+                this.joystickStart = { x: 0, y: 0 };
+                this.wantWeb = false;
+                this.wantJump = false;
+                this.wantDash = false;
+
+                this.gamepadWebHeld = false;
+                this.gamepadDashHeld = false;
+                this.isImmortal = false;
+            }
+
+            init() {
+                // Scene setup
+                this.scene = new THREE.Scene();
+                this.scene.fog = new THREE.FogExp2(0x03030d, 0.004);
+
+                // Camera
+                this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.camera.position.set(0, 85, 20);
+
+                // Renderer
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setClearColor(this.scene.fog.color);
+                document.body.appendChild(this.renderer.domElement);
+
+                this.clock = new THREE.Clock();
+
+                // Lights
+                const ambient = new THREE.AmbientLight(0x0e112a, 1.2);
+                this.scene.add(ambient);
+
+                const dirLight = new THREE.DirectionalLight(0x00f0ff, 0.8);
+                dirLight.position.set(40, 100, 20);
+                this.scene.add(dirLight);
+
+                const pointRed = new THREE.PointLight(0xff0055, 2.5, 300);
+                pointRed.position.set(0, 50, 0);
+                this.scene.add(pointRed);
+
+                // Build Nueva York 2099
+                this.buildCity();
+
+                // Build Player Mesh
+                this.buildPlayer();
+
+                // Initial Drones
+                for (let i = 0; i < CONFIG.DRONES_TO_WIN; i++) {
+                    this.spawnDrone(true);
+                }
+
+                // Web Line Mesh
+                const webGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+                const webMat = new THREE.LineBasicMaterial({ color: 0x00f0ff, linewidth: 2 });
+                this.webLine = new THREE.Line(webGeo, webMat);
+                this.webLine.visible = false;
+                this.scene.add(this.webLine);
+
+                // Sky Neon Particles (Atmospheric rain / data streams)
+                this.buildSkyParticles();
+
+                // Event Listeners
+                window.addEventListener('resize', () => this.onWindowResize());
+                this.setupControls();
+
+                // Start loop
+                this.animate();
+            }
+
+            buildCity() {
+                // Ground Grid (Cyber Grid)
+                const gridHelper = new THREE.GridHelper(1000, 100, 0x00f0ff, 0x07113a);
+                gridHelper.position.y = -2;
+                this.scene.add(gridHelper);
+
+                // Skyscrapers Generation
+                const buildingMaterials = [
+                    new THREE.MeshStandardMaterial({ color: 0x0b0e25, roughness: 0.3, metalness: 0.8 }),
+                    new THREE.MeshStandardMaterial({ color: 0x060817, roughness: 0.4, metalness: 0.6 })
+                ];
+
+                for (let i = 0; i < CONFIG.BUILDING_COUNT; i++) {
+                    // Position
+                    let x = (Math.random() - 0.5) * CONFIG.CITY_SIZE;
+                    let z = (Math.random() - 0.5) * CONFIG.CITY_SIZE;
+
+                    // Keep spacing around spawning zone (0, 80, 0)
+                    if (Math.abs(x) < 25 && Math.abs(z) < 25) {
+                        x += 40 * Math.sign(x || 1);
+                        z += 40 * Math.sign(z || 1);
+                    }
+
+                    const width = 12 + Math.random() * 16;
+                    const depth = 12 + Math.random() * 16;
+                    const height = 60 + Math.random() * 140;
+
+                    const geo = new THREE.BoxGeometry(width, height, depth);
+                    const mat = buildingMaterials[Math.floor(Math.random() * buildingMaterials.length)];
+                    const mesh = new THREE.Mesh(geo, mat);
+                    mesh.position.set(x, height / 2, z);
+                    this.scene.add(mesh);
+
+                    // Add Neon lines on edges
+                    const edges = new THREE.EdgesGeometry(geo);
+                    const edgeColor = Math.random() > 0.4 ? 0x00f0ff : 0xff0055;
+                    const lineMat = new THREE.LineBasicMaterial({ color: edgeColor, linewidth: 1.5 });
+                    const line = new THREE.LineSegments(edges, lineMat);
+                    line.position.copy(mesh.position);
+                    this.scene.add(line);
+
+                    // Save building data
+                    this.buildings.push({
+                        mesh: mesh,
+                        min: new THREE.Vector3(x - width/2, 0, z - depth/2),
+                        max: new THREE.Vector3(x + width/2, height, z + depth/2),
+                        height: height
+                    });
+
+                    // Random Neon signs
+                    if (Math.random() > 0.6) {
+                        const signGeo = new THREE.BoxGeometry(2, 8 + Math.random()*15, 6 + Math.random()*8);
+                        const signMat = new THREE.MeshBasicMaterial({
+                            color: edgeColor,
+                            toneMapped: false
+                        });
+                        const sign = new THREE.Mesh(signGeo, signMat);
+                        sign.position.set(
+                            x + (width/2 + 0.5) * Math.sign(Math.random() - 0.5),
+                            height - 15 - Math.random()*30,
+                            z
+                        );
+                        this.scene.add(sign);
+                    }
+                }
+            }
+
+            buildPlayer() {
+                const group = new THREE.Group();
+
+                // Head
+                const headGeo = new THREE.SphereGeometry(0.5, 12, 12);
+                const suitData = CONFIG.SUITS[this.activeSuit];
+                const headMat = new THREE.MeshStandardMaterial({ color: suitData.primary });
+                const head = new THREE.Mesh(headGeo, headMat);
+                head.position.y = 1.3;
+                group.add(head);
+
+                // Glowing visor/eyes
+                const visorGeo = new THREE.BoxGeometry(0.5, 0.15, 0.55);
+                const visorMat = new THREE.MeshBasicMaterial({ color: suitData.secondary });
+                const visor = new THREE.Mesh(visorGeo, visorMat);
+                visor.position.set(0, 1.3, 0.35);
+                group.add(visor);
+
+                // Torso
+                const torsoGeo = new THREE.BoxGeometry(0.8, 1.1, 0.45);
+                const torsoMat = new THREE.MeshStandardMaterial({ color: suitData.primary });
+                const torso = new THREE.Mesh(torsoGeo, torsoMat);
+                torso.position.y = 0.55;
+                group.add(torso);
+
+                // Cyber emblem on back/chest
+                const emblemGeo = new THREE.BoxGeometry(0.65, 0.65, 0.5);
+                const emblemMat = new THREE.MeshBasicMaterial({ color: suitData.secondary });
+                const emblem = new THREE.Mesh(emblemGeo, emblemMat);
+                emblem.position.set(0, 0.6, 0.05);
+                group.add(emblem);
+
+                // Arm Talons (Blades)
+                const talonGeo = new THREE.BoxGeometry(0.1, 0.3, 0.35);
+                const talonMat = new THREE.MeshBasicMaterial({ color: suitData.secondary });
+                const talonL = new THREE.Mesh(talonGeo, talonMat);
+                talonL.position.set(-0.5, 0.6, -0.15);
+                const talonR = talonL.clone();
+                talonR.position.x = 0.5;
+                group.add(talonL);
+                group.add(talonR);
+
+                // Energy Cape Mesh (Futuristic mesh cape)
+                const capeGeo = new THREE.BufferGeometry();
+                const vertices = new Float32Array([
+                    0, 1, 0,
+                    -0.6, 0, -0.8,
+                    0.6, 0, -0.8
+                ]);
+                capeGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                const capeMat = new THREE.MeshBasicMaterial({
+                    color: suitData.cape,
+                    transparent: true,
+                    opacity: 0.5,
+                    side: THREE.DoubleSide
+                });
+                this.capeMesh = new THREE.Mesh(capeGeo, capeMat);
+                this.capeMesh.position.set(0, 1, -0.15);
+                group.add(this.capeMesh);
+
+                group.position.copy(this.player.pos);
+                this.scene.add(group);
+                this.player.mesh = group;
+            }
+
+            updateSuitStyle() {
+                const suitData = CONFIG.SUITS[this.activeSuit];
+                this.player.mesh.traverse(c => {
+                    if (c.isMesh) {
+                        if (c.material.name !== 'line') {
+                            // Re-apply correct suit colors
+                            if (c.geometry.type === 'SphereGeometry' || c.geometry.type === 'BoxGeometry') {
+                                if (c.position.z === 0.35 || c.position.z === 0.05 || Math.abs(c.position.x) === 0.5) {
+                                    c.material.color.setHex(suitData.secondary);
+                                } else {
+                                    c.material.color.setHex(suitData.primary);
+                                }
+                            }
+                        }
+                    }
+                });
+                // Update Energy Cape
+                if (this.capeMesh) {
+                    this.capeMesh.material.color.setHex(suitData.cape);
+                }
+                // HUD label update
+                document.getElementById('hud-char-name').innerText = suitData.name;
+            }
+
+            buildSkyParticles() {
+                const pGeo = new THREE.BufferGeometry();
+                const count = 300;
+                const pos = new Float32Array(count * 3);
+                for (let i = 0; i < count; i++) {
+                    pos[i*3] = (Math.random() - 0.5) * 500;
+                    pos[i*3+1] = Math.random() * 250;
+                    pos[i*3+2] = (Math.random() - 0.5) * 500;
+                }
+                pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+                const pMat = new THREE.PointsMaterial({
+                    color: 0x00f0ff,
+                    size: 0.45,
+                    transparent: true,
+                    opacity: 0.65
+                });
+                this.skyParticles = new THREE.Points(pGeo, pMat);
+                this.scene.add(this.skyParticles);
+            }
+
+            spawnDrone(isInitial = false) {
+                const droneGroup = new THREE.Group();
+
+                // Core Drone Body
+                const bodyGeo = new THREE.SphereGeometry(0.8, 8, 8);
+                const bodyMat = new THREE.MeshStandardMaterial({ color: 0x111122, roughness: 0.2 });
+                const body = new THREE.Mesh(bodyGeo, bodyMat);
+                droneGroup.add(body);
+
+                // Neon Glow Ring
+                const ringGeo = new THREE.TorusGeometry(1, 0.1, 4, 16);
+                const ringMat = new THREE.MeshBasicMaterial({ color: 0xff0055 });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = Math.PI / 2;
+                droneGroup.add(ring);
+
+                // Laser gun barrel
+                const gunGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.8);
+                const gunMat = new THREE.MeshStandardMaterial({ color: 0x333344 });
+                const gun = new THREE.Mesh(gunGeo, gunMat);
+                gun.rotation.x = Math.PI / 2;
+                gun.position.z = 0.6;
+                droneGroup.add(gun);
+
+                // Initial position
+                let x = (Math.random() - 0.5) * (CONFIG.CITY_SIZE - 20);
+                let z = (Math.random() - 0.5) * (CONFIG.CITY_SIZE - 20);
+                let y = 30 + Math.random() * 95;
+
+                // Ensure it's not inside a building
+                this.buildings.forEach(b => {
+                    if (x > b.min.x - 2 && x < b.max.x + 2 && z > b.min.z - 2 && z < b.max.z + 2) {
+                        y = b.max.y + 15;
+                    }
+                });
+
+                droneGroup.position.set(x, y, z);
+                this.scene.add(droneGroup);
+
+                this.drones.push({
+                    mesh: droneGroup,
+                    shootCooldown: Math.random() * 3 + 1,
+                    vel: new THREE.Vector3((Math.random() - 0.5) * 0.05, 0, (Math.random() - 0.5) * 0.05),
+                    origin: droneGroup.position.clone()
+                });
+            }
+
+            triggerAnnouncement(text) {
+                const el = document.getElementById('announcer-log');
+                el.innerText = text;
+                el.style.opacity = '1';
+                el.style.transform = 'translateX(-50%) scale(1.1)';
+                setTimeout(() => {
+                    el.style.opacity = '0';
+                    el.style.transform = 'translateX(-50%) scale(1)';
+                }, 2200);
+            }
+
+            setupControls() {
+                // Key downs & ups
+                window.addEventListener('keydown', e => {
+                    this.keys[e.code] = true;
+                    if (e.code === 'KeyF') this.wantWeb = true;
+                    if (e.code === 'Space') this.wantJump = true;
+                    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') this.wantDash = true;
+
+                    // Activate Sound Context on first interaction
+                    if (sound && !sound.ctx) sound.init();
+                });
+                window.addEventListener('keyup', e => {
+                    this.keys[e.code] = false;
+                });
+
+                // Sound Button
+                document.getElementById('sound-btn').addEventListener('click', () => {
+                    const isMuted = sound.toggle();
+                    document.getElementById('sound-icon').innerText = isMuted ? "🔇" : "🔊";
+                    document.getElementById('sound-text').innerText = isMuted ? "מוזיקה כבויה" : "מוזיקה דולקת";
+                });
+
+                // Start Button
+                document.getElementById('start-btn').addEventListener('click', () => {
+                    this.isImmortal = document.getElementById('immortal-checkbox').checked;
+                    document.getElementById('menu-container').style.opacity = '0';
+                    setTimeout(() => {
+                        document.getElementById('menu-container').style.display = 'none';
+                        document.getElementById('hud').style.opacity = '1';
+                        this.gameStarted = true;
+                        sound.startMusic();
+                        if (this.isImmortal) {
+                            this.triggerAnnouncement("מצב אל-מוות מופעל! ללא פסילות 🛡️");
+                        } else {
+                            this.triggerAnnouncement("כוחות אלקמקס זוהו! השתלט על השמיים 🕸️");
+                        }
+                    }, 500);
+                });
+
+                // Suit Selector Cards
+                document.querySelectorAll('.char-card').forEach(card => {
+                    card.addEventListener('click', () => {
+                        document.querySelectorAll('.char-card').forEach(c => c.classList.remove('selected'));
+                        card.classList.add('selected');
+                        this.activeSuit = card.dataset.suit;
+                        this.updateSuitStyle();
+                        sound.playWebShoot();
+                    });
+                });
+
+                // Restart Buttons
+                document.getElementById('restart-btn').addEventListener('click', () => this.resetGame());
+
+                // Touch Joystick controls
+                const joystickZone = document.getElementById('touch-joystick');
+                const knob = document.getElementById('touch-knob');
+
+                const handleStart = (e) => {
+                    const touch = e.touches ? e.touches[0] : e;
+                    this.isJoystickDragging = true;
+                    this.joystickStart.x = touch.clientX;
+                    this.joystickStart.y = touch.clientY;
+                };
+
+                const handleMove = (e) => {
+                    if (!this.isJoystickDragging) return;
+                    const touch = e.touches ? e.touches[0] : e;
+                    const dx = touch.clientX - this.joystickStart.x;
+                    const dy = touch.clientY - this.joystickStart.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    const limit = 45;
+
+                    let rx = dx;
+                    let ry = dy;
+                    if (dist > limit) {
+                        rx = (dx / dist) * limit;
+                        ry = (dy / dist) * limit;
+                    }
+
+                    knob.style.transform = `translate(${rx}px, ${ry}px)`;
+
+                    // Normalize to game physics
+                    this.joystickInput.x = rx / limit;
+                    this.joystickInput.z = ry / limit;
+                };
+
+                const handleEnd = () => {
+                    this.isJoystickDragging = false;
+                    knob.style.transform = `translate(0px, 0px)`;
+                    this.joystickInput.x = 0;
+                    this.joystickInput.z = 0;
+                };
+
+                joystickZone.addEventListener('touchstart', handleStart);
+                window.addEventListener('touchmove', handleMove);
+                window.addEventListener('touchend', handleEnd);
+
+                // Action buttons touch
+                document.getElementById('touch-web').addEventListener('touchstart', () => { this.wantWeb = true; });
+                document.getElementById('touch-jump').addEventListener('touchstart', () => { this.wantJump = true; });
+                document.getElementById('touch-dash').addEventListener('touchstart', () => { this.wantDash = true; });
+            }
+
+            resetGame() {
+                this.score = 0;
+                this.lives = 100;
+                this.isDead = false;
+                this.isWon = false;
+                this.energy = 100;
+
+                this.player.pos.set(0, 80, 0);
+                this.player.vel.set(0, 0, 0);
+                this.player.isSwinging = false;
+                this.player.isGliding = false;
+                this.player.isWallRunning = false;
+
+                // Remove existing drones & lasers
+                this.drones.forEach(d => this.scene.remove(d.mesh));
+                this.drones = [];
+                this.lasers.forEach(l => this.scene.remove(l.mesh));
+                this.lasers = [];
+
+                // Spawn fresh drones
+                for (let i = 0; i < CONFIG.DRONES_TO_WIN; i++) {
+                    this.spawnDrone();
+                }
+
+                document.getElementById('end-screen').style.display = 'none';
+                document.getElementById('hud-score').innerText = `0 / ${CONFIG.DRONES_TO_WIN}`;
+                this.updateHUDGauges();
+                this.triggerAnnouncement("נואבה יורק קוראת לך!");
+                sound.startMusic();
+            }
+
+            spawnParticles(pos, color, count = 10) {
+                for (let i = 0; i < count; i++) {
+                    const geo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+                    const mat = new THREE.MeshBasicMaterial({ color: color });
+                    const p = new THREE.Mesh(geo, mat);
+                    p.position.copy(pos);
+
+                    const vel = new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.3,
+                        (Math.random() - 0.3) * 0.3 + 0.15,
+                        (Math.random() - 0.5) * 0.3
+                    );
+
+                    p.userData = { vel: vel, life: 1.0, decay: 0.03 + Math.random()*0.04 };
+                    this.scene.add(p);
+                    this.particles.push(p);
+                }
+            }
+
+            updateHUDGauges() {
+                // Update Energy Ring
+                const ring = document.getElementById('energy-fill-ring');
+                const label = document.getElementById('hud-energy-label');
+                const circumference = 264;
+                const offset = circumference * (1 - this.energy / 100);
+
+                ring.style.strokeDashoffset = offset;
+                label.innerText = `אנרגיית קייפ: ${Math.round(this.energy)}%`;
+
+                // Update Score UI
+                document.getElementById('hud-score').innerText = `${this.score} / ${CONFIG.DRONES_TO_WIN}`;
+            }
+
+            checkBuildingCollisions() {
+                const pos = this.player.pos;
+                const pRadius = 0.8;
+
+                let hitWall = false;
+                let wallNormal = new THREE.Vector3();
+
+                this.buildings.forEach(b => {
+                    // Check AABB overlap with player
+                    if (pos.x + pRadius > b.min.x && pos.x - pRadius < b.max.x &&
+                        pos.z + pRadius > b.min.z && pos.z - pRadius < b.max.z &&
+                        pos.y > 0 && pos.y < b.max.y) {
+
+                        // Push player out of building wall
+                        const dx1 = Math.abs(pos.x - b.min.x);
+                        const dx2 = Math.abs(pos.x - b.max.x);
+                        const dz1 = Math.abs(pos.z - b.min.z);
+                        const dz2 = Math.abs(pos.z - b.max.z);
+
+                        const minDist = Math.min(dx1, dx2, dz1, dz2);
+
+                        if (minDist === dx1) { pos.x = b.min.x - pRadius; wallNormal.set(-1, 0, 0); }
+                        else if (minDist === dx2) { pos.x = b.max.x + pRadius; wallNormal.set(1, 0, 0); }
+                        else if (minDist === dz1) { pos.z = b.min.z - pRadius; wallNormal.set(0, 0, -1); }
+                        else if (minDist === dz2) { pos.z = b.max.z + pRadius; wallNormal.set(0, 0, 1); }
+
+                        this.player.vel.reflect(wallNormal).multiplyScalar(0.2); // bounce slightly
+                        hitWall = true;
+                    }
+                });
+
+                if (hitWall && !this.player.isWallRunning && this.keys['KeyW']) {
+                    this.player.isWallRunning = true;
+                    this.player.wallNormal.copy(wallNormal);
+                    this.player.isSwinging = false;
+                }
+            }
+
+            triggerGameOver(won = false) {
+                this.isWon = won;
+                sound.stopMusic();
+
+                const screen = document.getElementById('end-screen');
+                const title = document.getElementById('end-title');
+                const text = document.getElementById('end-text');
+
+                screen.style.display = 'flex';
+                if (won) {
+                    title.innerText = "המשימה הושלמה! 🕸️";
+                    title.style.color = "var(--neon-blue)";
+                    text.innerText = "ניקית את שמי נואבה יורק 2099 מרחפני האבטחה הדיקטטוריים של אלקמקס. כעת העיר בטוחה (לפחות לזמן הקרוב)!";
+                } else {
+                    title.innerText = "המשימה נכשלה 💥";
+                    title.style.color = "var(--neon-red)";
+                    text.innerText = "רחפני אלקמקס הצליחו לנטרל אותך. נסה שוב וזכור להשתמש בדאייה ובדאשים המהירים!";
+                }
+            }
+
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+
+                const delta = Math.min(this.clock.getDelta(), 0.1);
+                if (this.gameStarted) {
+                    this.updatePhysics(delta);
+                    this.updateGameplay(delta);
+                }
+
+                // Render Scene
+                this.renderer.render(this.scene, this.camera);
+            }
+
+            updateGameplay(delta) {
+                // Sky rain animation
+                if (this.skyParticles.geometry) {
+                    const pos = this.skyParticles.geometry.attributes.position.array;
+                    for (let i = 0; i < pos.length; i += 3) {
+                        pos[i+1] -= 2.0; // fall down
+                        if (pos[i+1] < 0) {
+                            pos[i+1] = 200 + Math.random() * 50;
+                        }
+                    }
+                    this.skyParticles.geometry.attributes.position.needsUpdate = true;
+                }
+
+                // Rotate Drones slightly
+                this.drones.forEach((drone, idx) => {
+                    drone.mesh.rotation.y += 0.015;
+                    drone.mesh.position.y += Math.sin(this.clock.getElapsedTime() * 2 + idx) * 0.06;
+
+                    // Hover Movement
+                    drone.mesh.position.addScaledVector(drone.vel, 1);
+                    if (drone.mesh.position.distanceTo(drone.origin) > 30) {
+                        drone.vel.negate();
+                    }
+
+                    // Drone shooting
+                    drone.shootCooldown -= delta;
+                    if (drone.shootCooldown <= 0 && drone.mesh.position.distanceTo(this.player.pos) < 95) {
+                        drone.shootCooldown = 2.5 + Math.random() * 2.5;
+                        this.droneShootLaser(drone.mesh.position);
+                    }
+                });
+
+                // Laser movements & hits
+                for (let i = this.lasers.length - 1; i >= 0; i--) {
+                    const laser = this.lasers[i];
+                    laser.mesh.position.addScaledVector(laser.vel, 1);
+                    laser.life -= delta;
+
+                    // Hit player?
+                    const dist = laser.mesh.position.distanceTo(this.player.pos);
+                    if (dist < 1.8) {
+                        sound.playHit();
+                        if (!this.isImmortal) {
+                            this.lives -= 15;
+                        }
+                        this.triggerAnnouncement(`נפגעת מלייזר! חיים: ${Math.max(0, this.lives)}%`);
+                        this.spawnParticles(laser.mesh.position, 0xff0055, 6);
+                        this.scene.remove(laser.mesh);
+                        this.lasers.splice(i, 1);
+
+                        if (this.lives <= 0 && !this.isDead) {
+                            this.isDead = true;
+                            this.triggerGameOver(false);
+                        }
+                        continue;
+                    }
+
+                    if (laser.life <= 0) {
+                        this.scene.remove(laser.mesh);
+                        this.lasers.splice(i, 1);
+                    }
+                }
+
+                // Particle systems updates
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+                    p.position.add(p.userData.vel);
+                    p.scale.multiplyScalar(0.95);
+                    p.userData.life -= p.userData.decay;
+                    if (p.userData.life <= 0) {
+                        this.scene.remove(p);
+                        this.particles.splice(i, 1);
+                        p.geometry.dispose();
+                    }
+                }
+
+                // Check Web Target (Web strike on Drone)
+                if (this.wantWeb) {
+                    this.wantWeb = false;
+                    let targetDrone = null;
+                    let minDist = 75;
+
+                    this.drones.forEach(d => {
+                        const dist = d.mesh.position.distanceTo(this.player.pos);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            targetDrone = d;
+                        }
+                    });
+
+                    if (targetDrone) {
+                        // Destroy Alchemax Drone
+                        sound.playWebShoot();
+                        sound.playDestroyDrone();
+                        this.spawnParticles(targetDrone.mesh.position, 0x00f0ff, 25);
+
+                        // Remove Drone
+                        this.scene.remove(targetDrone.mesh);
+                        this.drones = this.drones.filter(d => d !== targetDrone);
+                        this.score++;
+
+                        this.updateHUDGauges();
+                        this.triggerAnnouncement(`רחפן אלקמקס חוסל! (${this.score} / ${CONFIG.DRONES_TO_WIN}) 🤖`);
+
+                        if (this.score >= CONFIG.DRONES_TO_WIN && !this.isWon) {
+                            this.isWon = true;
+                            this.triggerGameOver(true);
+                        }
+                    } else {
+                        // Web swinging logic - attach to building top
+                        let anchor = null;
+                        let maxSwingDist = 70;
+
+                        this.buildings.forEach(b => {
+                            const topCenter = new THREE.Vector3(b.mesh.position.x, b.height, b.mesh.position.z);
+                            const dist = topCenter.distanceTo(this.player.pos);
+                            if (dist < maxSwingDist && topCenter.y > this.player.pos.y) {
+                                maxSwingDist = dist;
+                                anchor = topCenter;
+                            }
+                        });
+
+                        if (anchor) {
+                            this.player.isSwinging = true;
+                            this.player.swingPoint.copy(anchor);
+                            this.player.swingDist = this.player.pos.distanceTo(anchor);
+                            this.player.isGliding = false;
+                            this.player.isWallRunning = false;
+                            sound.playWebShoot();
+                        }
+                    }
+                }
+            }
+
+            droneShootLaser(dronePos) {
+                sound.playLaser();
+                const geo = new THREE.CylinderGeometry(0.1, 0.1, 2.5);
+                const mat = new THREE.MeshBasicMaterial({ color: 0xff0055 });
+                const mesh = new THREE.Mesh(geo, mat);
+
+                // Direction to player
+                const dir = new THREE.Vector3().subVectors(this.player.pos, dronePos).normalize();
+                mesh.position.copy(dronePos).addScaledVector(dir, 1.5);
+                mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+
+                this.scene.add(mesh);
+                this.lasers.push({
+                    mesh: mesh,
+                    vel: dir.multiplyScalar(0.9), // speed
+                    life: 4.5
+                });
+            }
+
+            pollGamepad() {
+                const statusEl = document.getElementById('gamepad-hud-status');
+                try {
+                    const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+                    const gp = gamepads && (gamepads[0] || gamepads[1] || gamepads[2] || gamepads[3]);
+
+                    if (gp) {
+                        statusEl.innerText = "🎮 שלט מחובר!";
+                        statusEl.style.color = "var(--neon-blue)";
+
+                        // Axes 0, 1: Left Stick (Movement)
+                        let stickX = gp.axes && gp.axes.length > 0 ? gp.axes[0] : 0;
+                        let stickZ = gp.axes && gp.axes.length > 1 ? gp.axes[1] : 0;
+
+                        // Deadzone
+                        if (Math.abs(stickX) < 0.15) stickX = 0;
+                        if (Math.abs(stickZ) < 0.15) stickZ = 0;
+
+                        if (stickX !== 0 || stickZ !== 0) {
+                            this.joystickInput.x = stickX;
+                            this.joystickInput.z = stickZ;
+                            this.isJoystickDragging = true;
+                        } else if (this.isJoystickDragging && !this.keys['KeyW']) {
+                            this.isJoystickDragging = false;
+                            this.joystickInput.x = 0;
+                            this.joystickInput.z = 0;
+                        }
+
+                        // Button 0 (A on Xbox): Jump / Glide
+                        if (gp.buttons && gp.buttons[0] && gp.buttons[0].pressed) {
+                            this.wantJump = true;
+                            this.keys['Space'] = true;
+                        } else {
+                            this.keys['Space'] = false;
+                        }
+
+                        // Button 2 (X on Xbox) or Button 7 (RT/R2): Web Shoot / Strike
+                        const webPressed = !!(gp.buttons && ((gp.buttons[2] && gp.buttons[2].pressed) || (gp.buttons[7] && gp.buttons[7].pressed)));
+                        if (webPressed) {
+                            if (!this.gamepadWebHeld) {
+                                this.wantWeb = true;
+                                this.gamepadWebHeld = true;
+                            }
+                        } else {
+                            this.gamepadWebHeld = false;
+                        }
+
+                        // Button 5 (RB) or Button 1 (B on Xbox): Dash
+                        const dashPressed = !!(gp.buttons && ((gp.buttons[5] && gp.buttons[5].pressed) || (gp.buttons[1] && gp.buttons[1].pressed)));
+                        if (dashPressed) {
+                            if (!this.gamepadDashHeld) {
+                                this.wantDash = true;
+                                	this.gamepadDashHeld = true;
+                            }
+                        } else {
+                            this.gamepadDashHeld = false;
+                        }
+                    } else {
+                        statusEl.innerText = "🎮 שלט לא מחובר";
+                        statusEl.style.color = "#888";
+                    }
+                } catch (e) {
+                    console.error("Error polling gamepad", e);
+                }
+            }
+
+            updatePhysics(delta) {
+                this.pollGamepad();
+                const p = this.player;
+
+                // Controls Vector
+                let moveX = 0;
+                let moveZ = 0;
+
+                if (this.keys['KeyW'] || this.keys['ArrowUp']) moveZ = -1;
+                if (this.keys['KeyS'] || this.keys['ArrowDown']) moveZ = 1;
+                if (this.keys['KeyA'] || this.keys['ArrowLeft']) moveX = -1;
+                if (this.keys['KeyD'] || this.keys['ArrowRight']) moveX = 1;
+
+                // Blend with Touch input
+                if (this.isJoystickDragging) {
+                    moveX = this.joystickInput.x;
+                    moveZ = this.joystickInput.z;
+                }
+
+                const dir = new THREE.Vector3(moveX, 0, moveZ);
+                if (dir.lengthSq() > 0.01) {
+                    dir.normalize();
+                    // Rotate move vector according to camera facing angle
+                    const camAngle = Math.atan2(this.camera.position.x - p.pos.x, this.camera.position.z - p.pos.z);
+                    dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), camAngle);
+
+                    if (p.isWallRunning) {
+                        p.vel.y += CONFIG.PHYSICS.moveForce * 1.5; // run up building
+                    } else {
+                        p.vel.addScaledVector(dir, CONFIG.PHYSICS.moveForce);
+                    }
+
+                    // Rotate player mesh to move direction
+                    const targetAngle = Math.atan2(dir.x, dir.z);
+                    p.mesh.rotation.y = targetAngle;
+                }
+
+                // Swinging physics
+                if (p.isSwinging) {
+                    const toAnchor = new THREE.Vector3().subVectors(p.swingPoint, p.pos);
+                    const dist = toAnchor.length();
+
+                    if (dist > 4.5) {
+                        toAnchor.normalize();
+                        // Pull player directly to the building top in a straight line
+                        p.vel.copy(toAnchor).multiplyScalar(0.55); // high-speed straight zip-line!
+                        p.isGliding = false;
+                        p.isWallRunning = false;
+                    } else {
+                        // Reached target, disconnect automatically
+                        p.isSwinging = false;
+                        p.vel.y = 0.22; // small hop boost at the end
+                        this.triggerAnnouncement("הגעה לגג! 🕸️");
+                    }
+
+                    // Release Swing if user presses Jump
+                    if (this.wantJump) {
+                        this.wantJump = false;
+                        p.isSwinging = false;
+                        p.vel.y += CONFIG.PHYSICS.jumpForce * 0.8;
+                        p.vel.multiplyScalar(1.25);
+                        this.triggerAnnouncement("שחרור קורים! זינוק 🕸️");
+                    }
+
+                    // Draw Web Line
+                    this.webLine.visible = true;
+                    const positions = this.webLine.geometry.attributes.position.array;
+                    positions[0] = p.pos.x;
+                    positions[1] = p.pos.y + 0.8;
+                    positions[2] = p.pos.z;
+                    positions[3] = p.swingPoint.x;
+                    positions[4] = p.swingPoint.y;
+                    positions[5] = p.swingPoint.z;
+                    this.webLine.geometry.attributes.position.needsUpdate = true;
+                } else {
+                    this.webLine.visible = false;
+                }
+
+                // Air Dash
+                if (this.wantDash) {
+                    this.wantDash = false;
+                    if (p.dashCooldown <= 0) {
+                        sound.playDash();
+                        p.dashCooldown = 1.8;
+
+                        const facing = new THREE.Vector3(0, 0, 1).applyQuaternion(p.mesh.quaternion).normalize();
+                        p.vel.addScaledVector(facing, CONFIG.PHYSICS.dashForce);
+                        p.vel.y += 0.08;
+
+                        this.triggerAnnouncement("דאש נאון מואץ! ⚡");
+                        this.spawnParticles(p.pos, 0xff0055, 12);
+                    }
+                }
+                if (p.dashCooldown > 0) p.dashCooldown -= delta;
+
+                // Gliding (Energy Cape)
+                if (this.keys['Space'] || this.wantJump) {
+                    this.wantJump = false;
+                    if (!p.isSwinging && p.pos.y > 10 && p.vel.y < 0.05 && this.energy > 5) {
+                        p.isGliding = true;
+                        p.isWallRunning = false;
+                    }
+                } else {
+                    p.isGliding = false;
+                }
+
+                // Apply Gravity & Physics Forces
+                if (p.isGliding) {
+                    p.vel.y = Math.max(p.vel.y - CONFIG.PHYSICS.glideGravity, -CONFIG.PHYSICS.glideSpeedLimit);
+                    p.vel.x *= CONFIG.PHYSICS.airResistance;
+                    p.vel.z *= CONFIG.PHYSICS.airResistance;
+
+                    this.energy = Math.max(0, this.energy - delta * 15);
+                    this.updateHUDGauges();
+                    this.spawnParticles(p.pos, 0xffaa00, 1); // Glide particle trail
+                    if (Math.random() > 0.85) sound.playGlide();
+                } else if (p.isWallRunning) {
+                    p.vel.y *= 0.9; // slower vertical slide/run
+                    p.vel.x *= CONFIG.PHYSICS.groundResistance;
+                    p.vel.z *= CONFIG.PHYSICS.groundResistance;
+
+                    // Release wall run if moving away or jumping
+                    if (this.keys['Space']) {
+                        p.isWallRunning = false;
+                        p.vel.y += CONFIG.PHYSICS.jumpForce;
+                        p.vel.addScaledVector(p.wallNormal, 0.2); // jump off wall
+                        this.triggerAnnouncement("קפיצת קיר! 🧱");
+                    }
+                } else {
+                    // Regular Falling Gravity
+                    p.vel.y -= CONFIG.PHYSICS.gravity;
+                    p.vel.x *= CONFIG.PHYSICS.airResistance;
+                    p.vel.z *= CONFIG.PHYSICS.airResistance;
+
+                    // Recharge Energy when not gliding
+                    this.energy = Math.min(100, this.energy + delta * 25);
+                    this.updateHUDGauges();
+                }
+
+                // Apply Velocity
+                p.pos.add(p.vel);
+
+                // Ground bound
+                if (p.pos.y < 4) {
+                    p.pos.y = 4;
+                    p.vel.y = 0;
+                    p.isSwinging = false;
+                    p.isGliding = false;
+                }
+
+                // Teleport back if out of bounds
+                if (p.pos.length() > CONFIG.CITY_SIZE + 20) {
+                    p.pos.set(0, 90, 0);
+                    p.vel.set(0, 0, 0);
+                    this.triggerAnnouncement("חזרה למרחב האווירי של נואבה יורק!");
+                }
+
+                // Collisions check
+                this.checkBuildingCollisions();
+
+                // Position Player Mesh
+                p.mesh.position.copy(p.pos);
+
+                // Smooth Camera follow
+                const offset = new THREE.Vector3(0, 4.5, 11).applyAxisAngle(new THREE.Vector3(0,1,0), Math.atan2(this.camera.position.x - p.pos.x, this.camera.position.z - p.pos.z));
+                const targetCam = p.pos.clone().add(offset);
+                this.camera.position.lerp(targetCam, 0.08);
+                this.camera.lookAt(p.pos.clone().add(new THREE.Vector3(0, 0.5, 0)));
+            }
+        }
+
+        // Initialize Game
+        const game = new Spiderman2099Game();
+        game.init();
+
+    </script>
+</body>
+</html>

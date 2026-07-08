@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ולקיר V2: עולם הסביבונים</title>
+  <title>בייבלייד עונה 2: זירת הסביבונים</title>
   <style>
     :root {
       --ink: #f8fbff;
@@ -382,12 +382,12 @@
   </style>
 </head>
 <body>
-  <canvas id="game" aria-label="Valkyre V2 free roam game"></canvas>
+  <canvas id="game" aria-label="Beyblade season 2 arena game"></canvas>
 
   <div class="hud">
     <section class="brand panel">
-      <h1>ולקיר V2: עולם הסביבונים</h1>
-      <p>הסתובבו, האיצו, התנגשו ביריבים, אספו כוחות, והפילו את שלושת המתחרים כדי לצבור ניקוד!</p>
+      <h1>בייבלייד עונה 2: זירת הסביבונים</h1>
+      <p>בחרו את Valkyrie, Achilles, Spryzen או Roktavor, הסתובבו במהירות, אספו כוחות, והפילו את היריבים בזירה!</p>
     </section>
 
     <section class="meter-panel panel">
@@ -407,10 +407,12 @@
 
     <section class="controls panel">
       <span class="chip"><b>מקל שמאלי</b> תנועה</span>
-      <span class="chip"><b>R2</b> האצה</span>
+      <span class="chip"><b>R2</b> האצה — לחצו חזק לניטרו מלא!</span>
+      <span class="chip"><b>L2</b> טענו ושחררו לפאוור סליידר</span>
       <span class="chip"><b>A / Cross</b> קפיצה</span>
       <span class="chip"><b>B / Circle</b> סיבוב נפץ</span>
       <span class="chip"><b>Square / F</b> סופר ספין</span>
+      <span class="chip"><b>Y / Triangle / Q</b> מגן פועם</span>
       <span class="chip"><b>התנגשו ביריבים</b> כדי להפיל</span>
       <span class="chip"><b>אספו</b> מהירות / כוח / מגן</span>
       <span class="chip"><b>שחקן 1</b> שלט · <b>שחקן 2</b> מקלדת</span>
@@ -420,19 +422,19 @@
 
   <div class="start" id="start">
     <div class="start-card panel">
-      <h2>ולקיר V2</h2>
-      <p>בחרו סביבונים, שחקן יחיד או קואופ לשניים, והתחילו לקרב בזירת הצעצועים. התנגשו בשלושת היריבים, אספו כוחות, וסובבו לניצחון!</p>
+      <h2>עונה 2: טורניר הסביבונים</h2>
+      <p>בחרו סביבון, שחקן יחיד או קואופ לשניים, והתחילו לקרב בזירת העונה השנייה. Crash Roktavor, Cho-Z Achilles, Cho-Z Valkyrie ו-Cho-Z Spryzen בפנים!</p>
       <div class="setup">
         <div class="pick">
           <span class="lbl">שחקן 1 · שלט</span>
           <button class="nav" id="p1Prev">‹</button>
-          <strong class="beyname" id="p1Name">Chouzetsu</strong>
+          <strong class="beyname" id="p1Name">Cho-Z Achilles</strong>
           <button class="nav" id="p1Next">›</button>
         </div>
         <div class="pick p2only">
           <span class="lbl" id="p2Lbl">שחקן 2 · מקלדת</span>
           <button class="nav" id="p2Prev">‹</button>
-          <strong class="beyname" id="p2Name">Valtryek</strong>
+          <strong class="beyname" id="p2Name">Cho-Z Valkyrie</strong>
           <button class="nav" id="p2Next">›</button>
         </div>
         <div class="modes">
@@ -478,29 +480,87 @@
     let toastTimer = 0;
     let audioCtx = null;
 
-    // Named blades inspired by the show — Chouzetsu (Achilles) leads as the main blade
+    // Named blades inspired by the show; these are custom-drawn palettes, not official assets.
+    // Blade silhouettes: spikes = number of outer points, outerR/innerR = point depth,
+    // curved = swept quadratic edges (wing/fang/claw look) vs straight (crystalline look)
+    const SHAPES = {
+      sun: { spikes: 6, outerR: 48, innerR: 22, curved: false },
+      cross: { spikes: 4, outerR: 50, innerR: 15, curved: true },
+      rock: { spikes: 8, outerR: 44, innerR: 34, curved: false },
+      flame: { spikes: 5, outerR: 50, innerR: 19, curved: true },
+      claw: { spikes: 3, outerR: 53, innerR: 13, curved: true },
+      fin: { spikes: 7, outerR: 46, innerR: 29, curved: true },
+      phoenix: { spikes: 5, outerR: 48, innerR: 18, curved: true, rotate: 0.63 },
+      storm: { spikes: 4, outerR: 55, innerR: 11, curved: false },
+      fang: { spikes: 3, outerR: 50, innerR: 17, curved: false, rotate: 1.05 },
+      shield: { spikes: 10, outerR: 40, innerR: 34, curved: false },
+      feather: { spikes: 6, outerR: 46, innerR: 25, curved: true, rotate: 0.52 },
+      star: { spikes: 5, outerR: 45, innerR: 20, curved: false },
+      // 4 long fangs alternating with 4 short teeth — aggressive dual-tier blade
+      blitz: { spikes: 8, outerR: 56, altOuterR: 32, innerR: 19, curved: false, rotate: 0.2 }
+    };
+
     const ROSTER = [
-      { name: "Chouzetsu", shell: ["#fff7df", "#ffd447", "#ff5a2c", "#c81d25", "#6e0a12"], tip: "#ffd447", ring: "#ffae00" },
-      { name: "Valtryek", shell: ["#ffffff", "#59e6ff", "#2346a8", "#3a7bd5", "#9fdcff"], tip: "#ffd447", ring: "#59e6ff" },
-      { name: "Spryzen", shell: ["#ffffff", "#ff8d4d", "#a8123b", "#ff4f8f", "#5a0a22"], tip: "#ff8d4d", ring: "#ff4f8f" },
-      { name: "Dranzer", shell: ["#fff7df", "#ffd447", "#ff7a00", "#c81d25", "#7a0a12"], tip: "#ffd447", ring: "#ff7a00" },
-      { name: "Dragoon", shell: ["#ffffff", "#cfe9ff", "#3a7bd5", "#1b3a8f", "#0a1a4a"], tip: "#cfe9ff", ring: "#3a7bd5" },
-      { name: "Driger", shell: ["#ffffff", "#aef5c0", "#2bb673", "#0f7a4a", "#06351f"], tip: "#aef5c0", ring: "#2bb673" },
-      { name: "Draciel", shell: ["#ffffff", "#c78cff", "#7a3cff", "#3a1b8f", "#170a3a"], tip: "#c78cff", ring: "#7a3cff" },
-      { name: "Chorzy", shell: ["#ffffff", "#ffd447", "#ff4fd1", "#7a1f8f", "#2a0a3a"], tip: "#ffd447", ring: "#ff4fd1" },
-      { name: "Pegasus", shell: ["#ffffff", "#dff3ff", "#7ab8ff", "#2a5bd0", "#13286b"], tip: "#dff3ff", ring: "#7ab8ff" }
+      {
+        name: "Cho-Z Achilles",
+        shell: ["#fff2d6", "#ffd447", "#e0e4ea", "#c81d25", "#8f0f14"],
+        tip: "#e0e4ea",
+        ring: "#ffd447",
+        shape: SHAPES.sun,
+        moves: { dive: "Z Dive", burst: "Z Breaker", launch: "Z Launch", whip: "Z Whip", guard: "Aegis Guard" }
+      },
+      {
+        name: "Cho-Z Valkyrie",
+        shell: ["#ffffff", "#59e6ff", "#2346a8", "#3a7bd5", "#9fdcff"],
+        tip: "#ffd447",
+        ring: "#59e6ff",
+        shape: SHAPES.cross,
+        moves: { dive: "Wing Dive", burst: "V Slash", launch: "Rush Launch", whip: "V Whip", guard: "Valkyrie Ward" }
+      },
+      {
+        name: "Crash Roktavor",
+        shell: ["#fff0d6", "#ffb347", "#c8641d", "#7a3410", "#371607"],
+        tip: "#ffb347",
+        ring: "#ff9a3c",
+        shape: SHAPES.rock,
+        moves: { dive: "Rock Dive", burst: "Crash Hammer", launch: "Roktavor Launch", whip: "Stone Whip", guard: "Bedrock Wall" }
+      },
+      {
+        name: "Cho-Z Spryzen",
+        shell: ["#ffffff", "#ff8d4d", "#a8123b", "#ff4f8f", "#5a0a22"],
+        tip: "#ff8d4d",
+        ring: "#ff4f8f",
+        shape: SHAPES.flame,
+        moves: { dive: "Axe Dive", burst: "Spryzen Slash", launch: "Dual Launch", whip: "Flame Whip", guard: "Inferno Guard" }
+      },
+      {
+        // Palette + blade shape inspired by the red/gold/black official Achilles-style layer
+        name: "Legend Spriggan",
+        shell: ["#fff6d0", "#ffd447", "#e0301e", "#b8121b", "#181818"],
+        tip: "#181818",
+        ring: "#ffd447",
+        shape: SHAPES.blitz,
+        moves: { dive: "Shadow Dive", burst: "Spriggan Burst", launch: "Legend Launch", whip: "Dark Whip", guard: "Shadow Veil" }
+      },
+      { name: "Emperor Forneus", shell: ["#f8fbff", "#59e6ff", "#0f6b9f", "#102f55", "#071525"], tip: "#59e6ff", ring: "#7df3ff", shape: SHAPES.fin },
+      { name: "Dranzer", shell: ["#fff7df", "#ffd447", "#ff7a00", "#c81d25", "#7a0a12"], tip: "#ffd447", ring: "#ff7a00", shape: SHAPES.phoenix },
+      { name: "Dragoon", shell: ["#ffffff", "#cfe9ff", "#3a7bd5", "#1b3a8f", "#0a1a4a"], tip: "#cfe9ff", ring: "#3a7bd5", shape: SHAPES.storm },
+      { name: "Driger", shell: ["#ffffff", "#aef5c0", "#2bb673", "#0f7a4a", "#06351f"], tip: "#aef5c0", ring: "#2bb673", shape: SHAPES.fang },
+      { name: "Draciel", shell: ["#ffffff", "#c78cff", "#7a3cff", "#3a1b8f", "#170a3a"], tip: "#c78cff", ring: "#7a3cff", shape: SHAPES.shield },
+      { name: "Cho-Z Phoenix", shell: ["#ffffff", "#ffd447", "#ff4fd1", "#7a1f8f", "#2a0a3a"], tip: "#ffd447", ring: "#ff4fd1", shape: SHAPES.feather },
+      { name: "Pegasus", shell: ["#ffffff", "#dff3ff", "#7ab8ff", "#2a5bd0", "#13286b"], tip: "#dff3ff", ring: "#7ab8ff", shape: SHAPES.star }
     ];
 
     // Palettes used for the CPU opponents
     const ENEMY_DEFS = [
-      { name: "Doomscizor", shell: ["#e9eef7", "#9fb0c8", "#54627a", "#2a3344", "#121826"], tip: "#cfe0ff", ring: "#9fb0c8" },
-      { name: "Roktavor", shell: ["#fff0d6", "#ffb347", "#c8641d", "#7a3410", "#371607"], tip: "#ffb347", ring: "#ff9a3c" },
-      { name: "Kerbeus", shell: ["#f0e6ff", "#b98cff", "#6a2fb5", "#3a1670", "#180a33"], tip: "#d7b8ff", ring: "#b98cff" }
+      { name: "Crash Roktavor", shell: ["#fff0d6", "#ffb347", "#c8641d", "#7a3410", "#371607"], tip: "#ffb347", ring: "#ff9a3c", shape: SHAPES.rock },
+      { name: "Cho-Z Spryzen", shell: ["#ffffff", "#ff8d4d", "#a8123b", "#ff4f8f", "#5a0a22"], tip: "#ff8d4d", ring: "#ff4f8f", shape: SHAPES.flame },
+      { name: "Emperor Forneus", shell: ["#f8fbff", "#59e6ff", "#0f6b9f", "#102f55", "#071525"], tip: "#59e6ff", ring: "#7df3ff", shape: SHAPES.fin }
     ];
 
     const ENEMY_COUNT = 3;
-    let p1Sel = 0;        // Chouzetsu
-    let p2Sel = 1;        // Valtryek
+    let p1Sel = 0;        // Cho-Z Achilles
+    let p2Sel = 1;        // Cho-Z Valkyrie
     let humanCount = 1;   // 1 or 2 (co-op teammates)
     let coop = false;     // derived: humanCount === 2
     let teamScore = 0;
@@ -509,10 +569,11 @@
     function makeBey(x, y, radius, beyDef, team) {
       return {
         x, y, vx: 0, vy: 0, angle: 0, spin: 0,
-        height: 0, vz: 0, burst: 0, superSpin: 0, superCooldown: 0,
+        height: 0, vz: 0, burst: 0, superSpin: 0, superCooldown: 0, whipCooldown: 0,
         radius, boost: 1, energy: 1, maxEnergy: 1, speedTimer: 0, powerTimer: 0, shieldTimer: 0,
         team: team || "player", controls: null, bey: beyDef, trail: [],
-        mode: "wander", modeTimer: 1.6, tx: WORLD.w / 2, ty: WORLD.h / 2, stun: 0
+        mode: "wander", modeTimer: 1.6, tx: WORLD.w / 2, ty: WORLD.h / 2, stun: 0,
+        nitroPrimed: false, brakeCharge: 0, wasBraking: false, guardCooldown: 0
       };
     }
 
@@ -574,13 +635,13 @@
     ];
 
     const zones = [
-      { id: "Launch Ring", x: 1800, y: 1300, r: 230, color: "#ffd447" },
-      { id: "Candy Rails", x: 790, y: 620, r: 190, color: "#ff4f8f" },
-      { id: "Sky Ramp", x: 2780, y: 620, r: 210, color: "#59e6ff" },
-      { id: "Neon Garden", x: 2850, y: 1840, r: 230, color: "#78f29b" },
+      { id: "Season 2 Ring", x: 1800, y: 1300, r: 230, color: "#ffd447" },
+      { id: "Valkyrie Rail", x: 790, y: 620, r: 190, color: "#ff4f8f" },
+      { id: "Achilles Ramp", x: 2780, y: 620, r: 210, color: "#59e6ff" },
+      { id: "Spryzen Garden", x: 2850, y: 1840, r: 230, color: "#78f29b" },
       { id: "Tiny City", x: 850, y: 1900, r: 220, color: "#9fb7ff" },
-      { id: "Gold Spiral", x: 1800, y: 480, r: 180, color: "#ffd447" },
-      { id: "Bounce Plaza", x: 1800, y: 2140, r: 190, color: "#ff8d4d" },
+      { id: "Roktavor Spiral", x: 1800, y: 480, r: 180, color: "#ffd447" },
+      { id: "Crash Plaza", x: 1800, y: 2140, r: 190, color: "#ff8d4d" },
       { id: "Crystal Pond", x: 520, y: 1260, r: 180, color: "#59e6ff" },
       { id: "Rainbow Curve", x: 3140, y: 1260, r: 180, color: "#c78cff" }
     ];
@@ -898,7 +959,7 @@
       const calm = bey.stun > 0 ? 0.25 : 0.82;   // a touch sluggish on purpose
       const boost = bey.stun <= 0 && bey.mode === "chase" && best < 900 ? 0.35 : 0;
 
-      return { x: dx * calm, y: dy * calm, boost, brake: 0, hop: false, burst: false, superSpin: false, reset: false };
+      return { x: dx * calm, y: dy * calm, boost, brake: 0, hop: false, burst: false, superSpin: false, guard: false, reset: false };
     }
 
     // Resolve a single collision between any two blades
@@ -936,6 +997,13 @@
       b.spin += 7;
       applyHit(a, b, aSpeed);
       applyHit(b, a, bSpeed);
+
+      for (const hitter of [a, b]) {
+        if (hitter.superSpin > 0 && hitter.whipCooldown <= 0 && hitter.bey.moves && hitter.bey.moves.whip) {
+          hitter.whipCooldown = 0.6;
+          showToast(hitter.bey.moves.whip.toUpperCase() + "!");
+        }
+      }
 
       camera.shake = Math.max(camera.shake, 12);
       spawnSparks((a.x + b.x) / 2, (a.y + b.y) / 2, 18);
@@ -1070,7 +1138,7 @@
 
     function getGamepadInput() {
       const gp = getGamepad();
-      const input = { x: 0, y: 0, boost: 0, brake: 0, hop: false, burst: false, superSpin: false, reset: false, gp };
+      const input = { x: 0, y: 0, boost: 0, brake: 0, hop: false, burst: false, superSpin: false, guard: false, reset: false, gp };
       if (gp) {
         input.x = Math.abs(gp.axes[0]) > 0.13 ? gp.axes[0] : 0;
         input.y = Math.abs(gp.axes[1]) > 0.13 ? gp.axes[1] : 0;
@@ -1079,6 +1147,7 @@
         input.hop = buttonPressed(gp, 0);
         input.burst = buttonPressed(gp, 1);
         input.superSpin = buttonPressed(gp, 2);
+        input.guard = buttonPressed(gp, 3);
         input.reset = buttonPressed(gp, 9);
         padStatus.textContent = "מחובר";
       } else {
@@ -1088,7 +1157,7 @@
     }
 
     function getKeyboardInput() {
-      const input = { x: 0, y: 0, boost: 0, brake: 0, hop: false, burst: false, superSpin: false, reset: false };
+      const input = { x: 0, y: 0, boost: 0, brake: 0, hop: false, burst: false, superSpin: false, guard: false, reset: false };
       if (keys.has("KeyA") || keys.has("ArrowLeft")) input.x -= 1;
       if (keys.has("KeyD") || keys.has("ArrowRight")) input.x += 1;
       if (keys.has("KeyW") || keys.has("ArrowUp")) input.y -= 1;
@@ -1098,6 +1167,7 @@
       if (keys.has("Space")) input.hop = true;
       if (keys.has("KeyE")) input.burst = true;
       if (keys.has("KeyF")) input.superSpin = true;
+      if (keys.has("KeyQ")) input.guard = true;
       if (keys.has("KeyR")) input.reset = true;
       return input;
     }
@@ -1123,6 +1193,7 @@
         g.hop = g.hop || k.hop;
         g.burst = g.burst || k.burst;
         g.superSpin = g.superSpin || k.superSpin;
+        g.guard = g.guard || k.guard;
         g.reset = g.reset || k.reset;
       }
       return normalizeInput(g);
@@ -1151,7 +1222,8 @@
       bey.vx += Math.cos(dir) * 420;
       bey.vy += Math.sin(dir) * 420;
 
-      showToast("SUPER SPIN: " + bey.bey.name + " Storm!");
+      const launchName = bey.bey.moves && bey.bey.moves.launch ? bey.bey.moves.launch.toUpperCase() : "SUPER SPIN";
+      showToast(launchName + ": " + bey.bey.name + " Storm!");
       superSpinSound();
 
       for (let i = 0; i < 4; i += 1) {
@@ -1208,13 +1280,18 @@
       bey.speedTimer = Math.max(0, bey.speedTimer - dt);
       bey.powerTimer = Math.max(0, bey.powerTimer - dt);
       bey.shieldTimer = Math.max(0, bey.shieldTimer - dt);
+      bey.whipCooldown = Math.max(0, bey.whipCooldown - dt);
       bey.energy = Math.min(bey.maxEnergy, bey.energy + dt * (bey.team === "enemy" ? 0.03 : 0.05));
 
-      const wantsBoost = input.boost > 0.1 && bey.boost > 0.05;
+      // R2 / left-stick shift is analog — pressing harder feeds more nitro power
+      const nitroPower = Math.min(1, input.boost);
+      const wantsBoost = nitroPower > 0.1 && bey.boost > 0.05;
       const isSuper = bey.superSpin > 0;
       const speedMul = bey.speedTimer > 0 ? 1.5 : 1;
-      const accel = (isSuper ? 1560 : wantsBoost ? 1380 : 780) * speedMul;
-      const targetFriction = isSuper ? 0.992 : input.brake > 0.1 ? 0.8 : 0.975;
+      const accel = (isSuper ? 1560 : wantsBoost ? 780 + 600 * nitroPower : 780) * speedMul;
+      const brakePower = Math.min(1, input.brake);
+      const braking = brakePower > 0.1;
+      const targetFriction = isSuper ? 0.992 : braking ? 0.8 : 0.975;
 
       bey.vx += input.x * accel * dt;
       bey.vy += input.y * accel * dt;
@@ -1226,10 +1303,42 @@
         bey.spin += 30 * dt;
       }
 
+      // Full Nitro: reward slamming R2 all the way down
+      if (wantsBoost && nitroPower > 0.92 && !bey.nitroPrimed) {
+        bey.nitroPrimed = true;
+        if (bey.team === "player") {
+          showToast("FULL NITRO!");
+          spawnSparks(bey.x, bey.y, 14);
+        }
+      } else if (nitroPower < 0.5) {
+        bey.nitroPrimed = false;
+      }
+
+      // L2 Power Slide: hold the left trigger while moving to charge it, release to unleash
+      if (braking && speed > 60) {
+        bey.brakeCharge = Math.min(1, bey.brakeCharge + dt * (0.55 + brakePower * 0.6));
+      }
+      if (!braking && bey.wasBraking) {
+        if (bey.brakeCharge >= 1) {
+          const dir = speed > 10 ? Math.atan2(bey.vy, bey.vx) : bey.angle;
+          bey.vx += Math.cos(dir) * 640;
+          bey.vy += Math.sin(dir) * 640;
+          bey.spin += 20;
+          camera.shake = Math.max(camera.shake, 12);
+          spawnSparks(bey.x, bey.y, 24);
+          if (bey.team === "player") showToast("POWER SLIDE!");
+        }
+        bey.brakeCharge = 0;
+      }
+      bey.wasBraking = braking;
+
       if (input.hop && bey.height <= 1) {
         bey.vz = 470;
         bey.spin += 4;
         blip(430, 0.07, "triangle", 0.025);
+        if (bey.team === "player" && bey.bey.moves && bey.bey.moves.dive) {
+          showToast(bey.bey.moves.dive.toUpperCase() + "!");
+        }
       }
 
       if (input.burst && bey.burst <= 0) {
@@ -1240,6 +1349,35 @@
         bey.burst = 0.55;
         camera.shake = Math.max(camera.shake, 9);
         blip(150, 0.12, "sawtooth", 0.04);
+        if (bey.team === "player" && bey.bey.moves && bey.bey.moves.burst) {
+          showToast(bey.bey.moves.burst.toUpperCase() + "!");
+        }
+      }
+
+      // Y / Triangle / Q: Guard Pulse — instant shield plus a knockback ring
+      bey.guardCooldown = Math.max(0, bey.guardCooldown - dt);
+      if (input.guard && bey.guardCooldown <= 0) {
+        bey.guardCooldown = 6;
+        bey.shieldTimer = Math.max(bey.shieldTimer, 3);
+        camera.shake = Math.max(camera.shake, 14);
+        spawnSparks(bey.x, bey.y, 30);
+        if (bey.team === "player") {
+          const guardName = bey.bey.moves && bey.bey.moves.guard ? bey.bey.moves.guard.toUpperCase() : "GUARD PULSE";
+          showToast(guardName + "!");
+        }
+        for (const other of allBeys) {
+          if (other === bey) continue;
+          const dx = other.x - bey.x;
+          const dy = other.y - bey.y;
+          const d = Math.hypot(dx, dy) || 1;
+          if (d < 170) {
+            const nx = dx / d;
+            const ny = dy / d;
+            const power = (170 - d) * 6;
+            other.vx += nx * power;
+            other.vy += ny * power;
+          }
+        }
       }
 
       bey.burst = Math.max(0, bey.burst - dt);
@@ -1252,7 +1390,7 @@
         bey.vy += Math.sin(swirl) * 95 * dt;
       }
 
-      const maxSpeed = (isSuper ? 1420 : wantsBoost ? 1180 : 860) * speedMul;
+      const maxSpeed = (isSuper ? 1420 : wantsBoost ? 860 + 320 * nitroPower : 860) * speedMul;
       const nextSpeed = Math.hypot(bey.vx, bey.vy);
       if (nextSpeed > maxSpeed) {
         bey.vx = (bey.vx / nextSpeed) * maxSpeed;
@@ -1768,6 +1906,46 @@
     }
 
     // One draw routine for any blade — palette, trail, super halo, aura, energy ring and name
+    const DEFAULT_SHAPE = { spikes: 6, outerR: 45, innerR: 31, curved: false };
+
+    // Traces one lobe-and-valley outline per spike; curved shapes sweep the
+    // valley through a quadratic control point instead of a sharp corner.
+    // altOuterR (optional) makes odd-indexed spikes shorter than even ones,
+    // for a dual-tier "long fang / short tooth" silhouette.
+    function spikeRadius(shape, i) {
+      return (i % 2 === 0 || shape.altOuterR == null) ? shape.outerR : shape.altOuterR;
+    }
+
+    function traceBladeOutline(shape) {
+      const spikes = shape.spikes;
+      const innerR = shape.innerR;
+      const rotate = shape.rotate || 0;
+      const step = TAU / spikes;
+      const outerPoint = (i) => {
+        const a = i * step + rotate;
+        const r = spikeRadius(shape, i);
+        return [Math.cos(a) * r, Math.sin(a) * r];
+      };
+      ctx.beginPath();
+      for (let i = 0; i < spikes; i += 1) {
+        const a0 = i * step + rotate;
+        const [ox, oy] = outerPoint(i);
+        if (i === 0) ctx.moveTo(ox, oy); else ctx.lineTo(ox, oy);
+        const mid = a0 + step / 2;
+        const ix = Math.cos(mid) * innerR;
+        const iy = Math.sin(mid) * innerR;
+        const [nx, ny] = outerPoint(i + 1);
+        if (shape.curved) {
+          ctx.quadraticCurveTo(ix, iy, nx, ny);
+        } else {
+          ctx.lineTo(ix, iy);
+          ctx.lineTo(nx, ny);
+        }
+      }
+      ctx.closePath();
+      return { outerAngleStep: step, rotate };
+    }
+
     function drawBey(bey, time) {
       const palette = bey.bey;
       const isSuper = bey.superSpin > 0;
@@ -1840,23 +2018,48 @@
       shell.addColorStop(0.52, sc[2]);
       shell.addColorStop(0.78, sc[3]);
       shell.addColorStop(1, sc[4]);
+      const shape = palette.shape || DEFAULT_SHAPE;
       ctx.fillStyle = shell;
-      ctx.beginPath();
-      for (let i = 0; i < 12; i += 1) {
-        const a = i * TAU / 12;
-        const r = i % 2 ? 31 : 45;
-        ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-      }
-      ctx.closePath();
+      traceBladeOutline(shape);
       ctx.fill();
       ctx.strokeStyle = "rgba(255,255,255,0.8)";
       ctx.lineWidth = 4;
       ctx.stroke();
 
+      // accent groove tracing the inner valleys, in the ring color, for extra detail
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = palette.ring;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, shape.innerR - 3, 0, TAU);
+      ctx.stroke();
+      ctx.restore();
+
+      // tiny rivets on each outer spike tip
+      ctx.fillStyle = palette.tip;
+      for (let i = 0; i < shape.spikes; i += 1) {
+        const a = i * (TAU / shape.spikes) + (shape.rotate || 0);
+        const r = spikeRadius(shape, i) - 6;
+        const rx = Math.cos(a) * r;
+        const ry = Math.sin(a) * r;
+        ctx.beginPath();
+        ctx.arc(rx, ry, 2.6, 0, TAU);
+        ctx.fill();
+      }
+
       ctx.fillStyle = "#0a1020";
       ctx.beginPath();
       ctx.arc(0, 0, 18, 0, TAU);
       ctx.fill();
+
+      ctx.strokeStyle = palette.ring;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.arc(0, 0, 18, 0, TAU);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
 
       ctx.fillStyle = palette.tip;
       ctx.beginPath();
