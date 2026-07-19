@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>הנוקמים: סוף המשחק - מתחם הכוחות הקוונטי</title>
+    <style>
+        :root {
+            --neon-gold: #facc15;
+            --neon-blue: #00f2fe;
+            --neon-red: #ff0844;
+            --neon-purple: #a855f7;
+            --neon-green: #34d399;
+            --neon-orange: #f97316;
+            --bg-dark: #04030a;
+            --glass-bg: rgba(15, 12, 24, 0.72);
+            --glass-border: rgba(168, 85, 247, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #f3f4f6;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .quantum-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background:
+                radial-gradient(circle at 20% 25%, rgba(168, 85, 247, 0.16) 0%, transparent 50%),
+                radial-gradient(circle at 80% 75%, rgba(0, 242, 254, 0.14) 0%, transparent 50%),
+                radial-gradient(circle at 50% 100%, rgba(250, 204, 21, 0.08) 0%, transparent 55%),
+                #060312;
+        }
+        .particles-bg {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background-image:
+                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px),
+                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px);
+            background-size: 550px 550px, 350px 350px;
+            background-position: 0 0, 40px 60px;
+            opacity: 0.4;
+            animation: drift 130s linear infinite;
+        }
+        @keyframes drift {
+            from { transform: translate(0, 0); }
+            to { transform: translate(-60px, -60px); }
+        }
+
+        header {
+            position: absolute;
+            top: 18px;
+            left: 20px;
+            right: 20px;
+            z-index: 20;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+        }
+        h1 {
+            font-size: 1.6rem;
+            font-weight: 900;
+            background: linear-gradient(to left, var(--neon-purple), var(--neon-blue), var(--neon-gold));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.4));
+        }
+        .back-btn {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: #fff;
+            padding: 9px 18px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            pointer-events: auto;
+            backdrop-filter: blur(10px);
+        }
+        .back-btn:hover {
+            border-color: var(--neon-purple);
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.35);
+            transform: translateY(-2px);
+        }
+
+        .char-selector {
+            position: absolute;
+            top: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 15;
+            display: flex;
+            gap: 10px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 8px;
+            border-radius: 50px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+        }
+        .char-btn {
+            border: 1px solid transparent;
+            background: transparent;
+            color: rgba(255,255,255,0.6);
+            padding: 9px 20px;
+            border-radius: 50px;
+            font-size: 0.92rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .char-btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
+        .char-btn.active[data-char="cap"] {
+            background: linear-gradient(135deg, #3b82f6, #1e3a8a);
+            color: #fff; box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+        }
+        .char-btn.active[data-char="ironman"] {
+            background: linear-gradient(135deg, var(--neon-red), var(--neon-gold));
+            color: #fff; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+        }
+        .char-btn.active[data-char="thor"] {
+            background: linear-gradient(135deg, var(--neon-blue), #3b82f6);
+            color: #fff; box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+        }
+        .char-btn.active[data-char="hulk"] {
+            background: linear-gradient(135deg, var(--neon-green), #059669);
+            color: #fff; box-shadow: 0 0 15px rgba(52, 211, 153, 0.5);
+        }
+
+        .controls-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 15;
+            width: 300px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 14px 18px;
+            backdrop-filter: blur(12px);
+            font-size: 0.82rem;
+            line-height: 1.7;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+        }
+        .controls-panel b { color: var(--neon-gold); }
+        .controls-title {
+            font-weight: 800;
+            color: var(--neon-purple);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 6px;
+            margin-bottom: 6px;
+        }
+
+        .pad-status {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 15;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 10px 16px;
+            backdrop-filter: blur(10px);
+            font-size: 0.82rem;
+            font-weight: 700;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+        }
+        .pad-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+            transition: all 0.3s;
+        }
+        .pad-dot.on { background: #34d399; box-shadow: 0 0 8px #34d399; }
+
+        .energy-panel {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            z-index: 15;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 12px 16px;
+            backdrop-filter: blur(10px);
+            width: 220px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+        }
+        .energy-label { font-size: 0.85rem; font-weight: 800; margin-bottom: 6px; display: flex; justify-content: space-between; }
+        .bar-track { width: 100%; height: 11px; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.15); }
+        .bar-fill { height: 100%; border-radius: 8px; transition: width 0.15s; background: linear-gradient(90deg, var(--neon-purple), var(--neon-blue)); }
+
+        .crystals-panel {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            z-index: 15;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 12px 18px;
+            backdrop-filter: blur(10px);
+            text-align: center;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+        }
+        .crystals-panel .num { font-size: 1.3rem; font-weight: 900; color: var(--neon-gold); }
+
+        #gameCanvas {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            cursor: crosshair;
+        }
+
+        .sound-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 15;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: #fff;
+            width: 42px; height: 42px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+        }
+        .sound-btn:hover { border-color: var(--neon-purple); }
+
+        .toast {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 25;
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: var(--neon-gold);
+            text-shadow: 0 0 20px rgba(250, 204, 21, 0.7);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s, transform 0.4s;
+        }
+        .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+
+        .overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 30;
+            background: rgba(4, 3, 10, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            text-align: center;
+            padding: 20px;
+        }
+        .overlay.hidden { display: none; }
+        .overlay h2 {
+            font-size: 2.2rem;
+            font-weight: 900;
+            background: linear-gradient(to left, var(--neon-purple), var(--neon-blue), var(--neon-gold));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .overlay p { max-width: 560px; opacity: 0.85; line-height: 1.6; }
+        .big-btn {
+            background: linear-gradient(135deg, var(--neon-purple), var(--neon-blue));
+            color: #060312;
+            border: none;
+            padding: 14px 36px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 8px 25px rgba(168, 85, 247, 0.35);
+        }
+        .big-btn:hover { transform: translateY(-3px) scale(1.03); }
+    </style>
+</head>
+<body>
+    <div class="quantum-bg"><div class="particles-bg"></div></div>
+
+    <header>
+        <a href="../index.html" class="back-btn"><span>→</span> חזרה לפורטפוליו</a>
+        <h1>⚛️ הנוקמים: סוף המשחק - מתחם הכוחות</h1>
+    </header>
+
+    <div class="char-selector">
+        <button class="char-btn active" data-char="cap">🛡️ קפטן אמריקה</button>
+        <button class="char-btn" data-char="ironman">🤖 איירון מן</button>
+        <button class="char-btn" data-char="thor">⚡ תור</button>
+        <button class="char-btn" data-char="hulk">💚 האלק</button>
+    </div>
+
+    <div class="energy-panel">
+        <div class="energy-label"><span>אנרגיה למיוחד</span><span id="energyPercent">100%</span></div>
+        <div class="bar-track"><div class="bar-fill" id="energyFill" style="width:100%"></div></div>
+    </div>
+
+    <div class="crystals-panel">
+        <div class="num" id="crystalsNum">0</div>
+        <div style="font-size:0.78rem; opacity:0.8;">גבישי Pym שנופצו</div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="controls-panel">
+        <div class="controls-title">בקרה</div>
+        <div><b>מקלדת:</b> WASD תנועה, קליק שמאלי התקפה, קליק ימני/רווח מיוחד, Q החלפת גיבור</div>
+        <div><b>שלט (PlayStation / Xbox):</b> מקל שמאלי תנועה, מקל ימני כיוון, R2/RT התקפה, L2/LT מיוחד, △/Y החלפת גיבור, Options/Start התחלה</div>
+    </div>
+
+    <div class="pad-status">
+        <div class="pad-dot" id="padDot"></div>
+        <span id="padLabel">אין שלט מחובר</span>
+    </div>
+
+    <button class="sound-btn" id="soundBtn" aria-label="הפעלה או כיבוי סאונד">🔊</button>
+
+    <div class="overlay" id="startOverlay">
+        <h2>מתחם הכוחות הקוונטי</h2>
+        <p>גשו לאזור אימונים חופשי מהעולם של סוף המשחק. בחרו גיבור, השתמשו בכוחותיו הייחודיים ונפצו גבישי Pym Particles זוהרים ברחבי המתחם. אין אויבים ואין הפסד - רק כוח, תנועה וסטייל. תומך במקלדת/עכבר ובשלטי PlayStation ו-Xbox.</p>
+        <button class="big-btn" id="startBtn">כניסה למתחם</button>
+    </div>
+
+    <script>
+        // ===== Audio =====
+        let audioCtx = null;
+        let soundEnabled = true;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+        function playSynthSound(type, freq, duration, gainVal = 0.1) {
+            if (!soundEnabled) return;
+            initAudio();
+            try {
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                if (type === 'sawtooth' || type === 'square') gainVal *= 0.5;
+                gainNode.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+        function playExplosionSound(vol = 0.3, len = 0.9) {
+            if (!soundEnabled) return;
+            initAudio();
+            try {
+                const bufferSize = audioCtx.sampleRate * len;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+                filter.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + len);
+                const gainNode = audioCtx.createGain();
+                gainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + len);
+                noise.connect(filter);
+                filter.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                noise.start();
+            } catch(e) { playSynthSound('triangle', 90, 0.6, 0.4); }
+        }
+        document.getElementById('soundBtn').addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundBtn').textContent = soundEnabled ? '🔊' : '🔇';
+            initAudio();
+        });
+
+        // ===== Canvas =====
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // ===== Keyboard / Mouse Input =====
+        const keys = {};
+        const mouse = { x: 0, y: 0, clicked: false, rightClicked: false };
+        window.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            if (e.key === ' ') e.preventDefault();
+        });
+        window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = e.clientX - rect.left;
+            mouse.y = e.clientY - rect.top;
+        });
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0) mouse.clicked = true;
+            if (e.button === 2) { e.preventDefault(); mouse.rightClicked = true; }
+        });
+        canvas.addEventListener('mouseup', (e) => {
+            if (e.button === 0) mouse.clicked = false;
+            if (e.button === 2) mouse.rightClicked = false;
+        });
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // ===== Gamepad (PlayStation / Xbox - standard mapping) =====
+        let gamepadIndex = null;
+        let gamepadType = 'none'; // 'ps' or 'xbox'
+        let prevPadButtons = [];
+        const padDot = document.getElementById('padDot');
+        const padLabel = document.getElementById('padLabel');
+        const pad = { moveX: 0, moveY: 0, aimX: 0, aimY: 0, aimActive: false, primary: false, special: false, cyclePressed: false, startPressed: false };
+
+        function detectPadType(id) {
+            const s = (id || '').toLowerCase();
+            if (s.includes('054c') || s.includes('dualshock') || s.includes('dualsense') || s.includes('playstation') || s.includes('sony')) return 'ps';
+            return 'xbox';
+        }
+
+        function refreshPadUI() {
+            if (gamepadType === 'ps') {
+                padDot.classList.add('on');
+                padLabel.textContent = 'שלט PlayStation מחובר';
+            } else if (gamepadType === 'xbox') {
+                padDot.classList.add('on');
+                padLabel.textContent = 'שלט Xbox מחובר';
+            } else {
+                padDot.classList.remove('on');
+                padLabel.textContent = 'אין שלט מחובר';
+            }
+        }
+
+        window.addEventListener('gamepadconnected', (event) => {
+            gamepadIndex = event.gamepad.index;
+            gamepadType = detectPadType(event.gamepad.id);
+            prevPadButtons = [];
+            refreshPadUI();
+            showToast(gamepadType === 'ps' ? 'שלט PlayStation חובר!' : 'שלט Xbox חובר!');
+        });
+        window.addEventListener('gamepaddisconnected', (event) => {
+            if (gamepadIndex === event.gamepad.index) {
+                gamepadIndex = null;
+                gamepadType = 'none';
+                refreshPadUI();
+                showToast('השלט נותק');
+            }
+        });
+
+        function readGamepad() {
+            const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+            let gp = null;
+            if (gamepadIndex !== null && pads[gamepadIndex]) gp = pads[gamepadIndex];
+            if (!gp) {
+                for (const candidate of pads) {
+                    if (candidate) { gp = candidate; gamepadIndex = candidate.index; gamepadType = detectPadType(candidate.id); break; }
+                }
+            }
+            pad.primary = false; pad.special = false; pad.cyclePressed = false; pad.startPressed = false;
+            if (!gp) {
+                pad.moveX = 0; pad.moveY = 0; pad.aimX = 0; pad.aimY = 0; pad.aimActive = false;
+                if (gamepadType !== 'none') { gamepadType = 'none'; refreshPadUI(); }
+                return;
+            }
+            const dead = v => Math.abs(v) < 0.16 ? 0 : v;
+            const buttons = gp.buttons.map(b => b.pressed);
+            const wasPressed = idx => buttons[idx] && !prevPadButtons[idx];
+            const held = idx => buttons[idx];
+            const trigger = idx => gp.buttons[idx] ? gp.buttons[idx].value : 0;
+
+            pad.moveX = dead(gp.axes[0] || 0);
+            pad.moveY = dead(gp.axes[1] || 0);
+            const rx = dead(gp.axes[2] || 0);
+            const ry = dead(gp.axes[3] || 0);
+            pad.aimActive = Math.hypot(rx, ry) > 0.2;
+            pad.aimX = rx; pad.aimY = ry;
+
+            // R2/RT = trigger button 7, L2/LT = button 6 (analog or digital fallback)
+            pad.primary = trigger(7) > 0.15 || held(7);
+            pad.special = trigger(6) > 0.15 || held(6);
+            if (wasPressed(3)) pad.cyclePressed = true; // Triangle / Y
+            if (wasPressed(9)) pad.startPressed = true; // Options / Start
+            if (wasPressed(0)) pad.startPressed = true; // Cross / A also starts
+
+            prevPadButtons = buttons;
+        }
+
+        function showToast(text) {
+            const el = document.getElementById('toast');
+            el.textContent = text;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 1400);
+        }
+
+        document.querySelectorAll('.char-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.char-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                changeCharacter(btn.dataset.char);
+            });
+        });
+
+        // ===== Game State =====
+        let gameMode = 'menu'; // menu, playing
+        let currentCharacter = 'cap';
+        let screenShake = 0;
+        let crystalsDestroyed = 0;
+        let energy = 100;
+
+        const heroNames = { cap: 'קפטן אמריקה', ironman: 'איירון מן', thor: 'תור', hulk: 'האלק' };
+        const heroOrder = ['cap', 'ironman', 'thor', 'hulk'];
+
+        const characters = {
+            cap: { color: '#3b82f6', accentColor: '#e2e8f0', maxSpeed: 6.5, cooldown: 0, specialCooldown: 0, specialCost: 25 },
+            ironman: { color: '#ef4444', accentColor: '#facc15', maxSpeed: 7, cooldown: 0, specialCooldown: 0, specialCost: 30 },
+            thor: { color: '#60a5fa', accentColor: '#e2e8f0', maxSpeed: 6.2, cooldown: 0, specialCooldown: 0, specialCost: 30 },
+            hulk: { color: '#34d399', accentColor: '#a855f7', maxSpeed: 5.6, cooldown: 0, specialCooldown: 0, specialCost: 28 }
+        };
+
+        const player = {
+            x: 0, y: 0, vx: 0, vy: 0,
+            width: 42, height: 52,
+            facingLeft: false
+        };
+
+        function resetPlayerPosition() {
+            player.x = canvas.width / 2;
+            player.y = canvas.height / 2;
+            player.vx = 0; player.vy = 0;
+        }
+
+        function changeCharacter(charName) {
+            currentCharacter = charName;
+            document.querySelectorAll('.char-btn').forEach(b => b.classList.toggle('active', b.dataset.char === charName));
+            playSynthSound('square', 220, 0.2, 0.15);
+        }
+
+        function cycleCharacter() {
+            const idx = heroOrder.indexOf(currentCharacter);
+            changeCharacter(heroOrder[(idx + 1) % heroOrder.length]);
+        }
+
+        let crystals = [];
+        let projectiles = [];
+        let particles = [];
+        let mjolnir = { x: 0, y: 0, vx: 0, vy: 0, active: false, returning: false, angle: 0 };
+
+        function spawnSpark(x, y, color, count = 10, speed = 4) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * speed,
+                    vy: (Math.random() - 0.5) * speed,
+                    size: 2 + Math.random() * 4,
+                    color, alpha: 1,
+                    decay: 0.02 + Math.random() * 0.03,
+                    gravity: 0.05
+                });
+            }
+        }
+        function spawnBlastWave(x, y, radius, color) {
+            particles.push({ x, y, type: 'wave', maxRadius: radius, currentRadius: 2, color, alpha: 1, decay: 0.04 });
+        }
+
+        function generateCrystals() {
+            crystals = [];
+            const count = 16;
+            for (let i = 0; i < count; i++) {
+                crystals.push({
+                    x: 80 + Math.random() * (canvas.width - 160),
+                    y: 140 + Math.random() * (canvas.height - 260),
+                    width: 22 + Math.random() * 22,
+                    height: 32 + Math.random() * 32,
+                    color: ['#00ffff', '#ff00ff', '#facc15', '#34d399', '#a855f7'][Math.floor(Math.random() * 5)],
+                    health: 30
+                });
+            }
+        }
+
+        function updateHUD() {
+            document.getElementById('energyPercent').textContent = Math.floor(energy) + '%';
+            document.getElementById('energyFill').style.width = energy + '%';
+            document.getElementById('crystalsNum').textContent = crystalsDestroyed;
+        }
+
+        // ===== Core Update =====
+        function updateEntities() {
+            readGamepad();
+
+            if (gameMode !== 'playing') {
+                if (pad.startPressed) startGame();
+                return;
+            }
+
+            if (characters[currentCharacter].cooldown > 0) characters[currentCharacter].cooldown--;
+            if (characters[currentCharacter].specialCooldown > 0) characters[currentCharacter].specialCooldown--;
+            energy = Math.min(100, energy + 0.15);
+
+            // Movement: keyboard + left stick combined
+            let ax = 0, ay = 0;
+            const speed = characters[currentCharacter].maxSpeed;
+            if (keys['a'] || keys['arrowleft']) ax = -1;
+            else if (keys['d'] || keys['arrowright']) ax = 1;
+            if (keys['w'] || keys['arrowup']) ay = -1;
+            else if (keys['s'] || keys['arrowdown']) ay = 1;
+            ax += pad.moveX; ay += pad.moveY;
+            const inputMag = Math.hypot(ax, ay);
+            if (inputMag > 1) { ax /= inputMag; ay /= inputMag; }
+
+            if (inputMag > 0.05) {
+                player.vx += ax * speed * 0.2;
+                player.vy += ay * speed * 0.2;
+            } else {
+                player.vx *= 0.8; player.vy *= 0.8;
+            }
+            const vmag = Math.hypot(player.vx, player.vy);
+            if (vmag > speed) { player.vx = (player.vx / vmag) * speed; player.vy = (player.vy / vmag) * speed; }
+            player.x += player.vx; player.y += player.vy;
+            player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
+            player.y = Math.max(20, Math.min(canvas.height - 20, player.y));
+
+            // Aim: right stick overrides mouse when active
+            let aimX = mouse.x, aimY = mouse.y;
+            if (pad.aimActive) {
+                aimX = player.x + pad.aimX * 200;
+                aimY = player.y + pad.aimY * 200;
+            }
+            player.facingLeft = aimX < player.x;
+
+            // Attacks: mouse/keyboard OR gamepad triggers
+            if ((mouse.clicked || pad.primary) && characters[currentCharacter].cooldown <= 0) {
+                primaryAttack(aimX, aimY);
+            }
+            if ((mouse.rightClicked || keys[' '] || pad.special) && characters[currentCharacter].specialCooldown <= 0 && energy >= characters[currentCharacter].specialCost) {
+                specialAttack(aimX, aimY);
+            }
+            if (keys['q'] || pad.cyclePressed) {
+                cycleCharacter();
+                keys['q'] = false;
+            }
+
+            updateProjectiles();
+            updateCrystals();
+            updateParticles();
+
+            if (screenShake > 0) screenShake -= 0.8;
+            if (screenShake < 0) screenShake = 0;
+
+            if (!crystals.length) generateCrystals();
+
+            updateHUD();
+        }
+
+        function primaryAttack(aimX, aimY) {
+            const angle = Math.atan2(aimY - player.y, aimX - player.x);
+            if (currentCharacter === 'cap') {
+                projectiles.push({
+                    type: 'shield', x: player.x, y: player.y,
+                    vx: Math.cos(angle) * 13, vy: Math.sin(angle) * 13,
+                    returning: false, angle: 0, dmg: 22, pierce: 3
+                });
+                playSynthSound('square', 300, 0.2, 0.2);
+                characters.cap.cooldown = 24;
+            } else if (currentCharacter === 'ironman') {
+                projectiles.push({
+                    type: 'repulsor', x: player.x + Math.cos(angle) * 20, y: player.y + Math.sin(angle) * 20,
+                    vx: Math.cos(angle) * 15, vy: Math.sin(angle) * 15, dmg: 14
+                });
+                playSynthSound('sawtooth', 880, 0.1, 0.15);
+                characters.ironman.cooldown = 8;
+            } else if (currentCharacter === 'thor') {
+                if (!mjolnir.active) {
+                    mjolnir.x = player.x; mjolnir.y = player.y;
+                    mjolnir.vx = Math.cos(angle) * 17; mjolnir.vy = Math.sin(angle) * 17;
+                    mjolnir.active = true; mjolnir.returning = false; mjolnir.angle = 0;
+                    playSynthSound('square', 320, 0.3, 0.25);
+                    characters.thor.cooldown = 20;
+                }
+            } else if (currentCharacter === 'hulk') {
+                const reach = 90;
+                const sx = player.x + Math.cos(angle) * reach;
+                const sy = player.y + Math.sin(angle) * reach;
+                spawnSpark(sx, sy, '#34d399', 16, 6);
+                screenShake = 6;
+                playSynthSound('square', 130, 0.15, 0.3);
+                crystals.forEach(c => { if (Math.hypot(c.x - sx, c.y - sy) < 65) c.health -= 20; });
+                characters.hulk.cooldown = 16;
+            }
+        }
+
+        function specialAttack(aimX, aimY) {
+            const angle = Math.atan2(aimY - player.y, aimX - player.x);
+            const hero = characters[currentCharacter];
+            energy -= hero.specialCost;
+            screenShake = 12;
+            if (currentCharacter === 'cap') {
+                spawnBlastWave(player.x, player.y, 150, 'rgba(59,130,246,0.4)');
+                playSynthSound('triangle', 100, 0.3, 0.3);
+                crystals.forEach(c => { if (Math.hypot(c.x - player.x, c.y - player.y) < 150) c.health -= 30; });
+                hero.specialCooldown = 55;
+            } else if (currentCharacter === 'ironman') {
+                projectiles.push({
+                    type: 'missile', x: player.x, y: player.y,
+                    vx: Math.cos(angle) * 10, vy: Math.sin(angle) * 10,
+                    target: { x: aimX, y: aimY }, dmg: 45
+                });
+                playSynthSound('sawtooth', 120, 0.4, 0.2);
+                hero.specialCooldown = 40;
+            } else if (currentCharacter === 'thor') {
+                spawnBlastWave(aimX, aimY, 100, 'rgba(0,242,254,0.35)');
+                playExplosionSound(0.25, 0.6);
+                crystals.forEach(c => { if (Math.hypot(c.x - aimX, c.y - aimY) < 110) c.health -= 40; });
+                hero.specialCooldown = 50;
+            } else if (currentCharacter === 'hulk') {
+                spawnBlastWave(player.x, player.y, 260, 'rgba(168,85,247,0.4)');
+                playExplosionSound(0.3, 0.8);
+                crystals.forEach(c => {
+                    const d = Math.hypot(c.x - player.x, c.y - player.y);
+                    if (d < 260) c.health -= 60;
+                });
+                hero.specialCooldown = 60;
+            }
+        }
+
+        function updateProjectiles() {
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const proj = projectiles[i];
+                if (proj.type === 'repulsor') {
+                    proj.x += proj.vx; proj.y += proj.vy;
+                    if (proj.x < 0 || proj.x > canvas.width || proj.y < 0 || proj.y > canvas.height) { projectiles.splice(i, 1); continue; }
+                    crystals.forEach(c => {
+                        if (proj.x > c.x - c.width/2 && proj.x < c.x + c.width/2 && proj.y > c.y - c.height/2 && proj.y < c.y + c.height/2) {
+                            c.health -= proj.dmg;
+                            spawnSpark(proj.x, proj.y, '#00f2fe', 8, 4);
+                            projectiles.splice(i, 1);
+                        }
+                    });
+                } else if (proj.type === 'missile') {
+                    const dx = proj.target.x - proj.x, dy = proj.target.y - proj.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist > 5) { proj.vx = (dx / dist) * 12; proj.vy = (dy / dist) * 12; }
+                    proj.x += proj.vx; proj.y += proj.vy;
+                    particles.push({ x: proj.x, y: proj.y, vx: -proj.vx * 0.2, vy: -proj.vy * 0.2, size: 3, color: '#ff4500', alpha: 1, decay: 0.05, gravity: 0 });
+                    if (dist < 15) {
+                        spawnSpark(proj.x, proj.y, '#ef4444', 22, 6);
+                        spawnBlastWave(proj.x, proj.y, 110, 'rgba(239,68,68,0.4)');
+                        screenShake = 10;
+                        playExplosionSound(0.25, 0.7);
+                        crystals.forEach(c => { if (Math.hypot(c.x - proj.x, c.y - proj.y) < 100) c.health -= proj.dmg; });
+                        projectiles.splice(i, 1);
+                    }
+                } else if (proj.type === 'shield') {
+                    proj.angle += 0.5;
+                    if (!proj.returning) {
+                        proj.x += proj.vx; proj.y += proj.vy;
+                        const travel = Math.hypot(proj.x - player.x, proj.y - player.y);
+                        if (travel > 380) proj.returning = true;
+                    } else {
+                        const dx = player.x - proj.x, dy = player.y - proj.y;
+                        const dist = Math.hypot(dx, dy);
+                        if (dist < 25) { projectiles.splice(i, 1); continue; }
+                        proj.vx = (dx / dist) * 15; proj.vy = (dy / dist) * 15;
+                        proj.x += proj.vx; proj.y += proj.vy;
+                    }
+                    if (proj.pierce > 0) {
+                        crystals.forEach(c => {
+                            if (c._hitByShield !== proj) {
+                                const d = Math.hypot(c.x - proj.x, c.y - proj.y);
+                                if (d < c.width) { c.health -= proj.dmg; proj.pierce--; c._hitByShield = proj; }
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
+        function updateCrystals() {
+            for (let i = crystals.length - 1; i >= 0; i--) {
+                const c = crystals[i];
+                if (c.health <= 0) {
+                    spawnSpark(c.x, c.y, c.color, 25, 7);
+                    spawnBlastWave(c.x, c.y, 60, c.color);
+                    playExplosionSound(0.2, 0.5);
+                    crystalsDestroyed++;
+                    crystals.splice(i, 1);
+                }
+            }
+
+            // Mjolnir physics
+            if (mjolnir.active) {
+                mjolnir.angle += 0.4;
+                if (!mjolnir.returning) {
+                    mjolnir.x += mjolnir.vx; mjolnir.y += mjolnir.vy;
+                    if (Math.random() > 0.2) particles.push({ x: mjolnir.x, y: mjolnir.y, vx: (Math.random()-0.5)*3, vy: (Math.random()-0.5)*3, size: 3, color: '#00d2fe', alpha: 0.8, decay: 0.04, gravity: 0 });
+                    const travelDist = Math.hypot(mjolnir.x - player.x, mjolnir.y - player.y);
+                    if (travelDist > 450) mjolnir.returning = true;
+                } else {
+                    const dx = player.x - mjolnir.x, dy = player.y - mjolnir.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < 30) { mjolnir.active = false; }
+                    else { mjolnir.vx = (dx / dist) * 16; mjolnir.vy = (dy / dist) * 16; mjolnir.x += mjolnir.vx; mjolnir.y += mjolnir.vy; }
+                }
+                crystals.forEach(c => {
+                    const dist = Math.hypot(c.x - mjolnir.x, c.y - mjolnir.y);
+                    if (dist < 40) { c.health -= 12; spawnSpark(mjolnir.x, mjolnir.y, '#00d2fe', 4, 3); }
+                });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const part = particles[i];
+                if (part.type === 'wave') {
+                    part.currentRadius += part.maxRadius * part.decay;
+                    part.alpha -= part.decay;
+                } else {
+                    part.x += part.vx; part.y += part.vy;
+                    part.vy += part.gravity;
+                    part.alpha -= part.decay;
+                }
+                if (part.alpha <= 0) particles.splice(i, 1);
+            }
+        }
+
+        // ===== Draw =====
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            if (screenShake > 0) ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake);
+
+            ctx.strokeStyle = 'rgba(168,85,247,0.05)';
+            ctx.lineWidth = 1;
+            for (let gx = 0; gx < canvas.width; gx += 60) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, canvas.height); ctx.stroke(); }
+            for (let gy = 0; gy < canvas.height; gy += 60) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(canvas.width, gy); ctx.stroke(); }
+
+            crystals.forEach(c => {
+                ctx.shadowBlur = 15; ctx.shadowColor = c.color; ctx.fillStyle = c.color;
+                ctx.beginPath();
+                ctx.moveTo(c.x, c.y - c.height/2);
+                ctx.lineTo(c.x + c.width/2, c.y);
+                ctx.lineTo(c.x + c.width/3, c.y + c.height/2);
+                ctx.lineTo(c.x - c.width/3, c.y + c.height/2);
+                ctx.lineTo(c.x - c.width/2, c.y);
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                ctx.beginPath();
+                ctx.moveTo(c.x, c.y - c.height/2 + 5);
+                ctx.lineTo(c.x + c.width/4, c.y);
+                ctx.lineTo(c.x, c.y + c.height/4);
+                ctx.closePath(); ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+
+            projectiles.forEach(proj => {
+                if (proj.type === 'repulsor') {
+                    ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 10; ctx.shadowColor = '#00f2fe';
+                    ctx.beginPath(); ctx.arc(proj.x, proj.y, 5, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+                } else if (proj.type === 'missile') {
+                    ctx.save(); ctx.translate(proj.x, proj.y); ctx.rotate(Math.atan2(proj.vy, proj.vx));
+                    ctx.fillStyle = '#ef4444'; ctx.fillRect(-10, -4, 20, 8);
+                    ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.moveTo(10,-4); ctx.lineTo(16,0); ctx.lineTo(10,4); ctx.closePath(); ctx.fill();
+                    ctx.restore();
+                } else if (proj.type === 'shield') {
+                    ctx.save(); ctx.translate(proj.x, proj.y); ctx.rotate(proj.angle);
+                    ctx.shadowBlur = 12; ctx.shadowColor = '#3b82f6';
+                    ctx.fillStyle = '#3b82f6'; ctx.beginPath(); ctx.arc(0,0,16,0,Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(0,0,5,0,Math.PI*2); ctx.fill();
+                    ctx.shadowBlur = 0; ctx.restore();
+                }
+            });
+
+            if (mjolnir.active) {
+                ctx.save(); ctx.translate(mjolnir.x, mjolnir.y); ctx.rotate(mjolnir.angle);
+                ctx.shadowBlur = 15; ctx.shadowColor = '#60a5fa';
+                ctx.fillStyle = '#94a3b8'; ctx.fillRect(-16, -10, 32, 20);
+                ctx.fillStyle = '#475569'; ctx.fillRect(-18, -12, 4, 24); ctx.fillRect(14, -12, 4, 24);
+                ctx.fillStyle = '#78350f'; ctx.fillRect(-2, 10, 4, 22);
+                ctx.restore(); ctx.shadowBlur = 0;
+            }
+
+            // Player
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            if (player.facingLeft) ctx.scale(-1, 1);
+            const pColor = characters[currentCharacter].color;
+            const aColor = characters[currentCharacter].accentColor;
+            ctx.shadowBlur = 15; ctx.shadowColor = pColor;
+
+            if (currentCharacter === 'cap') {
+                ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.roundRect(-player.width/2, -player.height/2, player.width, player.height, 10); ctx.fill();
+                ctx.fillStyle = pColor; ctx.fillRect(-player.width/2, -player.height/2, player.width, 16);
+                ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(0, -player.height/2 + 8, 5, 0, Math.PI*2); ctx.fill();
+            } else if (currentCharacter === 'ironman') {
+                ctx.fillStyle = pColor; ctx.beginPath(); ctx.roundRect(-player.width/2, -player.height/2, player.width, player.height, 12); ctx.fill();
+                ctx.fillStyle = aColor; ctx.beginPath(); ctx.roundRect(-player.width/4, -player.height/2 + 4, player.width/2, player.height/3, 4); ctx.fill();
+                ctx.fillStyle = '#00f2fe'; ctx.fillRect(-player.width/6, -player.height/2 + 8, 4, 2); ctx.fillRect(player.width/6 - 4, -player.height/2 + 8, 4, 2);
+                ctx.shadowColor = '#00f2fe'; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(0, -player.height/12, 5, 0, Math.PI*2); ctx.fill();
+            } else if (currentCharacter === 'thor') {
+                ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.roundRect(-player.width/2, -player.height/2, player.width, player.height, 10); ctx.fill();
+                ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.moveTo(-player.width/2, -player.height/4); ctx.lineTo(-player.width/2 - 12, player.height/2); ctx.lineTo(-player.width/4, player.height/2 + 4); ctx.closePath(); ctx.fill();
+                ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.roundRect(-player.width/2, -player.height/2, player.width, player.height/4, 4); ctx.fill();
+            } else if (currentCharacter === 'hulk') {
+                ctx.fillStyle = '#166534'; ctx.beginPath(); ctx.roundRect(-player.width/2 - 4, -player.height/2 - 4, player.width + 8, player.height + 8, 12); ctx.fill();
+                ctx.fillStyle = pColor; ctx.beginPath(); ctx.roundRect(-player.width/2, -player.height/2, player.width, player.height, 10); ctx.fill();
+                ctx.fillStyle = aColor; ctx.fillRect(-player.width/3, -6, player.width/1.5, 10);
+            }
+            ctx.restore(); ctx.shadowBlur = 0;
+
+            particles.forEach(part => {
+                ctx.save();
+                if (part.type === 'wave') {
+                    ctx.strokeStyle = part.color; ctx.lineWidth = 3; ctx.globalAlpha = Math.max(0, part.alpha);
+                    ctx.beginPath(); ctx.arc(part.x, part.y, part.currentRadius, 0, Math.PI*2); ctx.stroke();
+                } else {
+                    ctx.fillStyle = part.color; ctx.globalAlpha = Math.max(0, part.alpha);
+                    ctx.beginPath(); ctx.arc(part.x, part.y, part.size, 0, Math.PI*2); ctx.fill();
+                }
+                ctx.restore();
+            });
+
+            // Gamepad aim reticle
+            if (gameMode === 'playing' && pad.aimActive) {
+                const rx = player.x + pad.aimX * 200;
+                const ry = player.y + pad.aimY * 200;
+                ctx.save();
+                ctx.globalAlpha = 0.7;
+                ctx.strokeStyle = characters[currentCharacter].color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(rx, ry, 14, 0, Math.PI*2);
+                ctx.moveTo(rx - 22, ry); ctx.lineTo(rx - 8, ry);
+                ctx.moveTo(rx + 8, ry); ctx.lineTo(rx + 22, ry);
+                ctx.moveTo(rx, ry - 22); ctx.lineTo(rx, ry - 8);
+                ctx.moveTo(rx, ry + 8); ctx.lineTo(rx, ry + 22);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            ctx.restore();
+        }
+
+        // ===== Game Flow =====
+        function startGame() {
+            gameMode = 'playing';
+            crystalsDestroyed = 0;
+            energy = 100;
+            projectiles = []; particles = []; mjolnir.active = false;
+            resetPlayerPosition();
+            generateCrystals();
+            document.getElementById('startOverlay').classList.add('hidden');
+        }
+
+        document.getElementById('startBtn').addEventListener('click', () => { initAudio(); startGame(); });
+
+        // ===== Main Loop =====
+        function loop() {
+            updateEntities();
+            draw();
+            requestAnimationFrame(loop);
+        }
+        resetPlayerPosition();
+        requestAnimationFrame(loop);
+    </script>
+</body>
+</html>

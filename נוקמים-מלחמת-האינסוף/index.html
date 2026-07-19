@@ -1,0 +1,1801 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>הנוקמים: מלחמת האינסוף - בלי האיום</title>
+  <style>
+    :root {
+      --void: #07070b;
+      --panel: rgba(15, 16, 24, 0.76);
+      --panel-strong: rgba(24, 25, 36, 0.9);
+      --line: rgba(255, 255, 255, 0.14);
+      --text: #f8fafc;
+      --muted: #a9b0bd;
+      --gold: #f5c451;
+      --red: #ff4d5e;
+      --cyan: #59d7ff;
+      --green: #45df8b;
+      --orange: #ff9552;
+      --violet: #ad6cff;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--void);
+      color: var(--text);
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+    }
+
+    #game {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      background:
+        radial-gradient(circle at 18% 28%, rgba(255, 77, 94, 0.16), transparent 28%),
+        radial-gradient(circle at 82% 18%, rgba(89, 215, 255, 0.13), transparent 30%),
+        radial-gradient(circle at 55% 82%, rgba(69, 223, 139, 0.13), transparent 26%),
+        #07070b;
+      cursor: crosshair;
+    }
+
+    .hud {
+      position: fixed;
+      inset: 0;
+      z-index: 5;
+      pointer-events: none;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: 14px;
+      gap: 12px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: start;
+      gap: 12px;
+    }
+
+    .back-link,
+    .icon-button,
+    .hero-button,
+    .action-button,
+    .start-button {
+      pointer-events: auto;
+      border: 1px solid var(--line);
+      color: var(--text);
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+      font: inherit;
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .back-link {
+      min-width: 44px;
+      height: 44px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 1.3rem;
+      font-weight: 900;
+    }
+
+    .back-link:hover,
+    .icon-button:hover,
+    .hero-button:hover,
+    .action-button:hover,
+    .start-button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(245, 196, 81, 0.68);
+      box-shadow: 0 0 18px rgba(245, 196, 81, 0.18);
+    }
+
+    .title-panel {
+      justify-self: center;
+      min-width: min(580px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 14px;
+      backdrop-filter: blur(14px);
+      text-align: center;
+      box-shadow: 0 16px 46px rgba(0, 0, 0, 0.22);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.05rem, 2.5vw, 1.7rem);
+      letter-spacing: 0;
+      line-height: 1.2;
+    }
+
+    .subtitle {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.35;
+    }
+
+    .right-tools {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .icon-button {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      font-size: 1.05rem;
+      font-weight: 900;
+    }
+
+    .status-strip {
+      justify-self: center;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-self: start;
+      margin-top: 6px;
+    }
+
+    .stat {
+      min-width: 88px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(8, 8, 13, 0.66);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      text-align: center;
+      backdrop-filter: blur(12px);
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .stat strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 1.05rem;
+      line-height: 1.1;
+    }
+
+    .stone-row {
+      position: fixed;
+      top: 92px;
+      left: 50%;
+      z-index: 6;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .stone-dot {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 2px solid color-mix(in srgb, var(--c) 45%, rgba(255, 255, 255, 0.22));
+      background: rgba(5, 5, 9, 0.75);
+      display: grid;
+      place-items: center;
+      color: var(--c);
+      font-size: 0.77rem;
+      font-weight: 900;
+      box-shadow: inset 0 0 14px rgba(255, 255, 255, 0.06);
+      opacity: 0.62;
+    }
+
+    .stone-dot.ready {
+      background: radial-gradient(circle at 35% 30%, #fff 0 5%, var(--c) 18%, rgba(5, 5, 9, 0.92) 70%);
+      color: #fff;
+      opacity: 1;
+      box-shadow: 0 0 18px color-mix(in srgb, var(--c) 74%, transparent);
+    }
+
+    .bottom-ui {
+      align-self: end;
+      display: grid;
+      grid-template-columns: minmax(210px, 1fr) auto minmax(210px, 1fr);
+      gap: 12px;
+      align-items: end;
+    }
+
+    .mission-panel,
+    .hero-dock,
+    .ability-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+    }
+
+    .mission-panel {
+      padding: 12px;
+      max-width: 420px;
+    }
+
+    .mission-title {
+      color: var(--gold);
+      font-weight: 900;
+      margin-bottom: 5px;
+      font-size: 0.95rem;
+    }
+
+    .mission-text {
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 0.86rem;
+    }
+
+    .hero-dock {
+      justify-self: center;
+      display: flex;
+      gap: 8px;
+      padding: 8px;
+    }
+
+    .hero-button {
+      width: 58px;
+      height: 56px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      grid-template-rows: 1fr auto;
+      gap: 2px;
+      color: var(--text);
+    }
+
+    .hero-button .mark {
+      width: 25px;
+      height: 25px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--c);
+      color: #07070b;
+      font-size: 0.72rem;
+      font-weight: 1000;
+      box-shadow: 0 0 13px color-mix(in srgb, var(--c) 70%, transparent);
+    }
+
+    .hero-button .name {
+      font-size: 0.67rem;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .hero-button.active {
+      border-color: var(--c);
+      background: color-mix(in srgb, var(--c) 15%, rgba(12, 12, 18, 0.82));
+      box-shadow: 0 0 18px color-mix(in srgb, var(--c) 24%, transparent);
+    }
+
+    .hero-button.active .name {
+      color: #fff;
+    }
+
+    .ability-panel {
+      justify-self: end;
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      width: min(360px, 100%);
+    }
+
+    .ability-name {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.9rem;
+      font-weight: 900;
+    }
+
+    .meter {
+      height: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .meter-fill {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--green), var(--cyan), var(--gold));
+      transform-origin: right center;
+      transition: width 0.12s linear;
+    }
+
+    .key-line {
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+
+    .center-message {
+      position: fixed;
+      top: 49%;
+      left: 50%;
+      z-index: 8;
+      transform: translate(-50%, -50%);
+      min-width: min(520px, calc(100vw - 28px));
+      padding: 18px;
+      background: rgba(7, 7, 11, 0.86);
+      border: 1px solid rgba(245, 196, 81, 0.36);
+      border-radius: 8px;
+      text-align: center;
+      backdrop-filter: blur(18px);
+      box-shadow: 0 22px 70px rgba(0, 0, 0, 0.46);
+      pointer-events: auto;
+    }
+
+    .center-message.hidden {
+      display: none;
+    }
+
+    .center-message h2 {
+      margin: 0 0 10px;
+      font-size: clamp(1.35rem, 4vw, 2rem);
+      color: var(--gold);
+      letter-spacing: 0;
+    }
+
+    .center-message p {
+      margin: 0 auto 14px;
+      max-width: 460px;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.94rem;
+    }
+
+    .start-button {
+      min-width: 160px;
+      height: 44px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #f5c451, #ff9552);
+      color: #151006;
+      font-weight: 1000;
+    }
+
+    .mobile-controls {
+      position: fixed;
+      inset: auto 0 0;
+      z-index: 7;
+      pointer-events: none;
+      display: none;
+      justify-content: space-between;
+      align-items: end;
+      padding: 0 14px 18px;
+    }
+
+    .pad {
+      width: 132px;
+      height: 132px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(10, 10, 14, 0.42);
+      backdrop-filter: blur(10px);
+      position: relative;
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    .stick {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(245, 196, 81, 0.78);
+      box-shadow: 0 0 18px rgba(245, 196, 81, 0.22);
+    }
+
+    .mobile-actions {
+      display: grid;
+      grid-template-columns: repeat(2, 64px);
+      gap: 10px;
+      pointer-events: auto;
+    }
+
+    .action-button {
+      width: 64px;
+      height: 58px;
+      border-radius: 8px;
+      font-size: 0.76rem;
+      font-weight: 1000;
+      background: rgba(15, 16, 24, 0.72);
+    }
+
+    @media (max-width: 860px) {
+      .hud {
+        padding: 10px;
+      }
+
+      .topbar {
+        grid-template-columns: auto 1fr auto;
+      }
+
+      .title-panel {
+        min-width: 0;
+        padding: 9px 10px;
+      }
+
+      .subtitle {
+        display: none;
+      }
+
+      .stone-row {
+        top: 70px;
+      }
+
+      .bottom-ui {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        padding-bottom: 150px;
+      }
+
+      .mission-panel {
+        display: none;
+      }
+
+      .ability-panel {
+        justify-self: center;
+        width: min(330px, calc(100vw - 22px));
+      }
+
+      .hero-dock {
+        order: -1;
+      }
+
+      .mobile-controls {
+        display: flex;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .status-strip {
+        display: none;
+      }
+
+      .stone-row {
+        top: 62px;
+        gap: 5px;
+      }
+
+      .stone-dot {
+        width: 28px;
+        height: 28px;
+        font-size: 0.66rem;
+      }
+
+      .hero-button {
+        width: 50px;
+        height: 50px;
+      }
+
+      .hero-button .name {
+        display: none;
+      }
+
+      .bottom-ui {
+        padding-bottom: 136px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="משחק הנוקמים מלחמת האינסוף בלי אויבים"></canvas>
+
+  <div class="hud">
+    <div class="topbar">
+      <a class="back-link" href="../index.html" aria-label="חזרה">‹</a>
+      <div>
+        <section class="title-panel">
+          <h1>הנוקמים: מלחמת האינסוף</h1>
+          <div class="subtitle">גרסת סנדבוקס בלי אויבים: אוספים את אבני האינסוף ומייצבים את הכוכב.</div>
+        </section>
+        <div class="status-strip" aria-live="polite">
+          <div class="stat"><span>אבנים</span><strong id="stonesCount">0/6</strong></div>
+          <div class="stat"><span>ניצוצות</span><strong id="scoreCount">0</strong></div>
+          <div class="stat"><span>מרחק לליבה</span><strong id="coreDistance">0</strong></div>
+        </div>
+      </div>
+      <div class="right-tools">
+        <button class="icon-button" id="mapButton" aria-label="סימון האבן הקרובה">⌖</button>
+        <button class="icon-button" id="soundButton" aria-label="סאונד">♪</button>
+      </div>
+    </div>
+
+    <div></div>
+
+    <div class="bottom-ui">
+      <section class="mission-panel">
+        <div class="mission-title" id="missionTitle">משימה</div>
+        <div class="mission-text" id="missionText">אספו את שש האבנים הזוהרות, ואז חזרו לליבת האור שבמרכז המפה.</div>
+      </section>
+
+      <nav class="hero-dock" aria-label="בחירת גיבור">
+        <button class="hero-button active" data-hero="armor" style="--c: var(--red)" aria-label="שריון">
+          <span class="mark">A</span><span class="name">שריון</span>
+        </button>
+        <button class="hero-button" data-hero="thunder" style="--c: var(--cyan)" aria-label="רעם">
+          <span class="mark">T</span><span class="name">רעם</span>
+        </button>
+        <button class="hero-button" data-hero="mystic" style="--c: var(--green)" aria-label="מיסטי">
+          <span class="mark">M</span><span class="name">מיסטי</span>
+        </button>
+        <button class="hero-button" data-hero="shield" style="--c: var(--gold)" aria-label="מגן">
+          <span class="mark">S</span><span class="name">מגן</span>
+        </button>
+      </nav>
+
+      <section class="ability-panel">
+        <div class="ability-name">
+          <span id="heroName">שריון קוסמי</span>
+          <span id="abilityName">קרן הדף</span>
+        </div>
+        <div class="meter"><div class="meter-fill" id="energyFill"></div></div>
+        <div class="key-line" id="hintLine">תנועה: WASD או חיצים. פעולה: קליק / J. כוח מיוחד: רווח / K.</div>
+      </section>
+    </div>
+  </div>
+
+  <div class="stone-row" id="stoneRow" aria-hidden="true"></div>
+
+  <section class="center-message" id="startPanel">
+    <h2>איסוף אינסוף, בלי איום</h2>
+    <p>העולם פתוח, אין אויבים ואין פסילה. החליפו גיבורים, פצחו גבישי חלל, אספו את שש האבנים וחזרו לליבה.</p>
+    <button class="start-button" id="startButton">התחל משחק</button>
+  </section>
+
+  <section class="center-message hidden" id="winPanel">
+    <h2>היקום יציב</h2>
+    <p id="winText">כל האבנים נאספו והליבה חזרה להאיר.</p>
+    <button class="start-button" id="resetButton">שחק שוב</button>
+  </section>
+
+  <div class="mobile-controls">
+    <div class="pad" id="movePad" aria-label="תנועה">
+      <div class="stick" id="stick"></div>
+    </div>
+    <div class="mobile-actions">
+      <button class="action-button" id="primaryTouch">פעולה</button>
+      <button class="action-button" id="specialTouch">מיוחד</button>
+      <button class="action-button" id="cycleTouch">החלף</button>
+      <button class="action-button" id="mapTouch">כוון</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    const ui = {
+      stonesCount: document.getElementById("stonesCount"),
+      scoreCount: document.getElementById("scoreCount"),
+      coreDistance: document.getElementById("coreDistance"),
+      heroName: document.getElementById("heroName"),
+      abilityName: document.getElementById("abilityName"),
+      energyFill: document.getElementById("energyFill"),
+      missionTitle: document.getElementById("missionTitle"),
+      missionText: document.getElementById("missionText"),
+      startPanel: document.getElementById("startPanel"),
+      winPanel: document.getElementById("winPanel"),
+      winText: document.getElementById("winText"),
+      stoneRow: document.getElementById("stoneRow"),
+      soundButton: document.getElementById("soundButton")
+    };
+
+    const WORLD = { w: 2500, h: 1600 };
+    const CORE = { x: WORLD.w / 2, y: WORLD.h / 2, radius: 86 };
+    const keys = new Set();
+    const pointer = { x: 0, y: 0, worldX: CORE.x, worldY: CORE.y, down: false };
+    const joy = { x: 0, y: 0, active: false };
+    const camera = { x: 0, y: 0 };
+    const rand = (min, max) => Math.random() * (max - min) + min;
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+    let dpr = 1;
+    let running = false;
+    let won = false;
+    let score = 0;
+    let sound = true;
+    let audioCtx = null;
+    let shake = 0;
+    let aimPulse = 0;
+    let nearestStoneId = null;
+    let lastTime = performance.now();
+
+    const heroes = {
+      armor: {
+        name: "שריון קוסמי",
+        ability: "קרן הדף",
+        color: "#ff4d5e",
+        accent: "#f5c451",
+        speed: 6.1,
+        cost: 9,
+        specialCost: 36
+      },
+      thunder: {
+        name: "אלוף הרעם",
+        ability: "ברק שרשרת",
+        color: "#59d7ff",
+        accent: "#ffffff",
+        speed: 5.45,
+        cost: 14,
+        specialCost: 42
+      },
+      mystic: {
+        name: "שומר שערים",
+        ability: "קפיצת שער",
+        color: "#45df8b",
+        accent: "#ff9552",
+        speed: 5.7,
+        cost: 16,
+        specialCost: 40
+      },
+      shield: {
+        name: "קפטן המגן",
+        ability: "זריקת מגן",
+        color: "#f5c451",
+        accent: "#59d7ff",
+        speed: 5.25,
+        cost: 11,
+        specialCost: 38
+      }
+    };
+
+    const stoneDefs = [
+      { id: "space", name: "חלל", label: "ח", color: "#59d7ff", x: 315, y: 280 },
+      { id: "reality", name: "מציאות", label: "מ", color: "#ff4d5e", x: 2100, y: 305 },
+      { id: "power", name: "כוח", label: "כ", color: "#ad6cff", x: 2255, y: 1250 },
+      { id: "time", name: "זמן", label: "ז", color: "#45df8b", x: 1270, y: 1425 },
+      { id: "soul", name: "נשמה", label: "נ", color: "#ff9552", x: 260, y: 1230 },
+      { id: "mind", name: "דעת", label: "ד", color: "#f5c451", x: 1260, y: 170 }
+    ];
+
+    let player;
+    let crystals;
+    let stones;
+    let shards;
+    let particles;
+    let projectiles;
+    let trails;
+    let stars;
+
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
+      canvas.style.width = `${window.innerWidth}px`;
+      canvas.style.height = `${window.innerHeight}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === "suspended") audioCtx.resume();
+    }
+
+    function tone(freq, duration = 0.12, type = "sine", gainValue = 0.05) {
+      if (!sound) return;
+      initAudio();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(gainValue, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function resetGame() {
+      player = {
+        x: CORE.x,
+        y: CORE.y + 20,
+        vx: 0,
+        vy: 0,
+        r: 24,
+        hero: "armor",
+        energy: 100,
+        cooldown: 0,
+        specialCooldown: 0,
+        facing: 1
+      };
+
+      stones = stoneDefs.map(stone => ({ ...stone, collected: false, pulse: Math.random() * 8 }));
+      shards = [];
+      particles = [];
+      projectiles = [];
+      trails = [];
+      crystals = makeCrystals();
+      score = 0;
+      won = false;
+      nearestStoneId = null;
+      ui.winPanel.classList.add("hidden");
+      selectHero("armor");
+      buildStoneRow();
+      updateUI();
+    }
+
+    function makeCrystals() {
+      const fixed = [
+        [580, 410], [815, 650], [980, 390], [1515, 420], [1740, 635],
+        [1950, 950], [1600, 1195], [1035, 1165], [730, 1030], [520, 800],
+        [1330, 620], [1210, 1030], [405, 565], [2155, 620], [2040, 1390]
+      ];
+      const made = fixed.map(([x, y], index) => createCrystal(x, y, index));
+      for (let i = 0; i < 42; i++) {
+        let x = rand(170, WORLD.w - 170);
+        let y = rand(160, WORLD.h - 160);
+        if (Math.hypot(x - CORE.x, y - CORE.y) < 230) {
+          x += 260;
+          y += 120;
+        }
+        if (stoneDefs.some(stone => Math.hypot(stone.x - x, stone.y - y) < 120)) continue;
+        made.push(createCrystal(x, y, i + fixed.length));
+      }
+      return made;
+    }
+
+    function createCrystal(x, y, index) {
+      const palette = ["#59d7ff", "#ff4d5e", "#ad6cff", "#45df8b", "#ff9552", "#f5c451"];
+      return {
+        x,
+        y,
+        r: rand(26, 46),
+        hp: rand(34, 62),
+        maxHp: 62,
+        color: palette[index % palette.length],
+        spin: rand(0, Math.PI * 2),
+        seed: rand(0, 1000)
+      };
+    }
+
+    function buildStoneRow() {
+      ui.stoneRow.innerHTML = "";
+      stones.forEach(stone => {
+        const dot = document.createElement("div");
+        dot.className = "stone-dot";
+        dot.style.setProperty("--c", stone.color);
+        dot.id = `dot-${stone.id}`;
+        dot.textContent = stone.label;
+        ui.stoneRow.appendChild(dot);
+      });
+    }
+
+    function worldFromScreen(x, y) {
+      return { x: x + camera.x, y: y + camera.y };
+    }
+
+    function setPointer(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      pointer.x = clientX - rect.left;
+      pointer.y = clientY - rect.top;
+      const world = worldFromScreen(pointer.x, pointer.y);
+      pointer.worldX = world.x;
+      pointer.worldY = world.y;
+    }
+
+    function selectHero(id) {
+      player.hero = id;
+      const hero = heroes[id];
+      ui.heroName.textContent = hero.name;
+      ui.abilityName.textContent = hero.ability;
+      document.querySelectorAll(".hero-button").forEach(button => {
+        button.classList.toggle("active", button.dataset.hero === id);
+      });
+      tone(260 + Object.keys(heroes).indexOf(id) * 70, 0.08, "triangle", 0.035);
+    }
+
+    function cycleHero() {
+      const ids = Object.keys(heroes);
+      const next = ids[(ids.indexOf(player.hero) + 1) % ids.length];
+      selectHero(next);
+    }
+
+    function consumeEnergy(amount) {
+      if (player.energy < amount) return false;
+      player.energy -= amount;
+      return true;
+    }
+
+    function usePrimary(target = pointer) {
+      if (!running || won || player.cooldown > 0) return;
+      const hero = heroes[player.hero];
+      if (!consumeEnergy(hero.cost)) return;
+      const dx = target.worldX - player.x;
+      const dy = target.worldY - player.y;
+      const mag = Math.max(1, Math.hypot(dx, dy));
+      player.facing = dx < 0 ? -1 : 1;
+      player.cooldown = 9;
+
+      if (player.hero === "armor") {
+        projectiles.push({
+          type: "beam",
+          x: player.x + dx / mag * 28,
+          y: player.y + dy / mag * 28,
+          vx: dx / mag * 17,
+          vy: dy / mag * 17,
+          r: 8,
+          damage: 20,
+          color: hero.color,
+          life: 58
+        });
+        burst(player.x + dx / mag * 18, player.y + dy / mag * 18, hero.accent, 8, 3.5);
+        tone(520, 0.08, "sawtooth", 0.034);
+      } else if (player.hero === "thunder") {
+        chainLightning(target.worldX, target.worldY, false);
+      } else if (player.hero === "mystic") {
+        portalDash(target.worldX, target.worldY, false);
+      } else if (player.hero === "shield") {
+        projectiles.push({
+          type: "shield",
+          x: player.x,
+          y: player.y,
+          vx: dx / mag * 12,
+          vy: dy / mag * 12,
+          r: 16,
+          damage: 16,
+          color: hero.color,
+          life: 95,
+          bounces: 4,
+          angle: 0
+        });
+        tone(390, 0.1, "triangle", 0.04);
+      }
+    }
+
+    function useSpecial(target = pointer) {
+      if (!running || won || player.specialCooldown > 0) return;
+      const hero = heroes[player.hero];
+      if (!consumeEnergy(hero.specialCost)) return;
+      player.specialCooldown = 42;
+      shake = Math.max(shake, 7);
+
+      if (player.hero === "armor") {
+        radialBlast(player.x, player.y, 210, 31, "#f5c451");
+        tone(130, 0.26, "square", 0.055);
+      } else if (player.hero === "thunder") {
+        chainLightning(target.worldX, target.worldY, true);
+        setTimeout(() => chainLightning(player.x + 100, player.y - 60, true), 90);
+        tone(190, 0.24, "sawtooth", 0.052);
+      } else if (player.hero === "mystic") {
+        magnetShards(420);
+        portalDash(target.worldX, target.worldY, true);
+        tone(640, 0.18, "sine", 0.052);
+      } else if (player.hero === "shield") {
+        radialBlast(player.x, player.y, 165, 20, "#59d7ff");
+        for (let i = 0; i < 8; i++) {
+          const angle = i / 8 * Math.PI * 2;
+          projectiles.push({
+            type: "shield",
+            x: player.x,
+            y: player.y,
+            vx: Math.cos(angle) * 8,
+            vy: Math.sin(angle) * 8,
+            r: 11,
+            damage: 12,
+            color: "#f5c451",
+            life: 58,
+            bounces: 2,
+            angle: angle
+          });
+        }
+        tone(310, 0.18, "triangle", 0.052);
+      }
+    }
+
+    function chainLightning(tx, ty, strong) {
+      const radius = strong ? 360 : 260;
+      const targets = crystals
+        .filter(crystal => Math.hypot(crystal.x - tx, crystal.y - ty) < radius || Math.hypot(crystal.x - player.x, crystal.y - player.y) < radius)
+        .sort((a, b) => Math.hypot(a.x - tx, a.y - ty) - Math.hypot(b.x - tx, b.y - ty))
+        .slice(0, strong ? 8 : 4);
+
+      const points = [{ x: player.x, y: player.y }, ...targets.map(t => ({ x: t.x, y: t.y }))];
+      if (points.length === 1) points.push({ x: tx, y: ty });
+      trails.push({ type: "lightning", points, color: "#59d7ff", life: 14, maxLife: 14 });
+      targets.forEach(target => damageCrystal(target, strong ? 28 : 18, "#59d7ff"));
+      burst(tx, ty, "#59d7ff", strong ? 20 : 12, 4);
+      tone(strong ? 210 : 270, 0.12, "sawtooth", 0.04);
+    }
+
+    function portalDash(tx, ty, strong) {
+      const dx = tx - player.x;
+      const dy = ty - player.y;
+      const mag = Math.max(1, Math.hypot(dx, dy));
+      const length = strong ? 300 : 180;
+      const nx = clamp(player.x + dx / mag * length, 55, WORLD.w - 55);
+      const ny = clamp(player.y + dy / mag * length, 55, WORLD.h - 55);
+      ring(player.x, player.y, strong ? 86 : 64, "#45df8b");
+      ring(nx, ny, strong ? 96 : 68, "#ff9552");
+      player.x = nx;
+      player.y = ny;
+      player.vx *= 0.3;
+      player.vy *= 0.3;
+      crystals.forEach(crystal => {
+        if (Math.hypot(crystal.x - player.x, crystal.y - player.y) < 94) damageCrystal(crystal, strong ? 24 : 12, "#45df8b");
+      });
+    }
+
+    function radialBlast(x, y, radius, damage, color) {
+      ring(x, y, radius, color);
+      burst(x, y, color, 28, 6);
+      crystals.forEach(crystal => {
+        if (Math.hypot(crystal.x - x, crystal.y - y) < radius + crystal.r) damageCrystal(crystal, damage, color);
+      });
+    }
+
+    function magnetShards(radius) {
+      shards.forEach(shard => {
+        if (Math.hypot(shard.x - player.x, shard.y - player.y) < radius) shard.magnet = true;
+      });
+      ring(player.x, player.y, radius, "#45df8b");
+    }
+
+    function damageCrystal(crystal, amount, color) {
+      crystal.hp -= amount;
+      burst(crystal.x, crystal.y, color || crystal.color, 7, 3);
+      if (crystal.hp <= 0 && !crystal.dead) {
+        crystal.dead = true;
+        score += 20;
+        for (let i = 0; i < 5; i++) {
+          shards.push({
+            x: crystal.x + rand(-18, 18),
+            y: crystal.y + rand(-18, 18),
+            vx: rand(-2.4, 2.4),
+            vy: rand(-2.4, 2.4),
+            color: crystal.color,
+            value: 6
+          });
+        }
+        ring(crystal.x, crystal.y, 88, crystal.color);
+        burst(crystal.x, crystal.y, crystal.color, 22, 5);
+        tone(160 + Math.random() * 160, 0.16, "triangle", 0.045);
+      }
+    }
+
+    function burst(x, y, color, count, speed) {
+      for (let i = 0; i < count; i++) {
+        const angle = rand(0, Math.PI * 2);
+        particles.push({
+          type: "spark",
+          x,
+          y,
+          vx: Math.cos(angle) * rand(speed * 0.35, speed),
+          vy: Math.sin(angle) * rand(speed * 0.35, speed),
+          size: rand(2, 6),
+          color,
+          life: rand(22, 44),
+          maxLife: 44
+        });
+      }
+    }
+
+    function ring(x, y, radius, color) {
+      particles.push({ type: "ring", x, y, radius, current: 8, color, life: 28, maxLife: 28 });
+    }
+
+    function update(dt) {
+      if (!running || won) return;
+
+      const hero = heroes[player.hero];
+      const left = keys.has("arrowleft") || keys.has("a") || keys.has("ש");
+      const right = keys.has("arrowright") || keys.has("d") || keys.has("ג");
+      const up = keys.has("arrowup") || keys.has("w") || keys.has("'");
+      const down = keys.has("arrowdown") || keys.has("s") || keys.has("ד");
+      let ax = (right ? 1 : 0) - (left ? 1 : 0) + joy.x;
+      let ay = (down ? 1 : 0) - (up ? 1 : 0) + joy.y;
+      const mag = Math.hypot(ax, ay);
+      if (mag > 1) {
+        ax /= mag;
+        ay /= mag;
+      }
+
+      player.vx += ax * hero.speed * 0.18 * dt;
+      player.vy += ay * hero.speed * 0.18 * dt;
+      player.vx *= Math.pow(0.82, dt);
+      player.vy *= Math.pow(0.82, dt);
+      player.x += player.vx * dt;
+      player.y += player.vy * dt;
+      player.x = clamp(player.x, 35, WORLD.w - 35);
+      player.y = clamp(player.y, 35, WORLD.h - 35);
+      if (Math.abs(player.vx) > 0.2) player.facing = player.vx < 0 ? -1 : 1;
+
+      pushOutOfCrystals();
+      player.energy = Math.min(100, player.energy + 0.075 * dt);
+      player.cooldown = Math.max(0, player.cooldown - dt);
+      player.specialCooldown = Math.max(0, player.specialCooldown - dt);
+
+      if (keys.has("j")) {
+        usePrimary(pointer);
+        keys.delete("j");
+      }
+      if (keys.has(" ") || keys.has("k")) {
+        useSpecial(pointer);
+        keys.delete(" ");
+        keys.delete("k");
+      }
+      if (keys.has("e")) {
+        tryFinish();
+        keys.delete("e");
+      }
+      if (keys.has("tab") || keys.has("q")) {
+        cycleHero();
+        keys.delete("tab");
+        keys.delete("q");
+      }
+
+      updateProjectiles(dt);
+      updateShards(dt);
+      updateStones(dt);
+      updateParticles(dt);
+      updateCamera();
+      updateUI();
+      if (shake > 0) shake *= Math.pow(0.86, dt);
+      aimPulse += 0.05 * dt;
+    }
+
+    function pushOutOfCrystals() {
+      crystals.forEach(crystal => {
+        if (crystal.dead) return;
+        const dx = player.x - crystal.x;
+        const dy = player.y - crystal.y;
+        const d = Math.max(0.001, Math.hypot(dx, dy));
+        const min = player.r + crystal.r * 0.72;
+        if (d < min) {
+          const push = (min - d) * 0.45;
+          player.x += dx / d * push;
+          player.y += dy / d * push;
+          player.vx += dx / d * push * 0.08;
+          player.vy += dy / d * push * 0.08;
+        }
+      });
+    }
+
+    function updateProjectiles(dt) {
+      projectiles = projectiles.filter(projectile => {
+        projectile.x += projectile.vx * dt;
+        projectile.y += projectile.vy * dt;
+        projectile.life -= dt;
+        projectile.angle = (projectile.angle || 0) + 0.24 * dt;
+
+        if (projectile.type === "shield") {
+          if (projectile.x < 30 || projectile.x > WORLD.w - 30) {
+            projectile.vx *= -1;
+            projectile.bounces--;
+          }
+          if (projectile.y < 30 || projectile.y > WORLD.h - 30) {
+            projectile.vy *= -1;
+            projectile.bounces--;
+          }
+          if (projectile.bounces < 0) projectile.life = 0;
+        }
+
+        for (const crystal of crystals) {
+          if (crystal.dead) continue;
+          if (Math.hypot(projectile.x - crystal.x, projectile.y - crystal.y) < projectile.r + crystal.r) {
+            damageCrystal(crystal, projectile.damage, projectile.color);
+            if (projectile.type === "beam") projectile.life = 0;
+            if (projectile.type === "shield") {
+              const dx = projectile.x - crystal.x;
+              const dy = projectile.y - crystal.y;
+              if (Math.abs(dx) > Math.abs(dy)) projectile.vx *= -1;
+              else projectile.vy *= -1;
+              projectile.bounces--;
+            }
+            break;
+          }
+        }
+
+        return projectile.life > 0 && projectile.x > -80 && projectile.x < WORLD.w + 80 && projectile.y > -80 && projectile.y < WORLD.h + 80;
+      });
+    }
+
+    function updateShards(dt) {
+      shards = shards.filter(shard => {
+        const d = Math.hypot(shard.x - player.x, shard.y - player.y);
+        if (d < 260 || shard.magnet) {
+          shard.vx += (player.x - shard.x) / Math.max(1, d) * 0.45 * dt;
+          shard.vy += (player.y - shard.y) / Math.max(1, d) * 0.45 * dt;
+        }
+        shard.vx *= Math.pow(0.94, dt);
+        shard.vy *= Math.pow(0.94, dt);
+        shard.x += shard.vx * dt;
+        shard.y += shard.vy * dt;
+        if (d < player.r + 14) {
+          score += shard.value;
+          player.energy = Math.min(100, player.energy + 9);
+          tone(720 + Math.random() * 140, 0.05, "sine", 0.028);
+          return false;
+        }
+        return true;
+      });
+    }
+
+    function updateStones(dt) {
+      let nearest = null;
+      let nearestD = Infinity;
+      stones.forEach(stone => {
+        stone.pulse += 0.04 * dt;
+        if (stone.collected) return;
+        const d = Math.hypot(stone.x - player.x, stone.y - player.y);
+        if (d < nearestD) {
+          nearestD = d;
+          nearest = stone;
+        }
+        if (d < player.r + 34) {
+          stone.collected = true;
+          score += 150;
+          player.energy = 100;
+          ring(stone.x, stone.y, 140, stone.color);
+          burst(stone.x, stone.y, stone.color, 42, 7);
+          tone(540, 0.12, "sine", 0.05);
+          setTimeout(() => tone(720, 0.12, "sine", 0.04), 95);
+          setTimeout(() => tone(940, 0.16, "sine", 0.04), 180);
+        }
+      });
+      if (!nearestStoneId && nearest) nearestStoneId = nearest.id;
+      if (nearestStoneId && stones.find(stone => stone.id === nearestStoneId)?.collected) nearestStoneId = nearest?.id || null;
+    }
+
+    function updateParticles(dt) {
+      particles = particles.filter(particle => {
+        particle.life -= dt;
+        if (particle.type === "spark") {
+          particle.x += particle.vx * dt;
+          particle.y += particle.vy * dt;
+          particle.vx *= Math.pow(0.96, dt);
+          particle.vy *= Math.pow(0.96, dt);
+        } else if (particle.type === "ring") {
+          particle.current += (particle.radius - particle.current) * 0.12 * dt;
+        }
+        return particle.life > 0;
+      });
+
+      trails = trails.filter(trail => {
+        trail.life -= dt;
+        return trail.life > 0;
+      });
+    }
+
+    function updateCamera() {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      camera.x += (player.x - vw / 2 - camera.x) * 0.09;
+      camera.y += (player.y - vh / 2 - camera.y) * 0.09;
+      camera.x = clamp(camera.x, 0, WORLD.w - vw);
+      camera.y = clamp(camera.y, 0, WORLD.h - vh);
+      if (shake > 0.4) {
+        camera.x += rand(-shake, shake);
+        camera.y += rand(-shake, shake);
+      }
+      const world = worldFromScreen(pointer.x, pointer.y);
+      pointer.worldX = world.x;
+      pointer.worldY = world.y;
+    }
+
+    function tryFinish() {
+      if (won) return;
+      const allCollected = stones.every(stone => stone.collected);
+      const nearCore = Math.hypot(player.x - CORE.x, player.y - CORE.y) < CORE.radius + 42;
+      if (allCollected && nearCore) {
+        won = true;
+        running = false;
+        ring(CORE.x, CORE.y, 360, "#f5c451");
+        burst(CORE.x, CORE.y, "#f5c451", 90, 8);
+        ui.winText.textContent = `אספת ${score} ניצוצות והשלמת את הכפפה בלי אויבים ובלי פסילה.`;
+        ui.winPanel.classList.remove("hidden");
+        tone(360, 0.18, "sine", 0.055);
+        setTimeout(() => tone(540, 0.18, "sine", 0.05), 160);
+        setTimeout(() => tone(720, 0.28, "sine", 0.045), 320);
+      }
+    }
+
+    function updateUI() {
+      const collected = stones.filter(stone => stone.collected).length;
+      ui.stonesCount.textContent = `${collected}/6`;
+      ui.scoreCount.textContent = score.toString();
+      ui.energyFill.style.width = `${Math.round(player.energy)}%`;
+      const coreDistance = Math.max(0, Math.round((Math.hypot(player.x - CORE.x, player.y - CORE.y) - CORE.radius) / 10));
+      ui.coreDistance.textContent = collected === 6 ? coreDistance.toString() : "איסוף";
+
+      stones.forEach(stone => {
+        const dot = document.getElementById(`dot-${stone.id}`);
+        if (dot) dot.classList.toggle("ready", stone.collected);
+      });
+
+      if (collected === 6) {
+        ui.missionTitle.textContent = "הליבה מחכה";
+        ui.missionText.textContent = "כל האבנים נאספו. עמדו בתוך ליבת האור ולחצו E כדי לייצב את היקום.";
+      } else {
+        const next = stones.find(stone => stone.id === nearestStoneId && !stone.collected) || stones.find(stone => !stone.collected);
+        ui.missionTitle.textContent = next ? `האבן הבאה: ${next.name}` : "משימה";
+        ui.missionText.textContent = "שברו גבישים בדרך כדי לאסוף ניצוצות ואנרגיה. אין אויבים ואין פסילה.";
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      ctx.save();
+      ctx.translate(-camera.x, -camera.y);
+      drawWorld();
+      drawCore();
+      drawStones();
+      drawCrystals();
+      drawShards();
+      drawTrails();
+      drawProjectiles();
+      drawPlayer();
+      drawParticles();
+      drawAim();
+      ctx.restore();
+    }
+
+    function drawWorld() {
+      const now = performance.now() * 0.0001;
+      ctx.fillStyle = "#07070b";
+      ctx.fillRect(0, 0, WORLD.w, WORLD.h);
+
+      stars.forEach(star => {
+        const twinkle = 0.45 + Math.sin(now * star.speed + star.phase) * 0.35;
+        ctx.globalAlpha = clamp(twinkle, 0.18, 0.9);
+        ctx.fillStyle = star.color;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+
+      drawNebula(350, 260, 380, "rgba(255, 77, 94, 0.08)");
+      drawNebula(2020, 410, 430, "rgba(89, 215, 255, 0.075)");
+      drawNebula(1260, 1280, 500, "rgba(69, 223, 139, 0.06)");
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.055)";
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= WORLD.w; x += 100) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, WORLD.h);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= WORLD.h; y += 100) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(WORLD.w, y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = "rgba(245, 196, 81, 0.28)";
+      ctx.lineWidth = 10;
+      ctx.strokeRect(18, 18, WORLD.w - 36, WORLD.h - 36);
+      ctx.strokeStyle = "rgba(89, 215, 255, 0.18)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(38, 38, WORLD.w - 76, WORLD.h - 76);
+    }
+
+    function drawNebula(x, y, radius, color) {
+      const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+      gradient.addColorStop(0, color);
+      gradient.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawCore() {
+      const pulse = Math.sin(performance.now() * 0.002) * 8;
+      const collected = stones.filter(stone => stone.collected).length;
+      const ready = collected === 6;
+      ctx.save();
+      ctx.translate(CORE.x, CORE.y);
+      const gradient = ctx.createRadialGradient(0, 0, 10, 0, 0, CORE.radius + pulse + (ready ? 26 : 0));
+      gradient.addColorStop(0, ready ? "#fff6ce" : "rgba(255,255,255,0.9)");
+      gradient.addColorStop(0.3, ready ? "#f5c451" : "rgba(89,215,255,0.45)");
+      gradient.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, CORE.radius + pulse + (ready ? 30 : 0), 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = ready ? "rgba(245,196,81,0.88)" : "rgba(89,215,255,0.55)";
+      ctx.lineWidth = 4;
+      for (let i = 0; i < 3; i++) {
+        ctx.save();
+        ctx.rotate(performance.now() * 0.00035 * (i + 1));
+        ctx.beginPath();
+        ctx.ellipse(0, 0, CORE.radius + i * 15, CORE.radius * 0.38 + i * 8, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.fillStyle = "#07070b";
+      ctx.beginPath();
+      ctx.arc(0, 0, 24, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = ready ? "#f5c451" : "#59d7ff";
+      ctx.font = "900 20px Segoe UI";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("∞", 0, 1);
+      ctx.restore();
+    }
+
+    function drawStones() {
+      stones.forEach(stone => {
+        if (stone.collected) return;
+        const pulse = Math.sin(stone.pulse) * 5;
+        ctx.save();
+        ctx.translate(stone.x, stone.y);
+        ctx.rotate(performance.now() * 0.0012);
+        ctx.shadowColor = stone.color;
+        ctx.shadowBlur = 30;
+        ctx.fillStyle = stone.color;
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = i / 6 * Math.PI * 2 + Math.PI / 6;
+          const r = 24 + pulse + (i % 2) * 7;
+          ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#fff";
+        ctx.font = "900 18px Segoe UI";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(stone.label, 0, 1);
+        ctx.restore();
+
+        if (nearestStoneId === stone.id) {
+          ctx.strokeStyle = stone.color;
+          ctx.globalAlpha = 0.4 + Math.sin(aimPulse) * 0.22;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(stone.x, stone.y, 48 + Math.sin(aimPulse) * 8, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      });
+    }
+
+    function drawCrystals() {
+      crystals.forEach(crystal => {
+        if (crystal.dead) return;
+        const wobble = Math.sin(performance.now() * 0.0015 + crystal.seed) * 5;
+        ctx.save();
+        ctx.translate(crystal.x, crystal.y);
+        ctx.rotate(crystal.spin + wobble * 0.01);
+        ctx.shadowColor = crystal.color;
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = crystal.color;
+        ctx.beginPath();
+        ctx.moveTo(0, -crystal.r - 12);
+        ctx.lineTo(crystal.r * 0.7, -crystal.r * 0.15);
+        ctx.lineTo(crystal.r * 0.38, crystal.r + 14);
+        ctx.lineTo(-crystal.r * 0.42, crystal.r + 10);
+        ctx.lineTo(-crystal.r * 0.76, -crystal.r * 0.08);
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "rgba(255,255,255,0.62)";
+        ctx.beginPath();
+        ctx.moveTo(-4, -crystal.r);
+        ctx.lineTo(crystal.r * 0.25, -crystal.r * 0.08);
+        ctx.lineTo(0, crystal.r * 0.54);
+        ctx.lineTo(-crystal.r * 0.22, -crystal.r * 0.05);
+        ctx.closePath();
+        ctx.fill();
+
+        const hpRatio = clamp(crystal.hp / crystal.maxHp, 0, 1);
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = "rgba(0,0,0,0.56)";
+        ctx.fillRect(-crystal.r, crystal.r + 20, crystal.r * 2, 5);
+        ctx.fillStyle = crystal.color;
+        ctx.fillRect(-crystal.r, crystal.r + 20, crystal.r * 2 * hpRatio, 5);
+        ctx.restore();
+      });
+    }
+
+    function drawShards() {
+      shards.forEach(shard => {
+        ctx.save();
+        ctx.translate(shard.x, shard.y);
+        ctx.shadowColor = shard.color;
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = shard.color;
+        ctx.beginPath();
+        ctx.moveTo(0, -8);
+        ctx.lineTo(7, 0);
+        ctx.lineTo(0, 8);
+        ctx.lineTo(-7, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    function drawTrails() {
+      trails.forEach(trail => {
+        const alpha = trail.life / trail.maxLife;
+        if (trail.type === "lightning") {
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.strokeStyle = trail.color;
+          ctx.lineWidth = 5;
+          ctx.shadowColor = trail.color;
+          ctx.shadowBlur = 20;
+          ctx.beginPath();
+          trail.points.forEach((point, index) => {
+            if (index === 0) ctx.moveTo(point.x, point.y);
+            else {
+              const prev = trail.points[index - 1];
+              const steps = 4;
+              for (let i = 1; i <= steps; i++) {
+                const t = i / steps;
+                const x = prev.x + (point.x - prev.x) * t + rand(-9, 9);
+                const y = prev.y + (point.y - prev.y) * t + rand(-9, 9);
+                ctx.lineTo(x, y);
+              }
+            }
+          });
+          ctx.stroke();
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.restore();
+        }
+      });
+    }
+
+    function drawProjectiles() {
+      projectiles.forEach(projectile => {
+        ctx.save();
+        ctx.translate(projectile.x, projectile.y);
+        ctx.rotate(projectile.angle || 0);
+        ctx.shadowColor = projectile.color;
+        ctx.shadowBlur = 16;
+        if (projectile.type === "beam") {
+          ctx.fillStyle = "#fff";
+          ctx.beginPath();
+          ctx.arc(0, 0, projectile.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = projectile.color;
+          ctx.lineWidth = 5;
+          ctx.beginPath();
+          ctx.arc(0, 0, projectile.r + 4, 0, Math.PI * 2);
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = projectile.color;
+          ctx.beginPath();
+          ctx.arc(0, 0, projectile.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#07070b";
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(-projectile.r, 0);
+          ctx.lineTo(projectile.r, 0);
+          ctx.moveTo(0, -projectile.r);
+          ctx.lineTo(0, projectile.r);
+          ctx.stroke();
+        }
+        ctx.restore();
+      });
+    }
+
+    function drawPlayer() {
+      const hero = heroes[player.hero];
+      ctx.save();
+      ctx.translate(player.x, player.y);
+      ctx.scale(player.facing, 1);
+
+      ctx.shadowColor = hero.color;
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = hero.color;
+      roundRect(-20, -28, 40, 56, 9);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      if (player.hero === "armor") {
+        ctx.fillStyle = hero.accent;
+        roundRect(-11, -24, 22, 16, 4);
+        ctx.fill();
+        ctx.fillStyle = "#59d7ff";
+        ctx.fillRect(-8, -18, 5, 3);
+        ctx.fillRect(3, -18, 5, 3);
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(0, 1, 6, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (player.hero === "thunder") {
+        ctx.fillStyle = "#262837";
+        roundRect(-18, -22, 36, 48, 8);
+        ctx.fill();
+        ctx.fillStyle = "#ff4d5e";
+        ctx.beginPath();
+        ctx.moveTo(-18, -15);
+        ctx.lineTo(-38, 30);
+        ctx.lineTo(-9, 24);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(20, -4);
+        ctx.lineTo(39, -16);
+        ctx.lineTo(33, 4);
+        ctx.stroke();
+      } else if (player.hero === "mystic") {
+        ctx.fillStyle = "#1c2b21";
+        roundRect(-18, -22, 36, 48, 8);
+        ctx.fill();
+        ctx.strokeStyle = hero.color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, -4, 17, 0, Math.PI * 1.6);
+        ctx.stroke();
+        ctx.fillStyle = hero.accent;
+        ctx.beginPath();
+        ctx.arc(0, -16, 13, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = "#29324a";
+        roundRect(-18, -22, 36, 48, 8);
+        ctx.fill();
+        ctx.fillStyle = hero.color;
+        ctx.beginPath();
+        ctx.arc(22, 0, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = hero.accent;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(22, 0, 9, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      const stonesHeld = stones.filter(stone => stone.collected);
+      stonesHeld.forEach((stone, index) => {
+        ctx.fillStyle = stone.color;
+        ctx.shadowColor = stone.color;
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(-14 + index * 5.5, 25, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    function drawParticles() {
+      particles.forEach(particle => {
+        const alpha = clamp(particle.life / particle.maxLife, 0, 1);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        if (particle.type === "spark") {
+          ctx.fillStyle = particle.color;
+          ctx.shadowColor = particle.color;
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (particle.type === "ring") {
+          ctx.strokeStyle = particle.color;
+          ctx.shadowColor = particle.color;
+          ctx.shadowBlur = 14;
+          ctx.lineWidth = 5 * alpha;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.current, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.restore();
+      });
+    }
+
+    function drawAim() {
+      if (!running) return;
+      ctx.save();
+      ctx.globalAlpha = 0.78;
+      ctx.strokeStyle = heroes[player.hero].color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(pointer.worldX, pointer.worldY, 16 + Math.sin(aimPulse) * 2, 0, Math.PI * 2);
+      ctx.moveTo(pointer.worldX - 25, pointer.worldY);
+      ctx.lineTo(pointer.worldX - 8, pointer.worldY);
+      ctx.moveTo(pointer.worldX + 8, pointer.worldY);
+      ctx.lineTo(pointer.worldX + 25, pointer.worldY);
+      ctx.moveTo(pointer.worldX, pointer.worldY - 25);
+      ctx.lineTo(pointer.worldX, pointer.worldY - 8);
+      ctx.moveTo(pointer.worldX, pointer.worldY + 8);
+      ctx.lineTo(pointer.worldX, pointer.worldY + 25);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function roundRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function makeStars() {
+      stars = [];
+      const colors = ["#ffffff", "#f5c451", "#59d7ff", "#ff9552", "#45df8b"];
+      for (let i = 0; i < 260; i++) {
+        stars.push({
+          x: rand(0, WORLD.w),
+          y: rand(0, WORLD.h),
+          r: rand(0.8, 2.4),
+          color: colors[Math.floor(rand(0, colors.length))],
+          speed: rand(3, 12),
+          phase: rand(0, 20)
+        });
+      }
+    }
+
+    function loop(now) {
+      const dt = Math.min(2.2, (now - lastTime) / 16.666);
+      lastTime = now;
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    window.addEventListener("resize", resize);
+    window.addEventListener("keydown", event => {
+      const key = event.key.toLowerCase();
+      if ([" ", "arrowup", "arrowdown", "arrowleft", "arrowright", "tab"].includes(key)) event.preventDefault();
+      keys.add(key);
+    }, { passive: false });
+    window.addEventListener("keyup", event => keys.delete(event.key.toLowerCase()));
+
+    canvas.addEventListener("pointermove", event => setPointer(event.clientX, event.clientY));
+    canvas.addEventListener("pointerdown", event => {
+      setPointer(event.clientX, event.clientY);
+      pointer.down = true;
+      if (event.button === 2) useSpecial(pointer);
+      else usePrimary(pointer);
+    });
+    canvas.addEventListener("pointerup", () => pointer.down = false);
+    canvas.addEventListener("contextmenu", event => event.preventDefault());
+
+    document.querySelectorAll(".hero-button").forEach(button => {
+      button.addEventListener("click", () => selectHero(button.dataset.hero));
+    });
+
+    document.getElementById("startButton").addEventListener("click", () => {
+      initAudio();
+      ui.startPanel.classList.add("hidden");
+      running = true;
+    });
+
+    document.getElementById("resetButton").addEventListener("click", () => {
+      resetGame();
+      ui.winPanel.classList.add("hidden");
+      running = true;
+    });
+
+    ui.soundButton.addEventListener("click", () => {
+      sound = !sound;
+      ui.soundButton.textContent = sound ? "♪" : "×";
+      if (sound) tone(440, 0.06, "sine", 0.035);
+    });
+
+    function markNearestStone() {
+      const open = stones.filter(stone => !stone.collected);
+      if (!open.length) {
+        ring(CORE.x, CORE.y, 180, "#f5c451");
+        nearestStoneId = null;
+        return;
+      }
+      const nearest = open.sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y))[0];
+      nearestStoneId = nearest.id;
+      ring(nearest.x, nearest.y, 120, nearest.color);
+      tone(660, 0.08, "sine", 0.035);
+    }
+
+    document.getElementById("mapButton").addEventListener("click", markNearestStone);
+    document.getElementById("mapTouch").addEventListener("click", markNearestStone);
+    document.getElementById("primaryTouch").addEventListener("click", () => usePrimary(pointer));
+    document.getElementById("specialTouch").addEventListener("click", () => useSpecial(pointer));
+    document.getElementById("cycleTouch").addEventListener("click", cycleHero);
+
+    const movePad = document.getElementById("movePad");
+    const stick = document.getElementById("stick");
+
+    function updateStick(event) {
+      const rect = movePad.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      let dx = event.clientX - cx;
+      let dy = event.clientY - cy;
+      const mag = Math.hypot(dx, dy);
+      const max = rect.width * 0.33;
+      if (mag > max) {
+        dx = dx / mag * max;
+        dy = dy / mag * max;
+      }
+      joy.x = dx / max;
+      joy.y = dy / max;
+      stick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    }
+
+    movePad.addEventListener("pointerdown", event => {
+      joy.active = true;
+      movePad.setPointerCapture(event.pointerId);
+      updateStick(event);
+    });
+    movePad.addEventListener("pointermove", event => {
+      if (joy.active) updateStick(event);
+    });
+    movePad.addEventListener("pointerup", () => {
+      joy.active = false;
+      joy.x = 0;
+      joy.y = 0;
+      stick.style.transform = "translate(-50%, -50%)";
+    });
+    movePad.addEventListener("pointercancel", () => {
+      joy.active = false;
+      joy.x = 0;
+      joy.y = 0;
+      stick.style.transform = "translate(-50%, -50%)";
+    });
+
+    setInterval(() => {
+      if (running && stones.every(stone => stone.collected) && Math.hypot(player.x - CORE.x, player.y - CORE.y) < CORE.radius + 42) {
+        tryFinish();
+      }
+    }, 350);
+
+    resize();
+    makeStars();
+    resetGame();
+    setPointer(window.innerWidth / 2, window.innerHeight / 2);
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

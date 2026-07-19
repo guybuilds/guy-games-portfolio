@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>זירת ספינפיניטי</title>
+  <style>
+    :root {
+      --ink: #f8fbff;
+      --muted: #b8c6d8;
+      --panel: rgba(9, 14, 24, 0.74);
+      --line: rgba(255, 255, 255, 0.16);
+      --cyan: #62e8ff;
+      --lime: #8cff9e;
+      --gold: #ffd45a;
+      --pink: #ff5aa8;
+      --red: #ff6b5e;
+      --blue: #5a7cff;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      color: var(--ink);
+      background: #10151e;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      direction: rtl;
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      background: #121a24;
+      touch-action: none;
+    }
+
+    .hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 14px;
+      padding: 14px;
+    }
+
+    .panel {
+      background: rgba(9, 14, 24, 0.62);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.26);
+      backdrop-filter: blur(14px);
+    }
+
+    .brand {
+      width: min(380px, calc(100vw - 28px));
+      padding: 10px 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.05rem, 2.4vw, 1.55rem);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .brand p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.35;
+    }
+
+    .meters {
+      grid-column: 2;
+      justify-self: end;
+      min-width: 210px;
+      padding: 10px 12px;
+      display: grid;
+      gap: 7px;
+    }
+
+    .readout {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .readout strong {
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .bar {
+      height: 6px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .bar span {
+      display: block;
+      width: 40%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan), var(--lime), var(--gold));
+      transition: width 100ms linear;
+    }
+
+    .toast {
+      grid-column: 1 / 3;
+      grid-row: 2;
+      align-self: start;
+      justify-self: center;
+      width: min(420px, calc(100vw - 28px));
+      min-height: 38px;
+      padding: 9px 12px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 800;
+      opacity: 0;
+      transform: translateY(-12px);
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .controls {
+      grid-column: 1 / 3;
+      justify-self: center;
+      align-self: end;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      max-width: min(960px, calc(100vw - 32px));
+      padding: 8px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      padding: 5px 8px;
+      color: var(--muted);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      font-size: 0.76rem;
+      white-space: nowrap;
+    }
+
+    .chip b {
+      color: var(--ink);
+    }
+
+    .start {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      pointer-events: auto;
+      background: linear-gradient(135deg, rgba(16, 21, 30, 0.72), rgba(22, 35, 42, 0.58));
+    }
+
+    .start.hidden {
+      display: none;
+    }
+
+    .start-card {
+      width: min(620px, calc(100vw - 36px));
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .start-card h2 {
+      margin: 0;
+      font-size: clamp(1.6rem, 5vw, 2.8rem);
+      line-height: 0.98;
+      letter-spacing: 0;
+    }
+
+    .start-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .loadout {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .top-button {
+      min-height: 88px;
+      padding: 10px;
+      color: var(--ink);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.07);
+      cursor: pointer;
+      display: grid;
+      align-content: center;
+      gap: 5px;
+      text-align: right;
+      font: inherit;
+    }
+
+    body.playing .brand {
+      width: auto;
+      max-width: min(260px, calc(100vw - 28px));
+      padding: 8px 10px;
+      opacity: 0.82;
+    }
+
+    body.playing .brand p {
+      display: none;
+    }
+
+    body.playing h1 {
+      font-size: 0.98rem;
+    }
+
+    body.playing .meters {
+      min-width: 220px;
+      padding: 8px 10px;
+      gap: 5px;
+      opacity: 0.88;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    body.playing .meters .bar {
+      display: none;
+    }
+
+    body.playing .controls {
+      display: none;
+    }
+
+    body.playing .toast {
+      opacity: 0;
+    }
+
+    body.playing .toast.show {
+      opacity: 0.9;
+    }
+
+    .top-button.active {
+      border-color: var(--gold);
+      box-shadow: inset 0 0 0 1px rgba(255, 212, 90, 0.45), 0 0 22px rgba(255, 212, 90, 0.22);
+    }
+
+    .top-button strong {
+      font-size: 0.98rem;
+    }
+
+    .top-button span {
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button.action {
+      min-height: 44px;
+      padding: 0 16px;
+      color: #071018;
+      border: 0;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--gold), var(--lime));
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    button.action.secondary {
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .stick {
+      position: fixed;
+      left: 18px;
+      bottom: 84px;
+      width: 116px;
+      height: 116px;
+      display: none;
+      place-items: center;
+      pointer-events: none;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(9, 14, 24, 0.46);
+    }
+
+    .stick span {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--cyan), var(--gold));
+      box-shadow: 0 0 22px rgba(98, 232, 255, 0.35);
+      transform: translate(var(--dx, 0), var(--dy, 0));
+    }
+
+    @media (pointer: coarse) {
+      .stick {
+        display: grid;
+      }
+
+      .controls {
+        justify-content: flex-end;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .hud {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto minmax(0, 1fr) auto;
+        padding: 8px;
+      }
+
+      .brand,
+      .meters,
+      .toast,
+      .controls {
+        grid-column: 1;
+        justify-self: stretch;
+        width: auto;
+      }
+
+      .meters {
+        min-width: 0;
+      }
+
+      body.playing .meters {
+        width: min(100%, 360px);
+        justify-self: start;
+      }
+
+      .controls {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        justify-self: stretch;
+        justify-content: flex-start;
+      }
+
+      .loadout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="משחק זירת ספינפיניטי"></canvas>
+
+  <div class="hud">
+    <section class="brand panel">
+      <h1>זירת ספינפיניטי</h1>
+      <p>החליקו בזירה, אספו ניצוצות ושמרו על קומבו חי. אין הפסד, רק סיבובים גדולים יותר.</p>
+    </section>
+
+    <section class="meters panel">
+      <div class="readout"><span>שלט</span><strong id="padText">ממתין</strong></div>
+      <div class="readout"><span>קומבו</span><strong id="comboText">x1</strong></div>
+      <div class="bar"><span id="comboBar"></span></div>
+      <div class="readout"><span>ניצוצות</span><strong id="sparkText">0</strong></div>
+      <div class="bar"><span id="sparkBar"></span></div>
+      <div class="readout"><span>קצב</span><strong id="flowText">רגוע</strong></div>
+      <div class="readout"><span>שיא</span><strong id="bestText">0</strong></div>
+    </section>
+
+    <div class="toast panel" id="toast">בחרו סביבון וצאו לזירה</div>
+
+    <section class="controls panel">
+      <span class="chip"><b>WASD / חצים</b> תנועה</span>
+      <span class="chip"><b>סטיק שמאלי</b> תנועה</span>
+      <span class="chip"><b>Space</b> דש</span>
+      <span class="chip"><b>A בשלט</b> דש / התחלה</span>
+      <span class="chip"><b>E</b> פולס</span>
+      <span class="chip"><b>X בשלט</b> פולס</span>
+      <span class="chip"><b>ניצוצות</b> מעלים קומבו</span>
+      <span class="chip"><b>בלי פסילה</b> התאוששות אוטומטית</span>
+    </section>
+  </div>
+
+  <div class="stick" id="stick"><span></span></div>
+
+  <div class="start" id="start">
+    <section class="start-card panel">
+      <h2>זירת ספינפיניטי</h2>
+      <p>בחרו סביבון וצאו לזירת צעצועים עם מסילות, שערי האצה, יריבים ידידותיים וסופות ניצוצות. האנרגיה תמיד חוזרת, אז המשחק הוא על סטייל, מהירות וקומבואים ענקיים.</p>
+      <div class="loadout" id="loadout"></div>
+      <div class="actions">
+        <button class="action" id="playBtn">שיגור</button>
+        <button class="action secondary" id="shuffleBtn">ערבב זירה</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const startEl = document.getElementById("start");
+    const loadoutEl = document.getElementById("loadout");
+    const playBtn = document.getElementById("playBtn");
+    const shuffleBtn = document.getElementById("shuffleBtn");
+    const comboText = document.getElementById("comboText");
+    const padText = document.getElementById("padText");
+    const comboBar = document.getElementById("comboBar");
+    const sparkText = document.getElementById("sparkText");
+    const sparkBar = document.getElementById("sparkBar");
+    const flowText = document.getElementById("flowText");
+    const bestText = document.getElementById("bestText");
+    const toast = document.getElementById("toast");
+    const stick = document.getElementById("stick");
+
+    const TAU = Math.PI * 2;
+    const WORLD = { w: 2600, h: 1900 };
+    const keys = new Set();
+    const palette = {
+      floorA: "#1a3340",
+      floorB: "#18213a",
+      rail: "#ffd45a",
+      line: "rgba(255,255,255,0.11)"
+    };
+
+    let dpr = 1;
+    let last = performance.now();
+    let running = false;
+    let selected = 0;
+    let toastTimer = 0;
+    let arenaSeed = 1;
+    let best = readBest();
+
+    const camera = { x: WORLD.w / 2, y: WORLD.h / 2, shake: 0, scale: 1 };
+    const pointer = { active: false, id: null, sx: 0, sy: 0, x: 0, y: 0, vx: 0, vy: 0 };
+    const pad = {
+      index: null,
+      name: "",
+      x: 0,
+      y: 0,
+      connected: false,
+      prevA: false,
+      prevX: false,
+      prevStart: false,
+      prevLB: false,
+      prevRB: false,
+      prevLeft: false,
+      prevRight: false
+    };
+
+    const spinners = [
+      {
+        name: "שביט נובה",
+        trait: "דש מהיר וחד",
+        colors: ["#f8fbff", "#62e8ff", "#5a7cff", "#142d78", "#ffd45a"],
+        ring: "#62e8ff",
+        accent: "#ffd45a",
+        dash: 1.22,
+        pulse: 0.95
+      },
+      {
+        name: "כתר להבה",
+        trait: "קומבואים חזקים במכות",
+        colors: ["#fff4d6", "#ffd45a", "#ff6b5e", "#8a2030", "#31121c"],
+        ring: "#ff6b5e",
+        accent: "#ffd45a",
+        dash: 1,
+        pulse: 1.18
+      },
+      {
+        name: "פנטום מנטה",
+        trait: "שליטה חלקה בסיבוב",
+        colors: ["#f8fbff", "#8cff9e", "#62e8ff", "#168861", "#102c3a"],
+        ring: "#8cff9e",
+        accent: "#62e8ff",
+        dash: 1.05,
+        pulse: 1.05
+      }
+    ];
+
+    const player = makeTop(WORLD.w / 2, WORLD.h / 2, 34, spinners[0], "player");
+    const rivals = [
+      makeTop(760, 580, 30, { name: "ספרייט לופ", colors: ["#f8fbff", "#ff5aa8", "#ffd45a", "#6b1c5c"], ring: "#ff5aa8", accent: "#ffd45a" }, "rival"),
+      makeTop(1870, 510, 30, { name: "גולש מסילות", colors: ["#f8fbff", "#62e8ff", "#5a7cff", "#1e275f"], ring: "#62e8ff", accent: "#5a7cff" }, "rival"),
+      makeTop(1740, 1370, 30, { name: "מלך הגן", colors: ["#f8fbff", "#8cff9e", "#ffd45a", "#155737"], ring: "#8cff9e", accent: "#ffd45a" }, "rival")
+    ];
+
+    const sparks = [];
+    const burstBits = [];
+    const gates = [];
+    const bumpers = [
+      { x: 610, y: 430, r: 54, color: "#ff5aa8" },
+      { x: 2040, y: 500, r: 56, color: "#62e8ff" },
+      { x: 2140, y: 1350, r: 62, color: "#8cff9e" },
+      { x: 550, y: 1360, r: 58, color: "#ffd45a" },
+      { x: 1300, y: 320, r: 46, color: "#ff6b5e" },
+      { x: 1300, y: 1580, r: 46, color: "#5a7cff" }
+    ];
+    const rails = [
+      { x: 1300, y: 950, r: 460, color: "rgba(255,212,90,0.35)" },
+      { x: 1300, y: 950, r: 710, color: "rgba(98,232,255,0.22)" }
+    ];
+
+    function makeTop(x, y, radius, def, kind) {
+      return {
+        x, y, vx: 0, vy: 0, radius, def, kind,
+        angle: 0, spin: 0, stamina: 1, dash: 1, pulse: 0,
+        combo: 1, score: 0, invibe: 0, trail: [], aiTimer: 0, tx: x, ty: y
+      };
+    }
+
+    function rand(seed) {
+      const v = Math.sin(seed * 999.13) * 43758.5453;
+      return v - Math.floor(v);
+    }
+
+    function resetArena() {
+      sparks.length = 0;
+      gates.length = 0;
+      for (let i = 0; i < 75; i += 1) {
+        const a = rand(arenaSeed + i * 3) * TAU;
+        const ring = 250 + rand(arenaSeed + i * 5) * 620;
+        const wobble = Math.sin(i * 1.7) * 72;
+        addSpark(WORLD.w / 2 + Math.cos(a) * (ring + wobble), WORLD.h / 2 + Math.sin(a) * ring, false);
+      }
+      for (let i = 0; i < 7; i += 1) {
+        const a = i * TAU / 7 + rand(arenaSeed + i) * 0.28;
+        gates.push({
+          x: WORLD.w / 2 + Math.cos(a) * (430 + rand(arenaSeed + i * 8) * 340),
+          y: WORLD.h / 2 + Math.sin(a) * (330 + rand(arenaSeed + i * 9) * 260),
+          a,
+          w: 190,
+          h: 50,
+          color: i % 3 === 0 ? "#62e8ff" : i % 3 === 1 ? "#ffd45a" : "#8cff9e"
+        });
+      }
+    }
+
+    function addSpark(x, y, scatter) {
+      sparks.push({
+        x: Math.max(90, Math.min(WORLD.w - 90, x + (scatter ? (Math.random() - 0.5) * 80 : 0))),
+        y: Math.max(90, Math.min(WORLD.h - 90, y + (scatter ? (Math.random() - 0.5) * 80 : 0))),
+        r: 12 + Math.random() * 4,
+        phase: Math.random() * TAU,
+        taken: false
+      });
+    }
+
+    function showToast(text) {
+      toast.textContent = text;
+      toast.classList.add("show");
+      toastTimer = 2.1;
+    }
+
+    function launch() {
+      const chosen = spinners[selected];
+      player.def = chosen;
+      player.x = WORLD.w / 2;
+      player.y = WORLD.h / 2 + 250;
+      player.vx = 0;
+      player.vy = -260;
+      player.stamina = 1;
+      player.combo = 1;
+      player.score = 0;
+      running = true;
+      document.body.classList.add("playing");
+      startEl.classList.add("hidden");
+      showToast(chosen.name + " שוגר!");
+    }
+
+    function cycleSpinner(delta) {
+      selected = (selected + delta + spinners.length) % spinners.length;
+      player.def = spinners[selected];
+      buildLoadout();
+      showToast(spinners[selected].name + " נבחר");
+    }
+
+    function inputVector() {
+      let x = 0;
+      let y = 0;
+      if (keys.has("ArrowLeft") || keys.has("KeyA")) x -= 1;
+      if (keys.has("ArrowRight") || keys.has("KeyD")) x += 1;
+      if (keys.has("ArrowUp") || keys.has("KeyW")) y -= 1;
+      if (keys.has("ArrowDown") || keys.has("KeyS")) y += 1;
+      if (pointer.active) {
+        x += pointer.vx;
+        y += pointer.vy;
+      }
+      if (pad.connected) {
+        x += pad.x;
+        y += pad.y;
+      }
+      const len = Math.hypot(x, y);
+      return len > 1 ? { x: x / len, y: y / len } : { x, y };
+    }
+
+    function buttonDown(gamepad, index) {
+      const button = gamepad.buttons[index];
+      return Boolean(button && button.pressed);
+    }
+
+    function axisValue(value) {
+      const deadzone = 0.18;
+      if (Math.abs(value) < deadzone) return 0;
+      const sign = Math.sign(value);
+      return sign * (Math.abs(value) - deadzone) / (1 - deadzone);
+    }
+
+    function findGamepad() {
+      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      if (pad.index !== null && pads[pad.index]) return pads[pad.index];
+      for (const gamepad of pads) {
+        if (gamepad) {
+          pad.index = gamepad.index;
+          return gamepad;
+        }
+      }
+      return null;
+    }
+
+    function updateGamepad() {
+      const gamepad = findGamepad();
+      if (!gamepad) {
+        pad.connected = false;
+        pad.x = 0;
+        pad.y = 0;
+        padText.textContent = "ממתין";
+        return;
+      }
+
+      pad.connected = true;
+      pad.name = gamepad.id || "שלט Xbox";
+      padText.textContent = "מוכן";
+
+      let x = axisValue(gamepad.axes[0] || 0);
+      let y = axisValue(gamepad.axes[1] || 0);
+      if (buttonDown(gamepad, 14)) x -= 1;
+      if (buttonDown(gamepad, 15)) x += 1;
+      if (buttonDown(gamepad, 12)) y -= 1;
+      if (buttonDown(gamepad, 13)) y += 1;
+      const len = Math.hypot(x, y);
+      pad.x = len > 1 ? x / len : x;
+      pad.y = len > 1 ? y / len : y;
+
+      const a = buttonDown(gamepad, 0);
+      const xButton = buttonDown(gamepad, 2);
+      const start = buttonDown(gamepad, 9);
+      const lb = buttonDown(gamepad, 4);
+      const rb = buttonDown(gamepad, 5);
+      const left = buttonDown(gamepad, 14);
+      const right = buttonDown(gamepad, 15);
+
+      if (!running) {
+        if ((lb && !pad.prevLB) || (left && !pad.prevLeft)) cycleSpinner(-1);
+        if ((rb && !pad.prevRB) || (right && !pad.prevRight)) cycleSpinner(1);
+        if ((a && !pad.prevA) || (start && !pad.prevStart)) launch();
+      } else {
+        if (a && !pad.prevA) dash();
+        if (xButton && !pad.prevX) pulse();
+      }
+
+      pad.prevA = a;
+      pad.prevX = xButton;
+      pad.prevStart = start;
+      pad.prevLB = lb;
+      pad.prevRB = rb;
+      pad.prevLeft = left;
+      pad.prevRight = right;
+    }
+
+    function dash() {
+      const v = inputVector();
+      const speed = Math.hypot(player.vx, player.vy);
+      const dir = Math.hypot(v.x, v.y) > 0.1 ? Math.atan2(v.y, v.x) : Math.atan2(player.vy, player.vx || 1);
+      const strength = (360 + speed * 0.15) * player.def.dash;
+      player.vx += Math.cos(dir) * strength;
+      player.vy += Math.sin(dir) * strength;
+      player.stamina = Math.max(0.25, player.stamina - 0.16);
+      player.spin += 9;
+      player.combo = Math.min(12, player.combo + 0.15);
+      camera.shake = Math.max(camera.shake, 5);
+      spray(player.x, player.y, 14, player.def.ring);
+      showToast("שרשרת דש!");
+    }
+
+    function pulse() {
+      if (player.pulse > 0) return;
+      player.pulse = 0.45;
+      player.spin += 18;
+      player.stamina = Math.max(0.22, player.stamina - 0.1);
+      camera.shake = Math.max(camera.shake, 8);
+      spray(player.x, player.y, 34, player.def.accent);
+      for (const rival of rivals) {
+        const dx = rival.x - player.x;
+        const dy = rival.y - player.y;
+        const d = Math.max(1, Math.hypot(dx, dy));
+        if (d < 240) {
+          const push = (240 - d) * 4.5 * player.def.pulse;
+          rival.vx += dx / d * push;
+          rival.vy += dy / d * push;
+          score(85, "קומבו פולס");
+        }
+      }
+      showToast("גל פולס!");
+    }
+
+    function spray(x, y, count, color) {
+      for (let i = 0; i < count; i += 1) {
+        const a = Math.random() * TAU;
+        const sp = 80 + Math.random() * 340;
+        burstBits.push({
+          x, y,
+          vx: Math.cos(a) * sp,
+          vy: Math.sin(a) * sp,
+          life: 0.45 + Math.random() * 0.55,
+          size: 2 + Math.random() * 4,
+          color
+        });
+      }
+    }
+
+    function score(points, label) {
+      const gained = Math.round(points * player.combo);
+      player.score += gained;
+      player.combo = Math.min(18, player.combo + 0.22);
+      if (player.score > best) {
+        best = player.score;
+        saveBest(best);
+      }
+      if (label) showToast(label + " +" + gained);
+    }
+
+    function stepTop(top, input, dt) {
+      const accel = top.kind === "player" ? 900 : 520;
+      top.vx += input.x * accel * dt;
+      top.vy += input.y * accel * dt;
+
+      const speed = Math.hypot(top.vx, top.vy);
+      const max = top.kind === "player" ? 930 : 760;
+      if (speed > max) {
+        top.vx = top.vx / speed * max;
+        top.vy = top.vy / speed * max;
+      }
+
+      top.vx *= Math.pow(0.984, dt * 60);
+      top.vy *= Math.pow(0.984, dt * 60);
+      top.x += top.vx * dt;
+      top.y += top.vy * dt;
+      top.spin += (Math.hypot(top.vx, top.vy) * 0.06 + 5) * dt;
+      top.stamina = Math.min(1, top.stamina + dt * 0.085);
+      top.pulse = Math.max(0, top.pulse - dt);
+      top.invibe = Math.max(0, top.invibe - dt);
+
+      if (Math.hypot(top.vx, top.vy) < 80 && top.kind === "player") {
+        top.stamina = Math.min(1, top.stamina + dt * 0.22);
+      }
+
+      const edge = top.radius + 34;
+      if (top.x < edge || top.x > WORLD.w - edge) {
+        top.x = Math.max(edge, Math.min(WORLD.w - edge, top.x));
+        top.vx *= -0.74;
+        top.vy += (WORLD.h / 2 - top.y) * 0.02;
+        if (top.kind === "player") score(15, "ריבאונד קיר");
+      }
+      if (top.y < edge || top.y > WORLD.h - edge) {
+        top.y = Math.max(edge, Math.min(WORLD.h - edge, top.y));
+        top.vy *= -0.74;
+        top.vx += (WORLD.w / 2 - top.x) * 0.02;
+        if (top.kind === "player") score(15, "ריבאונד קיר");
+      }
+
+      for (const bumper of bumpers) {
+        const dx = top.x - bumper.x;
+        const dy = top.y - bumper.y;
+        const d = Math.hypot(dx, dy);
+        const min = top.radius + bumper.r;
+        if (d > 0 && d < min) {
+          const nx = dx / d;
+          const ny = dy / d;
+          top.x = bumper.x + nx * min;
+          top.y = bumper.y + ny * min;
+          const dot = top.vx * nx + top.vy * ny;
+          top.vx -= dot * nx * 1.85;
+          top.vy -= dot * ny * 1.85;
+          top.vx += nx * 360;
+          top.vy += ny * 360;
+          top.spin += 8;
+          spray(top.x, top.y, top.kind === "player" ? 10 : 5, bumper.color);
+          if (top.kind === "player" && top.invibe <= 0) {
+            top.invibe = 0.18;
+            score(45, "פגיעה בבאמפר");
+          }
+        }
+      }
+
+      for (const gate of gates) {
+        const ca = Math.cos(-gate.a);
+        const sa = Math.sin(-gate.a);
+        const lx = (top.x - gate.x) * ca - (top.y - gate.y) * sa;
+        const ly = (top.x - gate.x) * sa + (top.y - gate.y) * ca;
+        if (Math.abs(lx) < gate.w / 2 && Math.abs(ly) < gate.h / 2) {
+          const boost = top.kind === "player" ? 34 : 16;
+          top.vx += Math.cos(gate.a) * boost;
+          top.vy += Math.sin(gate.a) * boost;
+          top.spin += 0.5;
+          if (top.kind === "player" && top.invibe <= 0) {
+            top.invibe = 0.22;
+            score(35, "שער האצה");
+          }
+        }
+      }
+
+      top.trail.push({ x: top.x, y: top.y, life: 1 });
+      while (top.trail.length > 18) top.trail.shift();
+      for (const t of top.trail) t.life -= dt * 1.8;
+      while (top.trail.length && top.trail[0].life <= 0) top.trail.shift();
+    }
+
+    function stepRival(rival, dt) {
+      rival.aiTimer -= dt;
+      if (rival.aiTimer <= 0) {
+        rival.aiTimer = 1.1 + Math.random() * 1.5;
+        const chase = Math.random() > 0.34;
+        rival.tx = chase ? player.x + (Math.random() - 0.5) * 340 : 260 + Math.random() * (WORLD.w - 520);
+        rival.ty = chase ? player.y + (Math.random() - 0.5) * 300 : 260 + Math.random() * (WORLD.h - 520);
+      }
+      const dx = rival.tx - rival.x;
+      const dy = rival.ty - rival.y;
+      const d = Math.hypot(dx, dy) || 1;
+      stepTop(rival, { x: dx / d, y: dy / d }, dt);
+    }
+
+    function collide(a, b) {
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const d = Math.hypot(dx, dy);
+      const min = a.radius + b.radius;
+      if (d <= 0 || d >= min) return;
+      const nx = dx / d;
+      const ny = dy / d;
+      const overlap = min - d;
+      a.x -= nx * overlap * 0.5;
+      a.y -= ny * overlap * 0.5;
+      b.x += nx * overlap * 0.5;
+      b.y += ny * overlap * 0.5;
+      const av = a.vx * nx + a.vy * ny;
+      const bv = b.vx * nx + b.vy * ny;
+      const impulse = (av - bv) * 0.9;
+      a.vx -= impulse * nx;
+      a.vy -= impulse * ny;
+      b.vx += impulse * nx;
+      b.vy += impulse * ny;
+      a.vx -= nx * 130;
+      a.vy -= ny * 130;
+      b.vx += nx * 130;
+      b.vy += ny * 130;
+      a.spin += 5;
+      b.spin += 5;
+      spray((a.x + b.x) / 2, (a.y + b.y) / 2, 18, a.kind === "player" ? a.def.accent : b.def.accent);
+      camera.shake = Math.max(camera.shake, 7);
+      if (a.kind === "player" || b.kind === "player") {
+        score(65, "התנגשות ביריב");
+        addSpark((a.x + b.x) / 2, (a.y + b.y) / 2, true);
+      }
+    }
+
+    function update(dt) {
+      updateGamepad();
+
+      if (toastTimer > 0) {
+        toastTimer -= dt;
+        if (toastTimer <= 0) toast.classList.remove("show");
+      }
+
+      if (!running) {
+        player.spin += dt * 2;
+        for (const rival of rivals) rival.spin += dt * 1.5;
+        return;
+      }
+
+      const v = inputVector();
+      stepTop(player, v, dt);
+      for (const rival of rivals) stepRival(rival, dt);
+      const all = [player].concat(rivals);
+      for (let i = 0; i < all.length; i += 1) {
+        for (let j = i + 1; j < all.length; j += 1) collide(all[i], all[j]);
+      }
+
+      for (const spark of sparks) {
+        if (spark.taken) continue;
+        const d = Math.hypot(player.x - spark.x, player.y - spark.y);
+        if (d < player.radius + spark.r + 8) {
+          spark.taken = true;
+          player.stamina = Math.min(1, player.stamina + 0.1);
+          player.spin += 3;
+          score(28, "ניצוץ");
+          spray(spark.x, spark.y, 9, "#ffd45a");
+        }
+      }
+
+      if (sparks.every((s) => s.taken)) {
+        arenaSeed += 1;
+        resetArena();
+        player.combo = Math.min(18, player.combo + 1);
+        showToast("סופת הניצוצות חזרה!");
+      }
+
+      player.combo = Math.max(1, player.combo - dt * 0.18);
+      if (player.stamina < 0.18) {
+        player.stamina = 0.45;
+        player.vx += (WORLD.w / 2 - player.x) * 0.18;
+        player.vy += (WORLD.h / 2 - player.y) * 0.18;
+        spray(player.x, player.y, 22, "#8cff9e");
+        showToast("בוסט התאוששות!");
+      }
+
+      for (const bit of burstBits) {
+        bit.x += bit.vx * dt;
+        bit.y += bit.vy * dt;
+        bit.vx *= Math.pow(0.94, dt * 60);
+        bit.vy *= Math.pow(0.94, dt * 60);
+        bit.life -= dt;
+      }
+      while (burstBits.length && burstBits[0].life <= 0) burstBits.shift();
+      for (let i = burstBits.length - 1; i >= 0; i -= 1) {
+        if (burstBits[i].life <= 0) burstBits.splice(i, 1);
+      }
+
+      const speed = Math.hypot(player.vx, player.vy);
+      const zoom = Math.max(0.62, Math.min(1.02, Math.min(innerWidth / 1260, innerHeight / 850) - speed * 0.00008));
+      camera.scale += (zoom - camera.scale) * Math.min(1, dt * 3);
+      camera.x += (player.x - camera.x) * Math.min(1, dt * 4.8);
+      camera.y += (player.y - camera.y) * Math.min(1, dt * 4.8);
+      camera.shake = Math.max(0, camera.shake - dt * 22);
+
+      const taken = sparks.filter((s) => s.taken).length;
+      comboText.textContent = "x" + player.combo.toFixed(1);
+      comboBar.style.width = Math.min(100, player.combo / 18 * 100) + "%";
+      sparkText.textContent = taken + " / " + sparks.length;
+      sparkBar.style.width = Math.min(100, taken / sparks.length * 100) + "%";
+      flowText.textContent = speed > 620 ? "פראי" : speed > 360 ? "מהיר" : speed > 160 ? "חלק" : "רגוע";
+      bestText.textContent = String(best);
+    }
+
+    function draw() {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const bg = ctx.createLinearGradient(0, 0, innerWidth, innerHeight);
+      bg.addColorStop(0, "#172c35");
+      bg.addColorStop(0.46, "#1c2140");
+      bg.addColorStop(1, "#283244");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, innerWidth, innerHeight);
+
+      const shakeX = (Math.random() - 0.5) * camera.shake;
+      const shakeY = (Math.random() - 0.5) * camera.shake;
+      ctx.save();
+      ctx.translate(innerWidth / 2 + shakeX, innerHeight / 2 + shakeY);
+      ctx.scale(camera.scale, camera.scale);
+      ctx.translate(-camera.x, -camera.y);
+
+      drawArena();
+      drawSparks();
+      for (const rival of rivals) drawTop(rival);
+      drawTop(player);
+      drawBits();
+
+      ctx.restore();
+    }
+
+    function drawArena() {
+      ctx.save();
+      ctx.fillStyle = palette.floorA;
+      roundRect(ctx, 0, 0, WORLD.w, WORLD.h, 42);
+      ctx.fill();
+
+      const grd = ctx.createRadialGradient(WORLD.w / 2, WORLD.h / 2, 80, WORLD.w / 2, WORLD.h / 2, 980);
+      grd.addColorStop(0, "rgba(98,232,255,0.17)");
+      grd.addColorStop(0.5, "rgba(255,212,90,0.12)");
+      grd.addColorStop(1, "rgba(255,90,168,0.07)");
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, WORLD.w, WORLD.h);
+
+      ctx.strokeStyle = "rgba(255,255,255,0.06)";
+      ctx.lineWidth = 2;
+      for (let x = 0; x <= WORLD.w; x += 120) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, WORLD.h);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= WORLD.h; y += 120) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(WORLD.w, y);
+        ctx.stroke();
+      }
+
+      for (const rail of rails) {
+        ctx.strokeStyle = rail.color;
+        ctx.lineWidth = 32;
+        ctx.beginPath();
+        ctx.ellipse(WORLD.w / 2, WORLD.h / 2, rail.r, rail.r * 0.58, 0.08, 0, TAU);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = "rgba(255,255,255,0.18)";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(WORLD.w / 2, WORLD.h / 2, 210, 0, TAU);
+      ctx.stroke();
+
+      for (const gate of gates) drawGate(gate);
+      for (const bumper of bumpers) drawBumper(bumper);
+      ctx.restore();
+    }
+
+    function drawGate(gate) {
+      ctx.save();
+      ctx.translate(gate.x, gate.y);
+      ctx.rotate(gate.a);
+      const g = ctx.createLinearGradient(-gate.w / 2, 0, gate.w / 2, 0);
+      g.addColorStop(0, "rgba(255,255,255,0.18)");
+      g.addColorStop(0.48, gate.color);
+      g.addColorStop(1, "rgba(255,255,255,0.2)");
+      ctx.fillStyle = g;
+      roundRect(ctx, -gate.w / 2, -gate.h / 2, gate.w, gate.h, 8);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.45)";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawBumper(bumper) {
+      ctx.save();
+      ctx.translate(bumper.x, bumper.y);
+      ctx.fillStyle = "rgba(0,0,0,0.24)";
+      ctx.beginPath();
+      ctx.ellipse(0, bumper.r * 0.58, bumper.r * 0.95, 14, 0, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = bumper.color;
+      ctx.beginPath();
+      ctx.arc(0, 0, bumper.r, 0, TAU);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.65)";
+      ctx.lineWidth = 5;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawSparks() {
+      for (const spark of sparks) {
+        if (spark.taken) continue;
+        const bob = Math.sin(performance.now() * 0.004 + spark.phase) * 4;
+        ctx.save();
+        ctx.translate(spark.x, spark.y + bob);
+        ctx.rotate(performance.now() * 0.002 + spark.phase);
+        ctx.fillStyle = "#ffd45a";
+        ctx.strokeStyle = "#fff7b0";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        for (let i = 0; i < 8; i += 1) {
+          const r = i % 2 === 0 ? spark.r : spark.r * 0.45;
+          const a = -Math.PI / 2 + i * TAU / 8;
+          ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function drawTop(top) {
+      for (const t of top.trail) {
+        ctx.save();
+        ctx.globalAlpha = t.life * 0.28;
+        ctx.fillStyle = top.def.ring;
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, top.radius * (0.52 + t.life * 0.25), 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.translate(top.x, top.y);
+      ctx.fillStyle = "rgba(0,0,0,0.28)";
+      ctx.beginPath();
+      ctx.ellipse(0, top.radius * 0.92, top.radius * 1.12, 12, 0, 0, TAU);
+      ctx.fill();
+      if (top.pulse > 0) {
+        ctx.globalAlpha = top.pulse * 1.5;
+        ctx.strokeStyle = top.def.accent;
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.arc(0, 0, top.radius + (1 - top.pulse) * 170, 0, TAU);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      ctx.rotate(top.spin);
+      const colors = top.def.colors;
+      for (let i = 0; i < 12; i += 1) {
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, top.radius, i * TAU / 12, (i + 0.72) * TAU / 12);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.strokeStyle = "rgba(255,255,255,0.72)";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, 0, top.radius, 0, TAU);
+      ctx.stroke();
+      ctx.fillStyle = top.def.accent;
+      ctx.beginPath();
+      ctx.arc(0, 0, top.radius * 0.35, 0, TAU);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(8,13,22,0.55)";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.font = "800 15px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#f8fbff";
+      ctx.shadowColor = "rgba(0,0,0,0.75)";
+      ctx.shadowBlur = 6;
+      ctx.fillText(top.def.name, top.x, top.y - top.radius - 20);
+      ctx.restore();
+    }
+
+    function drawBits() {
+      for (const bit of burstBits) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, bit.life);
+        ctx.fillStyle = bit.color;
+        ctx.beginPath();
+        ctx.arc(bit.x, bit.y, bit.size, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function roundRect(c, x, y, w, h, r) {
+      const rr = Math.min(r, w / 2, h / 2);
+      c.beginPath();
+      c.moveTo(x + rr, y);
+      c.arcTo(x + w, y, x + w, y + h, rr);
+      c.arcTo(x + w, y + h, x, y + h, rr);
+      c.arcTo(x, y + h, x, y, rr);
+      c.arcTo(x, y, x + w, y, rr);
+      c.closePath();
+    }
+
+    function readBest() {
+      try {
+        return Number(localStorage.getItem("spinfinity-best") || 0);
+      } catch (error) {
+        return 0;
+      }
+    }
+
+    function saveBest(value) {
+      try {
+        localStorage.setItem("spinfinity-best", String(value));
+      } catch (error) {
+        return false;
+      }
+      return true;
+    }
+
+    function resize() {
+      dpr = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.floor(innerWidth * dpr);
+      canvas.height = Math.floor(innerHeight * dpr);
+      camera.scale = Math.max(0.62, Math.min(1.03, Math.min(innerWidth / 1260, innerHeight / 850)));
+    }
+
+    function buildLoadout() {
+      loadoutEl.innerHTML = "";
+      spinners.forEach((spinner, index) => {
+        const button = document.createElement("button");
+        button.className = "top-button" + (index === selected ? " active" : "");
+        button.innerHTML = "<strong>" + spinner.name + "</strong><span>" + spinner.trait + "</span>";
+        button.addEventListener("click", () => {
+          selected = index;
+          buildLoadout();
+          player.def = spinners[selected];
+        });
+        loadoutEl.appendChild(button);
+      });
+    }
+
+    function loop(now) {
+      const dt = Math.min(0.033, (now - last) / 1000 || 0);
+      last = now;
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    window.addEventListener("resize", resize);
+    window.addEventListener("keydown", (event) => {
+      keys.add(event.code);
+      if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) event.preventDefault();
+      if (!running && ["Space", "Enter"].includes(event.code)) launch();
+      if (running && event.code === "Space") dash();
+      if (running && event.code === "KeyE") pulse();
+    });
+    window.addEventListener("keyup", (event) => keys.delete(event.code));
+    window.addEventListener("gamepadconnected", (event) => {
+      pad.index = event.gamepad.index;
+      pad.connected = true;
+      pad.name = event.gamepad.id || "שלט Xbox";
+      padText.textContent = "מוכן";
+      showToast("שלט Xbox חובר");
+    });
+    window.addEventListener("gamepaddisconnected", (event) => {
+      if (pad.index === event.gamepad.index) {
+        pad.index = null;
+        pad.connected = false;
+        pad.x = 0;
+        pad.y = 0;
+      }
+      padText.textContent = "ממתין";
+      showToast("השלט נותק");
+    });
+
+    canvas.addEventListener("pointerdown", (event) => {
+      if (!running) {
+        launch();
+        return;
+      }
+      pointer.active = true;
+      pointer.id = event.pointerId;
+      pointer.sx = event.clientX;
+      pointer.sy = event.clientY;
+      pointer.x = event.clientX;
+      pointer.y = event.clientY;
+      canvas.setPointerCapture(event.pointerId);
+    });
+    canvas.addEventListener("pointermove", (event) => {
+      if (!pointer.active || event.pointerId !== pointer.id) return;
+      pointer.x = event.clientX;
+      pointer.y = event.clientY;
+      const dx = pointer.x - pointer.sx;
+      const dy = pointer.y - pointer.sy;
+      const len = Math.hypot(dx, dy);
+      const max = 48;
+      pointer.vx = len > max ? dx / len : dx / max;
+      pointer.vy = len > max ? dy / len : dy / max;
+      stick.style.setProperty("--dx", Math.max(-max, Math.min(max, dx)) + "px");
+      stick.style.setProperty("--dy", Math.max(-max, Math.min(max, dy)) + "px");
+    });
+    canvas.addEventListener("pointerup", (event) => {
+      if (event.pointerId !== pointer.id) return;
+      pointer.active = false;
+      pointer.vx = 0;
+      pointer.vy = 0;
+      stick.style.setProperty("--dx", "0px");
+      stick.style.setProperty("--dy", "0px");
+      dash();
+    });
+    canvas.addEventListener("pointercancel", () => {
+      pointer.active = false;
+      pointer.vx = 0;
+      pointer.vy = 0;
+      stick.style.setProperty("--dx", "0px");
+      stick.style.setProperty("--dy", "0px");
+    });
+
+    playBtn.addEventListener("click", launch);
+    shuffleBtn.addEventListener("click", () => {
+      arenaSeed += 11;
+      resetArena();
+      showToast("הזירה התערבבה");
+    });
+
+    buildLoadout();
+    resetArena();
+    resize();
+    bestText.textContent = String(best);
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
