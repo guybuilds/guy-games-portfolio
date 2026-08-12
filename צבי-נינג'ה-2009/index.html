@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>צבי הנינג'ה 2009: צללי הלילה 3D (TMNT Movie)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700;900&family=Outfit:wght@600;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --tmnt-green: #39ff14;
+            --leo-blue: #00e5ff;
+            --raph-red: #ff0055;
+            --don-purple: #b026ff;
+            --mikey-orange: #ff6c00;
+            --night-bg: #090d16;
+            --card-glass: rgba(15, 23, 42, 0.85);
+            --gold-glow: #ffd700;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--night-bg);
+            font-family: 'Assistant', 'Outfit', sans-serif;
+            color: #ffffff;
+        }
+
+        .gamepad-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 112, 209, 0.25);
+            border: 1.5px solid #0070d1;
+            color: #38bdf8;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.88rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+            box-shadow: 0 0 12px rgba(0, 112, 209, 0.4);
+            animation: pulseGlow 2s infinite alternate;
+        }
+
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 8px rgba(0, 112, 209, 0.3); }
+            100% { box-shadow: 0 0 18px rgba(0, 112, 209, 0.7); }
+        }
+
+        #game-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* ----- UI Overlays & Menu ----- */
+        .overlay-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            background: radial-gradient(circle at center, rgba(12, 18, 34, 0.85) 0%, rgba(5, 8, 16, 0.96) 100%);
+            backdrop-filter: blur(8px);
+            transition: opacity 0.4s ease, visibility 0.4s;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .hidden {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            visibility: hidden !important;
+        }
+
+        .poster-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .poster-img {
+            max-width: 280px;
+            width: 70vw;
+            border-radius: 16px;
+            box-shadow: 0 0 35px rgba(57, 255, 20, 0.35), 0 0 10px rgba(0, 0, 0, 0.8);
+            border: 2px solid rgba(57, 255, 20, 0.5);
+            margin-bottom: 15px;
+            transition: transform 0.3s ease;
+        }
+
+        .poster-img:hover {
+            transform: scale(1.03);
+        }
+
+        .main-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 3rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #39ff14 0%, #00e5ff 50%, #ffd700 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(57, 255, 20, 0.4);
+            margin-bottom: 5px;
+        }
+
+        .sub-title {
+            font-size: 1.1rem;
+            color: #94a3b8;
+            letter-spacing: 1px;
+            margin-bottom: 25px;
+            font-weight: 700;
+        }
+
+        /* Character Selection Roster */
+        .roster-title {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #e2e8f0;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .roster-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            max-width: 1000px;
+            width: 100%;
+            margin-bottom: 25px;
+        }
+
+        @media (max-width: 900px) {
+            .roster-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .main-title { font-size: 2.2rem; }
+        }
+
+        @media (max-width: 600px) {
+            .roster-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .char-card {
+            background: var(--card-glass);
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .char-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+        }
+
+        .char-card[data-char="leo"]::before { background: var(--leo-blue); }
+        .char-card[data-char="raph"]::before { background: var(--raph-red); }
+        .char-card[data-char="don"]::before { background: var(--don-purple); }
+        .char-card[data-char="mikey"]::before { background: var(--mikey-orange); }
+        .char-card[data-char="nightwatcher"]::before { background: var(--gold-glow); }
+
+        .char-card:hover, .char-card.active {
+            transform: translateY(-6px);
+            background: rgba(30, 41, 59, 0.95);
+        }
+
+        .char-card.active[data-char="leo"] { border-color: var(--leo-blue); box-shadow: 0 0 20px rgba(0, 229, 255, 0.4); }
+        .char-card.active[data-char="raph"] { border-color: var(--raph-red); box-shadow: 0 0 20px rgba(255, 0, 85, 0.4); }
+        .char-card.active[data-char="don"] { border-color: var(--don-purple); box-shadow: 0 0 20px rgba(176, 38, 255, 0.4); }
+        .char-card.active[data-char="mikey"] { border-color: var(--mikey-orange); box-shadow: 0 0 20px rgba(255, 108, 0, 0.4); }
+        .char-card.active[data-char="nightwatcher"] { border-color: var(--gold-glow); box-shadow: 0 0 20px rgba(255, 215, 0, 0.5); }
+
+        .char-icon {
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .char-name {
+            font-size: 1.15rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .char-weapon {
+            font-size: 0.8rem;
+            color: #cbd5e1;
+            margin-bottom: 6px;
+        }
+
+        .char-desc {
+            font-size: 0.72rem;
+            color: #94a3b8;
+            line-height: 1.3;
+        }
+
+        /* Environment & Stage Selector */
+        .stage-selector {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .stage-btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1.5px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            color: #e2e8f0;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .stage-btn.active {
+            background: rgba(57, 255, 20, 0.15);
+            border-color: var(--tmnt-green);
+            color: var(--tmnt-green);
+            box-shadow: 0 0 12px rgba(57, 255, 20, 0.3);
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #39ff14 0%, #16a34a 100%);
+            border: none;
+            color: #051003;
+            padding: 16px 55px;
+            font-size: 1.35rem;
+            font-weight: 900;
+            border-radius: 35px;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(57, 255, 20, 0.45);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            letter-spacing: 1px;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.06);
+            box-shadow: 0 8px 30px rgba(57, 255, 20, 0.65);
+        }
+
+        .start-btn:active {
+            transform: scale(0.96);
+        }
+
+        /* In-Game HUD */
+        #hud-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 18px;
+            box-sizing: border-box;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .player-status-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(6px);
+            padding: 10px 18px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            pointer-events: auto;
+        }
+
+        .avatar-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 2px solid var(--tmnt-green);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .bars-container {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 180px;
+        }
+
+        .bar-label {
+            font-size: 0.75rem;
+            font-weight: 800;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .bar-outer {
+            width: 100%;
+            height: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .bar-inner-hp {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #ef4444 0%, #22c55e 100%);
+            transition: width 0.25s ease;
+        }
+
+        .bar-inner-energy {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #3b82f6 0%, #00e5ff 100%);
+            transition: width 0.2s ease;
+        }
+
+        .wave-counter {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 1rem;
+            color: #ffd700;
+            backdrop-filter: blur(6px);
+            text-align: center;
+        }
+
+        .combo-counter {
+            position: absolute;
+            top: 90px;
+            right: 25px;
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: #ffd700;
+            text-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+            opacity: 0;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            transform: scale(0.8);
+        }
+
+        .combo-counter.show {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Controls / Touch UI */
+        .controls-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(15, 23, 42, 0.75);
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-size: 0.82rem;
+            color: #cbd5e1;
+            line-height: 1.5;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Mobile Action Buttons */
+        .mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: none;
+            gap: 12px;
+            pointer-events: auto;
+        }
+
+        @media (max-width: 900px) {
+            .mobile-controls { display: flex; }
+            .controls-hint { display: none; }
+        }
+
+        .action-btn {
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: rgba(15, 23, 42, 0.8);
+            color: #fff;
+            font-weight: 900;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            user-select: none;
+        }
+
+        .action-btn:active {
+            transform: scale(0.9);
+            background: rgba(57, 255, 20, 0.3);
+        }
+
+        .btn-attack { border-color: var(--tmnt-green); color: var(--tmnt-green); }
+        .btn-heavy { border-color: #f59e0b; color: #f59e0b; }
+        .btn-special { border-color: #00e5ff; color: #00e5ff; }
+        .btn-dodge { border-color: #a855f7; color: #a855f7; }
+
+        /* Game Over / Victory Modal */
+        .modal-card {
+            background: rgba(15, 23, 42, 0.95);
+            border: 2px solid var(--tmnt-green);
+            border-radius: 20px;
+            padding: 35px;
+            text-align: center;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 0 40px rgba(57, 255, 20, 0.3);
+        }
+
+        .modal-title {
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin-bottom: 10px;
+        }
+
+        .modal-desc {
+            font-size: 1rem;
+            color: #94a3b8;
+            margin-bottom: 25px;
+        }
+
+        .modal-btn {
+            background: var(--tmnt-green);
+            color: #000;
+            border: none;
+            padding: 12px 35px;
+            font-weight: 800;
+            font-size: 1.1rem;
+            border-radius: 25px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Main Menu Screen -->
+    <div id="menu-screen" class="overlay-screen">
+        <div class="poster-header">
+            <img src="tmnt_poster.png" alt="צבי הנינג'ה" class="poster-img" onerror="this.style.display='none'">
+            <h1 class="main-title">צבי הנינג'ה 2009</h1>
+            <div class="sub-title">צללי הלילה 3D - הסרט הקולנועי (TMNT Movie)</div>
+        </div>
+
+        <div class="roster-title">בחר את הגיבור שלך:</div>
+        <div class="roster-grid">
+            <div class="char-card active" data-char="leo">
+                <div class="char-icon">⚔️</div>
+                <div class="char-name">לאונרדו</div>
+                <div class="char-weapon">חרבות קטנה כפולות</div>
+                <div class="char-desc">מהירות ואיזון מושלם. מתקפת סופת חרבות מרהיבה.</div>
+            </div>
+
+            <div class="char-card" data-char="raph">
+                <div class="char-icon">🔱</div>
+                <div class="char-name">רפאל</div>
+                <div class="char-weapon">פגיונות סאי</div>
+                <div class="char-desc">כוח מכה אדיר, זעם מתפרץ וקומבו מהיר.</div>
+            </div>
+
+            <div class="char-card" data-char="don">
+                <div class="char-icon">🥢</div>
+                <div class="char-name">דונטלו</div>
+                <div class="char-weapon">מקל בו (Bo Staff)</div>
+                <div class="char-desc">טווח הגעה ארוך מכל היתר ומכת הלם חשמלית.</div>
+            </div>
+
+            <div class="char-card" data-char="mikey">
+                <div class="char-icon">🪀</div>
+                <div class="char-name">מיכלאנג'לו</div>
+                <div class="char-weapon">נונצ'אקו כפולים</div>
+                <div class="char-desc">קומבו מהיר כברק וסחרחורת טורנדו הרסנית.</div>
+            </div>
+
+            <div class="char-card" data-char="nightwatcher">
+                <div class="char-icon">🦇</div>
+                <div class="char-name">שומר הלילה</div>
+                <div class="char-weapon">אלת ברזל ושרשראות</div>
+                <div class="char-desc">הזהות המסתורית של רפאל! שריון כבד ונזק קריטי.</div>
+            </div>
+        </div>
+
+        <div class="stage-selector">
+            <button class="stage-btn active" data-stage="rooftop">🏙️ גגות ניו יורק בגשם</button>
+            <button class="stage-btn" data-stage="statues">🗿 סיור חופשי ופסלים (בלי אויבים)</button>
+            <button class="stage-btn" data-stage="sewer">☣️ ביובי העיר וה-Foot</button>
+            <button class="stage-btn" data-stage="shredder">⚔️ קרב בוס: שרדר</button>
+        </div>
+
+        <div class="gamepad-badge">🎮 תומך מלא בשלט פלייסטיישן (DualShock / DualSense)</div>
+
+        <button id="btn-start-game" class="start-btn">התחל קרב קולנועי!</button>
+    </div>
+
+    <!-- HUD Container -->
+    <div id="hud-container" class="hidden">
+        <div class="hud-top">
+            <div class="player-status-box">
+                <div id="hud-avatar" class="avatar-circle">⚔️</div>
+                <div class="bars-container">
+                    <div class="bar-label">
+                        <span>בריאות (HP)</span>
+                        <span id="hp-val">100/100</span>
+                    </div>
+                    <div class="bar-outer">
+                        <div id="hp-bar" class="bar-inner-hp"></div>
+                    </div>
+                    <div class="bar-label">
+                        <span>כוח צבים (Special)</span>
+                        <span id="sp-val">0%</span>
+                    </div>
+                    <div class="bar-outer">
+                        <div id="sp-bar" class="bar-inner-energy"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="wave-counter">
+                <div id="hud-stage-name">גגות ניו יורק</div>
+                <div id="hud-wave-text" style="font-size:0.8rem; color:#a0aec0;">גל 1 מתוך 3</div>
+            </div>
+        </div>
+
+        <div id="combo-display" class="combo-counter">5x קומבו!</div>
+
+        <div class="controls-hint">
+            <b>שליטה במקלדת ובשלט פלייסטיישן (PlayStation):</b><br>
+            🎮 סטיק שמאלי / WASD: תנועה במרחב<br>
+            ✖️ (J): התקפה קלה | ⏹️ (K): התקפה כבדה<br>
+            🔴 (L): מכה מיוחדת | 🔺 (Shift): התחמקות / סלייד
+        </div>
+
+        <div class="mobile-controls">
+            <button id="m-btn-attack" class="action-btn btn-attack">J<br>התקפה</button>
+            <button id="m-btn-heavy" class="action-btn btn-heavy">K<br>כבד</button>
+            <button id="m-btn-special" class="action-btn btn-special">L<br>מיוחד</button>
+            <button id="m-btn-dodge" class="action-btn btn-dodge">Shift<br>סלייד</button>
+        </div>
+    </div>
+
+    <!-- Victory / Game Over Screen -->
+    <div id="end-screen" class="overlay-screen hidden">
+        <div class="modal-card">
+            <div id="end-title" class="modal-title" style="color:var(--tmnt-green);">ניצחון אדיר!</div>
+            <div id="end-desc" class="modal-desc">הצלת את ניו יורק מצללי ה-Foot Clan ושרדר!</div>
+            <button id="btn-restart" class="modal-btn">שחק שוב</button>
+        </div>
+    </div>
+
+    <script>
+        /* ----------------------------------------------------
+           TMNT Movie 3D Engine Script - Ninja Turtles 2009
+           ---------------------------------------------------- */
+
+        // --- Sound Engine (Web Audio API) ---
+        class AudioEngine {
+            constructor() {
+                this.ctx = null;
+            }
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+            playSlash() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(450, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.12);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.12);
+            }
+            playHit() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.18);
+                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.18);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.18);
+            }
+            playSpecial() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.4);
+                gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.4);
+            }
+            playPizza() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, this.ctx.currentTime);
+                osc.frequency.setValueAtTime(659.25, this.ctx.currentTime + 0.1);
+                osc.frequency.setValueAtTime(783.99, this.ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.3);
+            }
+        }
+
+        const sfx = new AudioEngine();
+
+        // --- Game Configurations ---
+        const CHAR_CONFIGS = {
+            leo: { name: 'לאונרדו', color: 0x00e5ff, icon: '⚔️', hp: 110, speed: 0.14, weapon: 'katana' },
+            raph: { name: 'רפאל', color: 0xff0055, icon: '🔱', hp: 125, speed: 0.13, weapon: 'sai' },
+            don: { name: 'דונטלו', color: 0xb026ff, icon: '🥢', hp: 100, speed: 0.12, weapon: 'staff' },
+            mikey: { name: 'מיכלאנג\'לו', color: 0xff6c00, icon: '🪀', hp: 95, speed: 0.16, weapon: 'nunchuck' },
+            nightwatcher: { name: 'שומר הלילה', color: 0xffd700, icon: '🦇', hp: 140, speed: 0.11, weapon: 'mace' }
+        };
+
+        // --- Global Game State ---
+        const state = {
+            charKey: 'leo',
+            stageKey: 'rooftop',
+            playing: false,
+            playerHp: 100,
+            playerMaxHp: 100,
+            energy: 0,
+            combo: 0,
+            comboTimer: null,
+            wave: 1,
+            maxWave: 3,
+            keys: {},
+            touchDir: { x: 0, y: 0 }
+        };
+
+        // --- Three.js Setup ---
+        let scene, camera, renderer;
+        let playerMesh, weaponMesh;
+        let enemies = [];
+        let particles = [];
+        let rainParticles = [];
+        let pizzaPickups = [];
+
+        function initThree() {
+            const canvas = document.getElementById('game-canvas');
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x090d16, 0.035);
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
+            camera.position.set(0, 12, 22);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x223344, 1.2);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0x39ff14, 1.0);
+            dirLight.position.set(15, 30, 15);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            scene.add(dirLight);
+
+            const moonLight = new THREE.DirectionalLight(0x00e5ff, 0.6);
+            moonLight.position.set(-20, 25, -20);
+            scene.add(moonLight);
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onWindowResize() {
+            if (!camera || !renderer) return;
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- Build Stage Environments ---
+        function buildEnvironment(stageType) {
+            while(scene.children.length > 0){ 
+                scene.remove(scene.children[0]); 
+            }
+
+            const ambientLight = new THREE.AmbientLight(0x223344, 1.2);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0x39ff14, 1.0);
+            dirLight.position.set(15, 30, 15);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            if (stageType === 'rooftop' || stageType === 'shredder') {
+                scene.background = new THREE.Color(0x080d1a);
+                scene.fog = new THREE.FogExp2(0x080d1a, 0.025);
+
+                const floorGeo = new THREE.BoxGeometry(40, 2, 40);
+                const floorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.3 });
+                const floor = new THREE.Mesh(floorGeo, floorMat);
+                floor.position.y = -1;
+                floor.receiveShadow = true;
+                scene.add(floor);
+
+                for (let i = 0; i < 16; i++) {
+                    const bw = 6 + Math.random() * 8;
+                    const bh = 15 + Math.random() * 25;
+                    const bd = 6 + Math.random() * 8;
+                    const bGeo = new THREE.BoxGeometry(bw, bh, bd);
+                    const bMat = new THREE.MeshStandardMaterial({ 
+                        color: Math.random() > 0.5 ? 0x0f172a : 0x050914,
+                        roughness: 0.8
+                    });
+                    const building = new THREE.Mesh(bGeo, bMat);
+                    const angle = (i / 16) * Math.PI * 2;
+                    const dist = 32 + Math.random() * 10;
+                    building.position.set(Math.cos(angle) * dist, bh / 2 - 10, Math.sin(angle) * dist);
+                    scene.add(building);
+
+                    const lightColor = i % 2 === 0 ? 0x39ff14 : 0x00e5ff;
+                    const lightPoint = new THREE.PointLight(lightColor, 0.8, 15);
+                    lightPoint.position.set(building.position.x, building.position.y + 5, building.position.z);
+                    scene.add(lightPoint);
+                }
+
+                createRain();
+
+            } else if (stageType === 'statues') {
+                scene.background = new THREE.Color(0x0a0f1d);
+                scene.fog = new THREE.FogExp2(0x0a0f1d, 0.02);
+
+                const floorGeo = new THREE.BoxGeometry(45, 2, 45);
+                const floorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.5 });
+                const floor = new THREE.Mesh(floorGeo, floorMat);
+                floor.position.y = -1;
+                floor.receiveShadow = true;
+                scene.add(floor);
+
+                const monumentGroup = new THREE.Group();
+                const mBase = new THREE.Mesh(new THREE.BoxGeometry(6, 1.8, 6), new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 }));
+                mBase.position.y = 0.9;
+                monumentGroup.add(mBase);
+
+                const mBody = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.4, 4.5, 8), new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.95 }));
+                mBody.position.y = 3.6;
+                monumentGroup.add(mBody);
+
+                const mHead = new THREE.Mesh(new THREE.SphereGeometry(1.3, 12, 12), new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.9 }));
+                mHead.position.y = 6.2;
+                monumentGroup.add(mHead);
+
+                monumentGroup.position.set(0, 0, -6);
+                scene.add(monumentGroup);
+
+                const dummyPositions = [
+                    { x: -11, z: -11 }, { x: 11, z: -11 },
+                    { x: -11, z: 11 }, { x: 11, z: 11 }
+                ];
+                dummyPositions.forEach(pos => {
+                    const dGroup = new THREE.Group();
+                    const dMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 2.6, 8), new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.8 }));
+                    dMesh.position.y = 1.3;
+                    dGroup.add(dMesh);
+                    dGroup.position.set(pos.x, 0, pos.z);
+                    scene.add(dGroup);
+                });
+
+                createRain();
+
+            } else { // Sewer Stage
+                scene.background = new THREE.Color(0x040d07);
+                scene.fog = new THREE.FogExp2(0x040d07, 0.04);
+
+                const floorGeo = new THREE.BoxGeometry(36, 2, 36);
+                const floorMat = new THREE.MeshStandardMaterial({ color: 0x0f1f14, roughness: 0.9 });
+                const floor = new THREE.Mesh(floorGeo, floorMat);
+                floor.position.y = -1;
+                scene.add(floor);
+
+                const slimeGeo = new THREE.PlaneGeometry(36, 36);
+                const slimeMat = new THREE.MeshBasicMaterial({ color: 0x39ff14, transparent: true, opacity: 0.25 });
+                const slime = new THREE.Mesh(slimeGeo, slimeMat);
+                slime.rotation.x = -Math.PI / 2;
+                slime.position.y = 0.05;
+                scene.add(slime);
+
+                for (let z = -15; z <= 15; z += 10) {
+                    const pipeGeo = new THREE.TorusGeometry(12, 1.2, 8, 24, Math.PI);
+                    const pipeMat = new THREE.MeshStandardMaterial({ color: 0x1c2b1e, roughness: 0.7 });
+                    const pipe = new THREE.Mesh(pipeGeo, pipeMat);
+                    pipe.position.set(0, 0, z);
+                    scene.add(pipe);
+                }
+            }
+        }
+
+        // --- Rain Particle System ---
+        function createRain() {
+            rainParticles = [];
+            const rainGeo = new THREE.BufferGeometry();
+            const count = 400;
+            const pos = new Float32Array(count * 3);
+
+            for (let i = 0; i < count * 3; i += 3) {
+                pos[i] = (Math.random() - 0.5) * 60;
+                pos[i+1] = Math.random() * 30;
+                pos[i+2] = (Math.random() - 0.5) * 60;
+            }
+
+            rainGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const rainMat = new THREE.PointsMaterial({ color: 0x7dd3fc, size: 0.15, transparent: true, opacity: 0.6 });
+            const rainPoints = new THREE.Points(rainGeo, rainMat);
+            scene.add(rainPoints);
+            rainParticles.push(rainPoints);
+        }
+
+        function updateRain() {
+            if (!rainParticles.length) return;
+            const points = rainParticles[0];
+            const pos = points.geometry.attributes.position.array;
+            for (let i = 1; i < pos.length; i += 3) {
+                pos[i] -= 0.6;
+                if (pos[i] < 0) pos[i] = 30;
+            }
+            points.geometry.attributes.position.needsUpdate = true;
+        }
+
+        // --- 3D Character Mesh Generator ---
+        function createTurtleMesh(charKey) {
+            const config = CHAR_CONFIGS[charKey];
+            const group = new THREE.Group();
+
+            const torsoGeo = new THREE.CylinderGeometry(0.7, 0.6, 1.4, 8);
+            const torsoMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.5 });
+            const torso = new THREE.Mesh(torsoGeo, torsoMat);
+            torso.position.y = 1.1;
+            torso.castShadow = true;
+            group.add(torso);
+
+            const shellGeo = new THREE.SphereGeometry(0.75, 8, 8);
+            const shellMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.7 });
+            const shell = new THREE.Mesh(shellGeo, shellMat);
+            shell.position.set(0, 1.1, -0.2);
+            shell.scale.set(0.9, 1.1, 0.5);
+            group.add(shell);
+
+            const headGeo = new THREE.SphereGeometry(0.5, 12, 12);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.4 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 2.0;
+            head.castShadow = true;
+            group.add(head);
+
+            const bandGeo = new THREE.TorusGeometry(0.51, 0.08, 8, 16);
+            const bandMat = new THREE.MeshBasicMaterial({ color: config.color });
+            const bandana = new THREE.Mesh(bandGeo, bandMat);
+            bandana.rotation.x = Math.PI / 2;
+            bandana.position.y = 2.05;
+            group.add(bandana);
+
+            const weaponGroup = new THREE.Group();
+            if (config.weapon === 'katana') {
+                const bladeGeo = new THREE.BoxGeometry(0.06, 1.6, 0.06);
+                const bladeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9, roughness: 0.2 });
+                const blade = new THREE.Mesh(bladeGeo, bladeMat);
+                blade.position.set(0.7, 1.2, 0.4);
+                blade.rotation.x = Math.PI / 4;
+                weaponGroup.add(blade);
+            } else if (config.weapon === 'sai') {
+                const saiGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.9, 8);
+                const saiMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.9 });
+                const sai = new THREE.Mesh(saiGeo, saiMat);
+                sai.position.set(0.6, 1.1, 0.3);
+                weaponGroup.add(sai);
+            } else if (config.weapon === 'staff') {
+                const staffGeo = new THREE.CylinderGeometry(0.05, 0.05, 2.4, 8);
+                const staffMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
+                const staff = new THREE.Mesh(staffGeo, staffMat);
+                staff.position.set(0.6, 1.2, 0);
+                staff.rotation.z = -Math.PI / 4;
+                weaponGroup.add(staff);
+            } else {
+                const maceGeo = new THREE.SphereGeometry(0.2, 8, 8);
+                const maceMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8 });
+                const mace = new THREE.Mesh(maceGeo, maceMat);
+                mace.position.set(0.6, 1.1, 0.3);
+                weaponGroup.add(mace);
+            }
+
+            group.add(weaponGroup);
+            weaponMesh = weaponGroup;
+            return group;
+        }
+
+        function createEnemyMesh(type) {
+            const group = new THREE.Group();
+
+            if (type === 'shredder') {
+                const bodyGeo = new THREE.CylinderGeometry(0.8, 0.7, 1.8, 8);
+                const bodyMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.9, roughness: 0.3 });
+                const body = new THREE.Mesh(bodyGeo, bodyMat);
+                body.position.y = 1.3;
+                body.castShadow = true;
+                group.add(body);
+
+                const capeGeo = new THREE.BoxGeometry(1.6, 2.0, 0.1);
+                const capeMat = new THREE.MeshStandardMaterial({ color: 0x6b21a8, roughness: 0.8 });
+                const cape = new THREE.Mesh(capeGeo, capeMat);
+                cape.position.set(0, 1.2, -0.45);
+                group.add(cape);
+
+                const clawGeo = new THREE.BoxGeometry(0.04, 0.8, 0.04);
+                const clawMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.95 });
+                const claw1 = new THREE.Mesh(clawGeo, clawMat);
+                claw1.position.set(0.7, 1.2, 0.3);
+                group.add(claw1);
+
+                group.scale.set(1.3, 1.3, 1.3);
+
+            } else {
+                const bodyGeo = new THREE.CylinderGeometry(0.55, 0.45, 1.4, 8);
+                const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1e1b4b, roughness: 0.6 });
+                const body = new THREE.Mesh(bodyGeo, bodyMat);
+                body.position.y = 1.1;
+                body.castShadow = true;
+                group.add(body);
+
+                const headGeo = new THREE.SphereGeometry(0.4, 8, 8);
+                const headMat = new THREE.MeshStandardMaterial({ color: 0x020617 });
+                const head = new THREE.Mesh(headGeo, headMat);
+                head.position.y = 1.9;
+                group.add(head);
+
+                const eyeGeo = new THREE.BoxGeometry(0.3, 0.08, 0.1);
+                const eyeMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+                const eyes = new THREE.Mesh(eyeGeo, eyeMat);
+                eyes.position.set(0, 1.92, 0.35);
+                group.add(eyes);
+            }
+
+            return group;
+        }
+
+        function spawnWaveEnemies() {
+            enemies.forEach(e => scene.remove(e.mesh));
+            enemies = [];
+
+            if (state.stageKey === 'statues') {
+                document.getElementById('hud-wave-text').innerText = '🗿 מצב סיור חופשי ואימון (בלי אויבים)';
+                return;
+            }
+
+            const isShredderStage = state.stageKey === 'shredder' || state.wave === state.maxWave;
+            const count = isShredderStage ? 1 : 2 + state.wave * 2;
+
+            for (let i = 0; i < count; i++) {
+                const type = (isShredderStage && i === 0) ? 'shredder' : 'foot';
+                const mesh = createEnemyMesh(type);
+                
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 8 + Math.random() * 8;
+                mesh.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+                scene.add(mesh);
+
+                enemies.push({
+                    mesh,
+                    type,
+                    hp: type === 'shredder' ? 350 : 50,
+                    maxHp: type === 'shredder' ? 350 : 50,
+                    speed: type === 'shredder' ? 0.08 : 0.06 + Math.random() * 0.03,
+                    attackCooldown: 0
+                });
+            }
+
+            document.getElementById('hud-wave-text').innerText = isShredderStage 
+                ? 'גל בוס: קרב מול שרדר!' 
+                : `גל ${state.wave} מתוך ${state.maxWave}`;
+        }
+
+        function spawnPizza(x, z) {
+            const group = new THREE.Group();
+            const geo = new THREE.CylinderGeometry(0.6, 0.6, 0.1, 3);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+            const slice = new THREE.Mesh(geo, mat);
+            group.add(slice);
+            group.position.set(x, 0.3, z);
+            scene.add(group);
+
+            pizzaPickups.push({ mesh: group, x, z });
+        }
+
+        function triggerAttack(isHeavy = false) {
+            if (!state.playing || !playerMesh) return;
+            sfx.init();
+            sfx.playSlash();
+
+            if (weaponMesh) {
+                weaponMesh.rotation.y += Math.PI * (isHeavy ? 1.5 : 0.8);
+            }
+
+            const range = isHeavy ? 3.2 : 2.4;
+            const pPos = playerMesh.position;
+
+            enemies.forEach(enemy => {
+                const dist = pPos.distanceTo(enemy.mesh.position);
+                if (dist < range) {
+                    const damage = isHeavy ? 30 : 15;
+                    enemy.hp -= damage;
+                    sfx.playHit();
+                    createHitSparks(enemy.mesh.position);
+                    registerCombo();
+
+                    const dir = enemy.mesh.position.clone().sub(pPos).normalize();
+                    enemy.mesh.position.add(dir.multiplyScalar(0.8));
+
+                    if (enemy.hp <= 0) {
+                        scene.remove(enemy.mesh);
+                        if (Math.random() > 0.4) spawnPizza(enemy.mesh.position.x, enemy.mesh.position.z);
+                    }
+                }
+            });
+
+            enemies = enemies.filter(e => e.hp > 0);
+
+            if (enemies.length === 0 && state.stageKey !== 'statues') {
+                if (state.wave < state.maxWave && state.stageKey !== 'shredder') {
+                    state.wave++;
+                    setTimeout(spawnWaveEnemies, 1000);
+                } else {
+                    showEndScreen(true);
+                }
+            }
+        }
+
+        function triggerSpecial() {
+            if (!state.playing || state.energy < 100) return;
+            sfx.init();
+            sfx.playSpecial();
+
+            state.energy = 0;
+            updateHudBars();
+
+            createSpecialShockwave(playerMesh.position);
+
+            enemies.forEach(enemy => {
+                enemy.hp -= 80;
+                createHitSparks(enemy.mesh.position);
+                if (enemy.hp <= 0) scene.remove(enemy.mesh);
+            });
+
+            enemies = enemies.filter(e => e.hp > 0);
+            registerCombo(5);
+
+            if (enemies.length === 0 && state.stageKey !== 'statues') showEndScreen(true);
+        }
+
+        function registerCombo(hits = 1) {
+            state.combo += hits;
+            state.energy = Math.min(100, state.energy + hits * 12);
+            updateHudBars();
+
+            const comboEl = document.getElementById('combo-display');
+            comboEl.innerText = `${state.combo}x קומבו!`;
+            comboEl.classList.add('show');
+
+            clearTimeout(state.comboTimer);
+            state.comboTimer = setTimeout(() => {
+                state.combo = 0;
+                comboEl.classList.remove('show');
+            }, 2500);
+        }
+
+        function createHitSparks(pos) {
+            for (let i = 0; i < 8; i++) {
+                const geo = new THREE.SphereGeometry(0.08, 4, 4);
+                const mat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+                const p = new THREE.Mesh(geo, mat);
+                p.position.copy(pos);
+                p.position.y += 1.0;
+                scene.add(p);
+
+                particles.push({
+                    mesh: p,
+                    vel: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.3,
+                        Math.random() * 0.3,
+                        (Math.random() - 0.5) * 0.3
+                    ),
+                    life: 1.0
+                });
+            }
+        }
+
+        function createSpecialShockwave(pos) {
+            const ringGeo = new THREE.RingGeometry(0.5, 4.5, 24);
+            const ringMat = new THREE.MeshBasicMaterial({ color: CHAR_CONFIGS[state.charKey].color, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = -Math.PI / 2;
+            ring.position.copy(pos);
+            ring.position.y = 0.2;
+            scene.add(ring);
+
+            particles.push({
+                mesh: ring,
+                isRing: true,
+                life: 1.0
+            });
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.life -= 0.05;
+                if (p.isRing) {
+                    p.mesh.scale.multiplyScalar(1.08);
+                    p.mesh.material.opacity = p.life;
+                } else {
+                    p.mesh.position.add(p.vel);
+                }
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function updatePlayerMovement() {
+            if (!state.playing || !playerMesh) return;
+            const config = CHAR_CONFIGS[state.charKey];
+            let dx = 0, dz = 0;
+
+            if (state.keys['KeyW'] || state.keys['ArrowUp']) dz -= 1;
+            if (state.keys['KeyS'] || state.keys['ArrowDown']) dz += 1;
+            if (state.keys['KeyA'] || state.keys['ArrowLeft']) dx -= 1;
+            if (state.keys['KeyD'] || state.keys['ArrowRight']) dx += 1;
+
+            if (state.touchDir.x !== 0 || state.touchDir.y !== 0) {
+                dx = state.touchDir.x;
+                dz = state.touchDir.y;
+            }
+
+            if (dx !== 0 || dz !== 0) {
+                const len = Math.sqrt(dx * dx + dz * dz);
+                dx /= len;
+                dz /= len;
+
+                playerMesh.position.x += dx * config.speed * 1.5;
+                playerMesh.position.z += dz * config.speed * 1.5;
+
+                playerMesh.position.x = Math.max(-17, Math.min(17, playerMesh.position.x));
+                playerMesh.position.z = Math.max(-17, Math.min(17, playerMesh.position.z));
+
+                const angle = Math.atan2(dx, dz);
+                playerMesh.rotation.y = angle;
+            }
+
+            camera.position.x = THREE.MathUtils.lerp(camera.position.x, playerMesh.position.x, 0.08);
+            camera.position.z = THREE.MathUtils.lerp(camera.position.z, playerMesh.position.z + 16, 0.08);
+            camera.lookAt(playerMesh.position.x, 1.2, playerMesh.position.z);
+        }
+
+        function updateEnemyAI() {
+            if (!state.playing || !playerMesh) return;
+
+            enemies.forEach(enemy => {
+                const dir = playerMesh.position.clone().sub(enemy.mesh.position);
+                const dist = dir.length();
+
+                enemy.mesh.rotation.y = Math.atan2(dir.x, dir.z);
+
+                if (dist > 1.8) {
+                    dir.normalize();
+                    enemy.mesh.position.add(dir.multiplyScalar(enemy.speed));
+                } else {
+                    enemy.attackCooldown += 0.02;
+                    if (enemy.attackCooldown > 1.0) {
+                        enemy.attackCooldown = 0;
+                        const damage = enemy.type === 'shredder' ? 22 : 10;
+                        state.playerHp = Math.max(0, state.playerHp - damage);
+                        sfx.playHit();
+                        updateHudBars();
+
+                        if (state.playerHp <= 0) {
+                            showEndScreen(false);
+                        }
+                    }
+                }
+            });
+        }
+
+        function checkPizzaPickups() {
+            if (!playerMesh) return;
+            for (let i = pizzaPickups.length - 1; i >= 0; i--) {
+                const pizza = pizzaPickups[i];
+                if (playerMesh.position.distanceTo(pizza.mesh.position) < 1.8) {
+                    state.playerHp = Math.min(state.playerMaxHp, state.playerHp + 30);
+                    updateHudBars();
+                    sfx.playPizza();
+                    scene.remove(pizza.mesh);
+                    pizzaPickups.splice(i, 1);
+                }
+            }
+        }
+
+        function updateHudBars() {
+            const hpPct = (state.playerHp / state.playerMaxHp) * 100;
+            document.getElementById('hp-bar').style.width = `${hpPct}%`;
+            document.getElementById('hp-val').innerText = `${Math.ceil(state.playerHp)}/${state.playerMaxHp}`;
+
+            document.getElementById('sp-bar').style.width = `${state.energy}%`;
+            document.getElementById('sp-val').innerText = `${Math.floor(state.energy)}%`;
+        }
+
+        function showEndScreen(isWin) {
+            state.playing = false;
+            document.getElementById('hud-container').classList.add('hidden');
+            const endScreen = document.getElementById('end-screen');
+            endScreen.classList.remove('hidden');
+
+            const title = document.getElementById('end-title');
+            const desc = document.getElementById('end-desc');
+
+            if (isWin) {
+                title.innerText = 'ניצחון אדיר!';
+                title.style.color = 'var(--tmnt-green)';
+                desc.innerText = 'הבסת את כוחות ה-Foot Clan ושרדר והצלת את ניו יורק! קוואבנגה!';
+            } else {
+                title.innerText = '🗿 הפכת לפסל אבן! (Fail Statue)';
+                title.style.color = '#ef4444';
+                desc.innerText = 'שרדר והנינג\'ות הפכו את הצב שלך לפסל אבן קפוא! תפוס פיצה ונסה שוב!';
+                
+                if (playerMesh) {
+                    playerMesh.traverse(child => {
+                        if (child.isMesh) {
+                            child.material = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.95 });
+                        }
+                    });
+                    for (let i = 0; i < 15; i++) {
+                        const chunkGeo = new THREE.DodecahedronGeometry(0.2 + Math.random() * 0.25);
+                        const chunkMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.9 });
+                        const chunk = new THREE.Mesh(chunkGeo, chunkMat);
+                        chunk.position.copy(playerMesh.position);
+                        chunk.position.y += 0.5 + Math.random();
+                        scene.add(chunk);
+                        particles.push({
+                            mesh: chunk,
+                            vel: new THREE.Vector3((Math.random() - 0.5) * 0.2, Math.random() * 0.2, (Math.random() - 0.5) * 0.2),
+                            life: 2.0
+                        });
+                    }
+                }
+            }
+        }
+
+        function startGame() {
+            sfx.init();
+            const config = CHAR_CONFIGS[state.charKey];
+
+            state.playing = true;
+            state.playerHp = config.hp;
+            state.playerMaxHp = config.hp;
+            state.energy = 0;
+            state.combo = 0;
+            state.wave = 1;
+
+            document.getElementById('menu-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.add('hidden');
+            document.getElementById('hud-container').classList.remove('hidden');
+
+            document.getElementById('hud-avatar').innerText = config.icon;
+            document.getElementById('hud-avatar').style.borderColor = `rgb(${config.color >> 16}, ${(config.color >> 8) & 255}, ${config.color & 255})`;
+            document.getElementById('hud-stage-name').innerText = state.stageKey === 'rooftop' ? 'גגות ניו יורק' : (state.stageKey === 'statues' ? 'סיור חופשי ופסלים' : (state.stageKey === 'sewer' ? 'ביובי העיר' : 'קרב בוס שרדר'));
+
+            updateHudBars();
+
+            buildEnvironment(state.stageKey);
+
+            if (playerMesh) scene.remove(playerMesh);
+            playerMesh = createTurtleMesh(state.charKey);
+            playerMesh.position.set(0, 0, 0);
+            scene.add(playerMesh);
+
+            spawnWaveEnemies();
+        }
+
+        let lastGpButtons = {};
+
+        function pollGamepad() {
+            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+            const gp = gamepads[0] || gamepads[1];
+            if (!gp) return;
+
+            const deadzone = 0.18;
+            const ax = gp.axes[0] || 0;
+            const ay = gp.axes[1] || 0;
+
+            if (Math.abs(ax) > deadzone || Math.abs(ay) > deadzone) {
+                state.touchDir.x = ax;
+                state.touchDir.y = ay;
+            } else if (!state.keys['TouchActive']) {
+                state.touchDir.x = 0;
+                state.touchDir.y = 0;
+            }
+
+            const btnCross = gp.buttons[0] && gp.buttons[0].pressed;
+            const btnCircle = gp.buttons[1] && gp.buttons[1].pressed;
+            const btnSquare = gp.buttons[2] && gp.buttons[2].pressed;
+            const btnStart = gp.buttons[9] && gp.buttons[9].pressed;
+
+            if (btnCross && !lastGpButtons.cross) {
+                if (!state.playing) startGame();
+                else triggerAttack(false);
+            }
+            if (btnSquare && !lastGpButtons.square) {
+                if (state.playing) triggerAttack(true);
+            }
+            if (btnCircle && !lastGpButtons.circle) {
+                if (state.playing) triggerSpecial();
+            }
+            if (btnStart && !lastGpButtons.start) {
+                if (!state.playing) startGame();
+            }
+
+            lastGpButtons = { cross: btnCross, circle: btnCircle, square: btnSquare, start: btnStart };
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            pollGamepad();
+
+            if (state.playing) {
+                updatePlayerMovement();
+                updateEnemyAI();
+                updateParticles();
+                updateRain();
+                checkPizzaPickups();
+            }
+
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        window.addEventListener('keydown', e => {
+            state.keys[e.code] = true;
+            if (e.code === 'KeyJ') triggerAttack(false);
+            if (e.code === 'KeyK') triggerAttack(true);
+            if (e.code === 'KeyL') triggerSpecial();
+        });
+
+        window.addEventListener('keyup', e => {
+            state.keys[e.code] = false;
+        });
+
+        document.querySelectorAll('.char-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.char-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                state.charKey = card.dataset.char;
+            });
+        });
+
+        document.querySelectorAll('.stage-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.stage-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                state.stageKey = btn.dataset.stage;
+            });
+        });
+
+        document.getElementById('btn-start-game').addEventListener('click', startGame);
+        document.getElementById('btn-restart').addEventListener('click', startGame);
+
+        document.getElementById('m-btn-attack').addEventListener('click', () => triggerAttack(false));
+        document.getElementById('m-btn-heavy').addEventListener('click', () => triggerAttack(true));
+        document.getElementById('m-btn-special').addEventListener('click', triggerSpecial);
+
+        initThree();
+        animate();
+
+    </script>
+</body>
+</html>

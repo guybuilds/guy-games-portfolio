@@ -382,7 +382,7 @@
   <div class="hud">
     <section class="brand panel">
       <h1>זירת ספינפיניטי</h1>
-      <p>החליקו בזירה, אספו ניצוצות ושמרו על קומבו חי. אין הפסד, רק סיבובים גדולים יותר.</p>
+      <p>חקרו זירה פתוחה וענקית, אספו ניצוצות, הפעילו כוחות מיוחדים ושמרו על קומבו חי. אין הפסד, רק סיבובים גדולים יותר.</p>
     </section>
 
     <section class="meters panel">
@@ -392,6 +392,7 @@
       <div class="readout"><span>ניצוצות</span><strong id="sparkText">0</strong></div>
       <div class="bar"><span id="sparkBar"></span></div>
       <div class="readout"><span>קצב</span><strong id="flowText">רגוע</strong></div>
+      <div class="readout"><span>כוח</span><strong id="powerText">מוכן</strong></div>
       <div class="readout"><span>שיא</span><strong id="bestText">0</strong></div>
     </section>
 
@@ -401,10 +402,14 @@
       <span class="chip"><b>WASD / חצים</b> תנועה</span>
       <span class="chip"><b>סטיק שמאלי</b> תנועה</span>
       <span class="chip"><b>Space</b> דש</span>
-      <span class="chip"><b>A בשלט</b> דש / התחלה</span>
+      <span class="chip"><b>❌ Cross בשלט</b> דש / התחלה</span>
       <span class="chip"><b>E</b> פולס</span>
-      <span class="chip"><b>X בשלט</b> פולס</span>
+      <span class="chip"><b>⬜ Square בשלט</b> פולס</span>
+      <span class="chip"><b>C</b> כוח מיוחד</span>
+      <span class="chip"><b>🔵 Circle בשלט</b> כוח מיוחד</span>
       <span class="chip"><b>ניצוצות</b> מעלים קומבו</span>
+      <span class="chip"><b>פסולת בזירה</b> נשברת לניקוד</span>
+      <span class="chip"><b>רמפות זוהרות</b> קפיצה + בוסט מהירות</span>
       <span class="chip"><b>בלי פסילה</b> התאוששות אוטומטית</span>
     </section>
   </div>
@@ -414,11 +419,12 @@
   <div class="start" id="start">
     <section class="start-card panel">
       <h2>זירת ספינפיניטי</h2>
-      <p>בחרו סביבון וצאו לזירת צעצועים עם מסילות, שערי האצה, יריבים ידידותיים וסופות ניצוצות. האנרגיה תמיד חוזרת, אז המשחק הוא על סטייל, מהירות וקומבואים ענקיים.</p>
+      <p>בחרו סביבון וצאו לזירה פתוחה וענקית עם מסילות, שערי האצה, רמפות זוהרות לקפיצה, שני יריבים ידידותיים, פסולת נשברת, סופות ניצוצות וכוח מיוחד ייחודי לכל סביבון (C / 🔵 Circle בשלט). האנרגיה תמיד חוזרת, אז המשחק הוא על סטייל, מהירות וקומבואים ענקיים. תמיכה מלאה בשלט פלייסטיישן וצליל.</p>
       <div class="loadout" id="loadout"></div>
       <div class="actions">
         <button class="action" id="playBtn">שיגור</button>
         <button class="action secondary" id="shuffleBtn">ערבב זירה</button>
+        <button class="action secondary" id="muteBtn">🔊 צליל</button>
       </div>
     </section>
   </div>
@@ -430,18 +436,194 @@
     const loadoutEl = document.getElementById("loadout");
     const playBtn = document.getElementById("playBtn");
     const shuffleBtn = document.getElementById("shuffleBtn");
+    const muteBtn = document.getElementById("muteBtn");
     const comboText = document.getElementById("comboText");
     const padText = document.getElementById("padText");
     const comboBar = document.getElementById("comboBar");
     const sparkText = document.getElementById("sparkText");
     const sparkBar = document.getElementById("sparkBar");
     const flowText = document.getElementById("flowText");
+    const powerText = document.getElementById("powerText");
     const bestText = document.getElementById("bestText");
     const toast = document.getElementById("toast");
     const stick = document.getElementById("stick");
 
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.master = null;
+        this.enabled = true;
+        this.melodyTimer = null;
+        this.melodyStep = 0;
+        this.noiseBuffer = null;
+      }
+
+      init() {
+        let justCreated = false;
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioCtx();
+          this.buildNoiseBuffer();
+          const compressor = this.ctx.createDynamicsCompressor();
+          compressor.threshold.value = -18;
+          compressor.knee.value = 24;
+          compressor.ratio.value = 8;
+          compressor.attack.value = 0.002;
+          compressor.release.value = 0.2;
+          compressor.connect(this.ctx.destination);
+          this.master = this.ctx.createGain();
+          this.master.gain.value = 0.9;
+          this.master.connect(compressor);
+          justCreated = true;
+        }
+        if (this.ctx && this.ctx.state === "suspended") {
+          this.ctx.resume().then(() => {
+            if (justCreated) this.chord([660, 880, 1320], "sine", 0.18, 0.18, 60);
+          });
+        } else if (justCreated) {
+          this.chord([660, 880, 1320], "sine", 0.18, 0.18, 60);
+        }
+        if (!this.melodyTimer) this.startMelody();
+      }
+
+      buildNoiseBuffer() {
+        const len = this.ctx.sampleRate * 0.5;
+        const buffer = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < len; i += 1) data[i] = Math.random() * 2 - 1;
+        this.noiseBuffer = buffer;
+      }
+
+      tone(freq, type, duration, gainVal, opts) {
+        if (!this.enabled || !this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          if (opts && opts.slideTo) {
+            osc.frequency.exponentialRampToValueAtTime(opts.slideTo, this.ctx.currentTime + duration);
+          }
+          gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(this.master);
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch (error) {}
+      }
+
+      noiseBurst(duration, gainVal, filterFreq, filterType) {
+        if (!this.enabled || !this.ctx || !this.noiseBuffer) return;
+        try {
+          const src = this.ctx.createBufferSource();
+          src.buffer = this.noiseBuffer;
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = filterType || "bandpass";
+          filter.frequency.setValueAtTime(filterFreq, this.ctx.currentTime);
+          filter.frequency.exponentialRampToValueAtTime(Math.max(80, filterFreq * 0.25), this.ctx.currentTime + duration);
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+          src.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.master);
+          src.start();
+          src.stop(this.ctx.currentTime + duration);
+        } catch (error) {}
+      }
+
+      chord(freqs, type, duration, gainVal, delayStep) {
+        freqs.forEach((freq, i) => {
+          setTimeout(() => this.tone(freq, type, duration, gainVal), (delayStep || 0) * i);
+        });
+      }
+
+      playDash() {
+        this.tone(240, "sawtooth", 0.18, 0.32, { slideTo: 780 });
+        this.tone(120, "square", 0.14, 0.18, { slideTo: 340 });
+        this.noiseBurst(0.14, 0.18, 2400);
+      }
+
+      playPulse() {
+        this.tone(65, "square", 0.36, 0.4, { slideTo: 240 });
+        this.tone(520, "sine", 0.2, 0.14, { slideTo: 120 });
+        this.noiseBurst(0.34, 0.26, 800);
+      }
+
+      playSpark() {
+        this.tone(1046, "sine", 0.08, 0.24);
+        this.tone(1568, "sine", 0.12, 0.16);
+        this.tone(2093, "triangle", 0.14, 0.08);
+      }
+
+      playSmash() {
+        this.noiseBurst(0.34, 0.5, 1600);
+        this.tone(85, "sawtooth", 0.28, 0.4, { slideTo: 35 });
+        this.tone(180, "square", 0.16, 0.2, { slideTo: 60 });
+      }
+
+      playHit() {
+        this.tone(340, "triangle", 0.12, 0.3);
+        this.tone(680, "square", 0.06, 0.14);
+        this.noiseBurst(0.1, 0.2, 2600);
+      }
+
+      playPower() {
+        this.chord([220, 330, 440, 660], "square", 0.3, 0.26, 45);
+        this.tone(880, "sawtooth", 0.4, 0.2, { slideTo: 1760 });
+        this.noiseBurst(0.28, 0.24, 3200);
+        setTimeout(() => this.noiseBurst(0.2, 0.16, 1200), 120);
+      }
+
+      playWallBump() {
+        this.tone(180, "triangle", 0.09, 0.14, { slideTo: 90 });
+        this.noiseBurst(0.06, 0.08, 1800);
+      }
+
+      playGate() {
+        this.tone(660, "sawtooth", 0.14, 0.2, { slideTo: 1320 });
+      }
+
+      playRamp() {
+        this.tone(200, "square", 0.16, 0.26, { slideTo: 60 });
+        this.tone(500, "sawtooth", 0.22, 0.2, { slideTo: 1400 });
+        this.noiseBurst(0.16, 0.14, 2000);
+      }
+
+      playLaunch() {
+        this.tone(440, "square", 0.12, 0.3);
+        setTimeout(() => this.tone(660, "square", 0.14, 0.3), 90);
+        setTimeout(() => this.tone(990, "square", 0.16, 0.3), 180);
+        setTimeout(() => this.chord([660, 880, 1320], "square", 0.3, 0.22, 0), 270);
+      }
+
+      startMelody() {
+        const lead = [392, 440, 523, 440, 587, 523, 440, 392];
+        const bass = [98, 98, 131, 98, 147, 131, 110, 98];
+        const step = () => {
+          if (this.enabled && this.ctx) {
+            this.tone(lead[this.melodyStep % lead.length], "triangle", 0.42, 0.09);
+            this.tone(bass[this.melodyStep % bass.length], "sine", 0.5, 0.12);
+          }
+          this.melodyStep += 1;
+          this.melodyTimer = setTimeout(step, 560);
+        };
+        step();
+      }
+    }
+
+    const sounds = new SoundEngine();
+
+    function tryUnlockAudio() {
+      sounds.init();
+    }
+    ["pointerdown", "keydown", "touchstart"].forEach((evt) => {
+      window.addEventListener(evt, tryUnlockAudio, { once: false, passive: true });
+    });
+
     const TAU = Math.PI * 2;
-    const WORLD = { w: 2600, h: 1900 };
+    const WORLD = { w: 5200, h: 3800 };
     const keys = new Set();
     const palette = {
       floorA: "#1a3340",
@@ -457,6 +639,13 @@
     let toastTimer = 0;
     let arenaSeed = 1;
     let best = readBest();
+    let hitStop = 0;
+    const flashes = [];
+    const popups = [];
+
+    function popupText(x, y, text, color) {
+      popups.push({ x, y, text, color, life: 1, vy: -95 });
+    }
 
     const camera = { x: WORLD.w / 2, y: WORLD.h / 2, shake: 0, scale: 1 };
     const pointer = { active: false, id: null, sx: 0, sy: 0, x: 0, y: 0, vx: 0, vy: 0 };
@@ -472,7 +661,8 @@
       prevLB: false,
       prevRB: false,
       prevLeft: false,
-      prevRight: false
+      prevRight: false,
+      prevCircle: false
     };
 
     const spinners = [
@@ -483,7 +673,9 @@
         ring: "#62e8ff",
         accent: "#ffd45a",
         dash: 1.22,
-        pulse: 0.95
+        pulse: 0.95,
+        powerKind: "nitro",
+        powerName: "כוח: הצתת נובה (מהירות על)"
       },
       {
         name: "כתר להבה",
@@ -492,7 +684,9 @@
         ring: "#ff6b5e",
         accent: "#ffd45a",
         dash: 1,
-        pulse: 1.18
+        pulse: 1.18,
+        powerKind: "firestorm",
+        powerName: "כוח: סופת אש (מכפיל ניקוד)"
       },
       {
         name: "פנטום מנטה",
@@ -501,39 +695,56 @@
         ring: "#8cff9e",
         accent: "#62e8ff",
         dash: 1.05,
-        pulse: 1.05
+        pulse: 1.05,
+        powerKind: "warp",
+        powerName: "כוח: קפיצת פאנטום (טלפורט + מגנט)"
       }
     ];
 
     const player = makeTop(WORLD.w / 2, WORLD.h / 2, 34, spinners[0], "player");
     const rivals = [
-      makeTop(760, 580, 30, { name: "ספרייט לופ", colors: ["#f8fbff", "#ff5aa8", "#ffd45a", "#6b1c5c"], ring: "#ff5aa8", accent: "#ffd45a" }, "rival"),
-      makeTop(1870, 510, 30, { name: "גולש מסילות", colors: ["#f8fbff", "#62e8ff", "#5a7cff", "#1e275f"], ring: "#62e8ff", accent: "#5a7cff" }, "rival"),
-      makeTop(1740, 1370, 30, { name: "מלך הגן", colors: ["#f8fbff", "#8cff9e", "#ffd45a", "#155737"], ring: "#8cff9e", accent: "#ffd45a" }, "rival")
+      makeTop(1520, 1160, 30, { name: "ספרייט לופ", colors: ["#f8fbff", "#ff5aa8", "#ffd45a", "#6b1c5c"], ring: "#ff5aa8", accent: "#ffd45a" }, "rival"),
+      makeTop(3740, 1020, 30, { name: "גולש מסילות", colors: ["#f8fbff", "#62e8ff", "#5a7cff", "#1e275f"], ring: "#62e8ff", accent: "#5a7cff" }, "rival")
     ];
 
     const sparks = [];
     const burstBits = [];
     const gates = [];
+    const debris = [];
+    const ramps = [];
     const bumpers = [
-      { x: 610, y: 430, r: 54, color: "#ff5aa8" },
-      { x: 2040, y: 500, r: 56, color: "#62e8ff" },
-      { x: 2140, y: 1350, r: 62, color: "#8cff9e" },
-      { x: 550, y: 1360, r: 58, color: "#ffd45a" },
-      { x: 1300, y: 320, r: 46, color: "#ff6b5e" },
-      { x: 1300, y: 1580, r: 46, color: "#5a7cff" }
+      { x: 1220, y: 860, r: 54, color: "#ff5aa8" },
+      { x: 4080, y: 1000, r: 56, color: "#62e8ff" },
+      { x: 4280, y: 2700, r: 62, color: "#8cff9e" },
+      { x: 1100, y: 2720, r: 58, color: "#ffd45a" },
+      { x: 2600, y: 640, r: 46, color: "#ff6b5e" },
+      { x: 2600, y: 3160, r: 46, color: "#5a7cff" },
+      { x: 380, y: 1900, r: 50, color: "#ffd45a" },
+      { x: 4820, y: 1900, r: 50, color: "#62e8ff" }
     ];
     const rails = [
-      { x: 1300, y: 950, r: 460, color: "rgba(255,212,90,0.35)" },
-      { x: 1300, y: 950, r: 710, color: "rgba(98,232,255,0.22)" }
+      { x: 2600, y: 1900, r: 920, color: "rgba(255,212,90,0.35)" },
+      { x: 2600, y: 1900, r: 1420, color: "rgba(98,232,255,0.22)" }
     ];
 
     function makeTop(x, y, radius, def, kind) {
       return {
         x, y, vx: 0, vy: 0, radius, def, kind,
         angle: 0, spin: 0, stamina: 1, dash: 1, pulse: 0,
-        combo: 1, score: 0, invibe: 0, trail: [], aiTimer: 0, tx: x, ty: y
+        combo: 1, score: 0, invibe: 0, trail: [], aiTimer: 0, tx: x, ty: y,
+        powerCooldown: 0, nitroTimer: 0, multiplierTimer: 0,
+        impactTimer: 0, impactMax: 0.001, impactAmount: 0, rampTimer: 0
       };
+    }
+
+    function punch(top, amount, duration) {
+      top.impactTimer = duration;
+      top.impactMax = duration;
+      top.impactAmount = amount;
+    }
+
+    function flashScreen(color, alpha, duration) {
+      flashes.push({ color, alpha, duration, t: duration });
     }
 
     function rand(seed) {
@@ -544,23 +755,65 @@
     function resetArena() {
       sparks.length = 0;
       gates.length = 0;
-      for (let i = 0; i < 75; i += 1) {
+      debris.length = 0;
+      ramps.length = 0;
+      for (let i = 0; i < 150; i += 1) {
         const a = rand(arenaSeed + i * 3) * TAU;
-        const ring = 250 + rand(arenaSeed + i * 5) * 620;
-        const wobble = Math.sin(i * 1.7) * 72;
+        const ring = 250 + rand(arenaSeed + i * 5) * 1650;
+        const wobble = Math.sin(i * 1.7) * 140;
         addSpark(WORLD.w / 2 + Math.cos(a) * (ring + wobble), WORLD.h / 2 + Math.sin(a) * ring, false);
       }
-      for (let i = 0; i < 7; i += 1) {
-        const a = i * TAU / 7 + rand(arenaSeed + i) * 0.28;
+      for (let i = 0; i < 11; i += 1) {
+        const a = i * TAU / 11 + rand(arenaSeed + i) * 0.28;
         gates.push({
-          x: WORLD.w / 2 + Math.cos(a) * (430 + rand(arenaSeed + i * 8) * 340),
-          y: WORLD.h / 2 + Math.sin(a) * (330 + rand(arenaSeed + i * 9) * 260),
+          x: WORLD.w / 2 + Math.cos(a) * (430 + rand(arenaSeed + i * 8) * 1300),
+          y: WORLD.h / 2 + Math.sin(a) * (330 + rand(arenaSeed + i * 9) * 1000),
           a,
           w: 190,
           h: 50,
           color: i % 3 === 0 ? "#62e8ff" : i % 3 === 1 ? "#ffd45a" : "#8cff9e"
         });
       }
+      for (let i = 0; i < 22; i += 1) spawnDebris(arenaSeed + i * 13);
+      for (let i = 0; i < 6; i += 1) {
+        const a = i * TAU / 6 + rand(arenaSeed + i * 51) * 0.4 + 0.3;
+        ramps.push({
+          x: WORLD.w / 2 + Math.cos(a) * (1150 + rand(arenaSeed + i * 61) * 900),
+          y: WORLD.h / 2 + Math.sin(a) * (900 + rand(arenaSeed + i * 71) * 700),
+          a,
+          w: 240,
+          h: 130,
+          color: i % 2 === 0 ? "#ff6b5e" : "#5a7cff"
+        });
+      }
+    }
+
+    function spawnDebris(seed) {
+      const a = rand(seed) * TAU;
+      const ring = 200 + rand(seed * 1.7) * 1900;
+      debris.push({
+        x: Math.max(120, Math.min(WORLD.w - 120, WORLD.w / 2 + Math.cos(a) * ring)),
+        y: Math.max(120, Math.min(WORLD.h - 120, WORLD.h / 2 + Math.sin(a) * ring)),
+        r: 22 + rand(seed * 3.1) * 12,
+        rot: rand(seed * 5.3) * TAU,
+        alive: true
+      });
+    }
+
+    function breakDebris(piece, hitter) {
+      piece.alive = false;
+      sounds.playSmash();
+      spray(piece.x, piece.y, 34, "#b8c6d8");
+      spray(piece.x, piece.y, 16, "#ffd45a");
+      addSpark(piece.x, piece.y, true);
+      camera.shake = Math.max(camera.shake, 12);
+      if (hitter.kind === "player") {
+        const gained = score(50, null);
+        popupText(piece.x, piece.y - 30, "פוצץ! +" + gained, "#ffd45a");
+        flashScreen("#ffffff", 0.14, 0.14);
+        hitStop = Math.max(hitStop, 0.05);
+      }
+      setTimeout(() => spawnDebris(Math.random() * 9999), 3200);
     }
 
     function addSpark(x, y, scatter) {
@@ -592,6 +845,8 @@
       running = true;
       document.body.classList.add("playing");
       startEl.classList.add("hidden");
+      sounds.init();
+      sounds.playLaunch();
       showToast(chosen.name + " שוגר!");
     }
 
@@ -656,8 +911,14 @@
       }
 
       pad.connected = true;
-      pad.name = gamepad.id || "שלט Xbox";
-      padText.textContent = "מוכן";
+      pad.name = gamepad.id || "שלט פלייסטיישן";
+      padText.textContent = "שלט פלייסטיישן מחובר";
+
+      if (!sounds.ctx) {
+        const anyButton = gamepad.buttons.some((b) => b && b.pressed);
+        const anyAxis = gamepad.axes.some((v) => Math.abs(v) > 0.2);
+        if (anyButton || anyAxis) sounds.init();
+      }
 
       let x = axisValue(gamepad.axes[0] || 0);
       let y = axisValue(gamepad.axes[1] || 0);
@@ -671,6 +932,7 @@
 
       const a = buttonDown(gamepad, 0);
       const xButton = buttonDown(gamepad, 2);
+      const circle = buttonDown(gamepad, 1);
       const start = buttonDown(gamepad, 9);
       const lb = buttonDown(gamepad, 4);
       const rb = buttonDown(gamepad, 5);
@@ -684,10 +946,12 @@
       } else {
         if (a && !pad.prevA) dash();
         if (xButton && !pad.prevX) pulse();
+        if (circle && !pad.prevCircle) activatePower();
       }
 
       pad.prevA = a;
       pad.prevX = xButton;
+      pad.prevCircle = circle;
       pad.prevStart = start;
       pad.prevLB = lb;
       pad.prevRB = rb;
@@ -706,7 +970,9 @@
       player.spin += 9;
       player.combo = Math.min(12, player.combo + 0.15);
       camera.shake = Math.max(camera.shake, 5);
-      spray(player.x, player.y, 14, player.def.ring);
+      spray(player.x, player.y, 22, player.def.ring);
+      punch(player, 0.22, 0.16);
+      sounds.playDash();
       showToast("שרשרת דש!");
     }
 
@@ -716,7 +982,10 @@
       player.spin += 18;
       player.stamina = Math.max(0.22, player.stamina - 0.1);
       camera.shake = Math.max(camera.shake, 8);
-      spray(player.x, player.y, 34, player.def.accent);
+      spray(player.x, player.y, 44, player.def.accent);
+      punch(player, 0.4, 0.3);
+      flashScreen(player.def.accent, 0.16, 0.2);
+      sounds.playPulse();
       for (const rival of rivals) {
         const dx = rival.x - player.x;
         const dy = rival.y - player.y;
@@ -725,10 +994,58 @@
           const push = (240 - d) * 4.5 * player.def.pulse;
           rival.vx += dx / d * push;
           rival.vy += dy / d * push;
+          punch(rival, 0.3, 0.2);
           score(85, "קומבו פולס");
         }
       }
       showToast("גל פולס!");
+    }
+
+    function activatePower() {
+      if (player.powerCooldown > 0) return;
+      player.powerCooldown = 6.5;
+      camera.shake = Math.max(camera.shake, 16);
+      hitStop = Math.max(hitStop, 0.09);
+      punch(player, 0.75, 0.5);
+      flashScreen(player.def.accent, 0.4, 0.42);
+      sounds.playPower();
+      spray(player.x, player.y, 46, player.def.accent);
+      spray(player.x, player.y, 20, player.def.ring);
+
+      if (player.def.powerKind === "nitro") {
+        player.nitroTimer = 2.4;
+        player.stamina = 1;
+        const gained = score(30, null);
+        popupText(player.x, player.y - 60, "הצתת נובה! +" + gained, player.def.accent);
+      } else if (player.def.powerKind === "firestorm") {
+        player.multiplierTimer = 3.2;
+        player.combo = Math.min(18, player.combo + 3);
+        const gained = score(30, null);
+        popupText(player.x, player.y - 60, "סופת אש! x2 ניקוד! +" + gained, player.def.accent);
+      } else if (player.def.powerKind === "warp") {
+        const v = inputVector();
+        const dir = Math.hypot(v.x, v.y) > 0.1 ? Math.atan2(v.y, v.x) : Math.atan2(player.vy, player.vx || 1);
+        const dist = 420;
+        const fromX = player.x;
+        const fromY = player.y;
+        player.x = Math.max(80, Math.min(WORLD.w - 80, player.x + Math.cos(dir) * dist));
+        player.y = Math.max(80, Math.min(WORLD.h - 80, player.y + Math.sin(dir) * dist));
+        spray(fromX, fromY, 18, player.def.ring);
+        let grabbed = 0;
+        for (const spark of sparks) {
+          if (spark.taken) continue;
+          const d = Math.hypot(player.x - spark.x, player.y - spark.y);
+          if (d < 260) {
+            spark.taken = true;
+            grabbed += score(20, null);
+            spray(spark.x, spark.y, 6, "#ffd45a");
+          }
+        }
+        const gained = score(30, null);
+        popupText(player.x, player.y - 60, "קפיצת פאנטום! +" + (gained + grabbed), player.def.accent);
+      }
+
+      showToast(player.def.powerName + " הופעל!");
     }
 
     function spray(x, y, count, color) {
@@ -747,7 +1064,8 @@
     }
 
     function score(points, label) {
-      const gained = Math.round(points * player.combo);
+      const multiplier = player.multiplierTimer > 0 ? 2 : 1;
+      const gained = Math.round(points * player.combo * multiplier);
       player.score += gained;
       player.combo = Math.min(18, player.combo + 0.22);
       if (player.score > best) {
@@ -755,15 +1073,25 @@
         saveBest(best);
       }
       if (label) showToast(label + " +" + gained);
+      return gained;
     }
 
     function stepTop(top, input, dt) {
-      const accel = top.kind === "player" ? 900 : 520;
+      if (top.kind === "player") {
+        top.powerCooldown = Math.max(0, top.powerCooldown - dt);
+        top.nitroTimer = Math.max(0, top.nitroTimer - dt);
+        top.multiplierTimer = Math.max(0, top.multiplierTimer - dt);
+      }
+      top.impactTimer = Math.max(0, top.impactTimer - dt);
+      top.rampTimer = Math.max(0, (top.rampTimer || 0) - dt);
+
+      const nitro = top.nitroTimer > 0;
+      const accel = (top.kind === "player" ? 900 : 520) * (nitro ? 1.6 : 1);
       top.vx += input.x * accel * dt;
       top.vy += input.y * accel * dt;
 
       const speed = Math.hypot(top.vx, top.vy);
-      const max = top.kind === "player" ? 930 : 760;
+      const max = (top.kind === "player" ? 930 : 760) * (nitro ? 1.45 : 1);
       if (speed > max) {
         top.vx = top.vx / speed * max;
         top.vy = top.vy / speed * max;
@@ -785,15 +1113,17 @@
       const edge = top.radius + 34;
       if (top.x < edge || top.x > WORLD.w - edge) {
         top.x = Math.max(edge, Math.min(WORLD.w - edge, top.x));
-        top.vx *= -0.74;
-        top.vy += (WORLD.h / 2 - top.y) * 0.02;
-        if (top.kind === "player") score(15, "ריבאונד קיר");
+        top.vx *= -0.4;
+        punch(top, 0.12, 0.14);
+        spray(top.x, top.y, 6, top.def.ring);
+        if (top.kind === "player") sounds.playWallBump();
       }
       if (top.y < edge || top.y > WORLD.h - edge) {
         top.y = Math.max(edge, Math.min(WORLD.h - edge, top.y));
-        top.vy *= -0.74;
-        top.vx += (WORLD.w / 2 - top.x) * 0.02;
-        if (top.kind === "player") score(15, "ריבאונד קיר");
+        top.vy *= -0.4;
+        punch(top, 0.12, 0.14);
+        spray(top.x, top.y, 6, top.def.ring);
+        if (top.kind === "player") sounds.playWallBump();
       }
 
       for (const bumper of bumpers) {
@@ -812,11 +1142,31 @@
           top.vx += nx * 360;
           top.vy += ny * 360;
           top.spin += 8;
-          spray(top.x, top.y, top.kind === "player" ? 10 : 5, bumper.color);
+          spray(top.x, top.y, top.kind === "player" ? 22 : 10, bumper.color);
+          punch(top, 0.3, 0.22);
           if (top.kind === "player" && top.invibe <= 0) {
             top.invibe = 0.18;
-            score(45, "פגיעה בבאמפר");
+            const gained = score(45, null);
+            popupText(top.x, top.y - 46, "פגיעה! +" + gained, bumper.color);
+            sounds.playHit();
+            camera.shake = Math.max(camera.shake, 9);
+            flashScreen(bumper.color, 0.16, 0.18);
           }
+        }
+      }
+
+      for (const piece of debris) {
+        if (!piece.alive) continue;
+        const dx = top.x - piece.x;
+        const dy = top.y - piece.y;
+        const d = Math.hypot(dx, dy);
+        const min = top.radius + piece.r;
+        if (d > 0 && d < min) {
+          top.vx += (dx / d) * 300;
+          top.vy += (dy / d) * 300;
+          top.spin += 6;
+          punch(top, 0.35, 0.25);
+          breakDebris(piece, top);
         }
       }
 
@@ -830,9 +1180,36 @@
           top.vx += Math.cos(gate.a) * boost;
           top.vy += Math.sin(gate.a) * boost;
           top.spin += 0.5;
+          punch(top, 0.15, 0.12);
           if (top.kind === "player" && top.invibe <= 0) {
             top.invibe = 0.22;
-            score(35, "שער האצה");
+            const gained = score(35, null);
+            sounds.playGate();
+            spray(top.x, top.y, 10, gate.color);
+            popupText(top.x, top.y - 46, "האצה! +" + gained, gate.color);
+          }
+        }
+      }
+
+      for (const ramp of ramps) {
+        const ca = Math.cos(-ramp.a);
+        const sa = Math.sin(-ramp.a);
+        const lx = (top.x - ramp.x) * ca - (top.y - ramp.y) * sa;
+        const ly = (top.x - ramp.x) * sa + (top.y - ramp.y) * ca;
+        if (Math.abs(lx) < ramp.w / 2 && Math.abs(ly) < ramp.h / 2) {
+          const boost = top.kind === "player" ? 72 : 34;
+          top.vx += Math.cos(ramp.a) * boost;
+          top.vy += Math.sin(ramp.a) * boost;
+          top.spin += 1;
+          top.rampTimer = 0.4;
+          punch(top, 0.3, 0.3);
+          if (top.kind === "player" && top.invibe <= 0) {
+            top.invibe = 0.3;
+            const gained = score(55, null);
+            sounds.playRamp();
+            camera.shake = Math.max(camera.shake, 8);
+            spray(top.x, top.y, 20, ramp.color);
+            popupText(top.x, top.y - 46, "רמפה! קפיצה! +" + gained, ramp.color);
           }
         }
       }
@@ -883,11 +1260,17 @@
       b.vy += ny * 130;
       a.spin += 5;
       b.spin += 5;
-      spray((a.x + b.x) / 2, (a.y + b.y) / 2, 18, a.kind === "player" ? a.def.accent : b.def.accent);
-      camera.shake = Math.max(camera.shake, 7);
+      punch(a, 0.28, 0.2);
+      punch(b, 0.28, 0.2);
+      spray((a.x + b.x) / 2, (a.y + b.y) / 2, 28, a.kind === "player" ? a.def.accent : b.def.accent);
+      camera.shake = Math.max(camera.shake, 10);
+      sounds.playHit();
       if (a.kind === "player" || b.kind === "player") {
-        score(65, "התנגשות ביריב");
+        const gained = score(65, null);
+        popupText((a.x + b.x) / 2, (a.y + b.y) / 2 - 46, "התנגשות! +" + gained, "#ffffff");
         addSpark((a.x + b.x) / 2, (a.y + b.y) / 2, true);
+        flashScreen("#ffffff", 0.1, 0.14);
+        hitStop = Math.max(hitStop, 0.04);
       }
     }
 
@@ -908,6 +1291,9 @@
       const v = inputVector();
       stepTop(player, v, dt);
       for (const rival of rivals) stepRival(rival, dt);
+      for (let i = debris.length - 1; i >= 0; i -= 1) {
+        if (!debris[i].alive) debris.splice(i, 1);
+      }
       const all = [player].concat(rivals);
       for (let i = 0; i < all.length; i += 1) {
         for (let j = i + 1; j < all.length; j += 1) collide(all[i], all[j]);
@@ -920,8 +1306,11 @@
           spark.taken = true;
           player.stamina = Math.min(1, player.stamina + 0.1);
           player.spin += 3;
-          score(28, "ניצוץ");
-          spray(spark.x, spark.y, 9, "#ffd45a");
+          const gained = score(28, null);
+          popupText(spark.x, spark.y - 26, "נאסף! +" + gained, "#ffd45a");
+          spray(spark.x, spark.y, 14, "#ffd45a");
+          punch(player, 0.12, 0.1);
+          sounds.playSpark();
         }
       }
 
@@ -929,6 +1318,8 @@
         arenaSeed += 1;
         resetArena();
         player.combo = Math.min(18, player.combo + 1);
+        flashScreen("#ffd45a", 0.22, 0.3);
+        sounds.playPower();
         showToast("סופת הניצוצות חזרה!");
       }
 
@@ -953,6 +1344,19 @@
         if (burstBits[i].life <= 0) burstBits.splice(i, 1);
       }
 
+      for (let i = flashes.length - 1; i >= 0; i -= 1) {
+        flashes[i].t -= dt;
+        if (flashes[i].t <= 0) flashes.splice(i, 1);
+      }
+
+      for (let i = popups.length - 1; i >= 0; i -= 1) {
+        const p = popups[i];
+        p.y += p.vy * dt;
+        p.vy *= Math.pow(0.9, dt * 60);
+        p.life -= dt * 0.85;
+        if (p.life <= 0) popups.splice(i, 1);
+      }
+
       const speed = Math.hypot(player.vx, player.vy);
       const zoom = Math.max(0.62, Math.min(1.02, Math.min(innerWidth / 1260, innerHeight / 850) - speed * 0.00008));
       camera.scale += (zoom - camera.scale) * Math.min(1, dt * 3);
@@ -966,6 +1370,7 @@
       sparkText.textContent = taken + " / " + sparks.length;
       sparkBar.style.width = Math.min(100, taken / sparks.length * 100) + "%";
       flowText.textContent = speed > 620 ? "פראי" : speed > 360 ? "מהיר" : speed > 160 ? "חלק" : "רגוע";
+      powerText.textContent = player.powerCooldown > 0 ? player.powerCooldown.toFixed(1) + "s" : "מוכן";
       bestText.textContent = String(best);
     }
 
@@ -990,24 +1395,40 @@
       for (const rival of rivals) drawTop(rival);
       drawTop(player);
       drawBits();
+      drawPopups();
 
       ctx.restore();
+
+      for (const flash of flashes) {
+        const strength = Math.max(0, flash.t / flash.duration);
+        ctx.save();
+        ctx.globalAlpha = flash.alpha * strength;
+        ctx.fillStyle = flash.color;
+        ctx.fillRect(0, 0, innerWidth, innerHeight);
+        ctx.restore();
+      }
     }
 
     function drawArena() {
       ctx.save();
-      ctx.fillStyle = palette.floorA;
+      ctx.fillStyle = "#111a24";
       roundRect(ctx, 0, 0, WORLD.w, WORLD.h, 42);
       ctx.fill();
 
       const grd = ctx.createRadialGradient(WORLD.w / 2, WORLD.h / 2, 80, WORLD.w / 2, WORLD.h / 2, 980);
-      grd.addColorStop(0, "rgba(98,232,255,0.17)");
-      grd.addColorStop(0.5, "rgba(255,212,90,0.12)");
-      grd.addColorStop(1, "rgba(255,90,168,0.07)");
+      grd.addColorStop(0, "rgba(98,232,255,0.09)");
+      grd.addColorStop(0.5, "rgba(255,212,90,0.06)");
+      grd.addColorStop(1, "rgba(255,90,168,0.04)");
       ctx.fillStyle = grd;
       ctx.fillRect(0, 0, WORLD.w, WORLD.h);
 
-      ctx.strokeStyle = "rgba(255,255,255,0.06)";
+      const vignette = ctx.createRadialGradient(WORLD.w / 2, WORLD.h / 2, WORLD.h * 0.3, WORLD.w / 2, WORLD.h / 2, WORLD.h * 0.75);
+      vignette.addColorStop(0, "rgba(0,0,0,0)");
+      vignette.addColorStop(1, "rgba(0,0,0,0.4)");
+      ctx.fillStyle = vignette;
+      ctx.fillRect(0, 0, WORLD.w, WORLD.h);
+
+      ctx.strokeStyle = "rgba(255,255,255,0.035)";
       ctx.lineWidth = 2;
       for (let x = 0; x <= WORLD.w; x += 120) {
         ctx.beginPath();
@@ -1036,8 +1457,83 @@
       ctx.arc(WORLD.w / 2, WORLD.h / 2, 210, 0, TAU);
       ctx.stroke();
 
+      for (const ramp of ramps) drawRamp(ramp);
       for (const gate of gates) drawGate(gate);
       for (const bumper of bumpers) drawBumper(bumper);
+      for (const piece of debris) if (piece.alive) drawDebris(piece);
+      ctx.restore();
+    }
+
+    function drawRamp(ramp) {
+      ctx.save();
+      ctx.translate(ramp.x, ramp.y);
+      ctx.rotate(ramp.a);
+
+      ctx.fillStyle = "rgba(0,0,0,0.32)";
+      ctx.beginPath();
+      ctx.ellipse(8, ramp.h * 0.42, ramp.w * 0.52, 18, 0, 0, TAU);
+      ctx.fill();
+
+      ctx.shadowColor = ramp.color;
+      ctx.shadowBlur = 26;
+
+      const grad = ctx.createLinearGradient(-ramp.w / 2, 0, ramp.w / 2, 0);
+      grad.addColorStop(0, "rgba(255,255,255,0.92)");
+      grad.addColorStop(0.55, ramp.color);
+      grad.addColorStop(1, "rgba(10,14,22,0.85)");
+      ctx.fillStyle = grad;
+      roundRect(ctx, -ramp.w / 2, -ramp.h / 2, ramp.w, ramp.h, 14);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.85)";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(8,13,22,0.55)";
+      ctx.lineWidth = 5;
+      ctx.lineCap = "round";
+      for (let i = -1; i <= 1; i += 1) {
+        ctx.beginPath();
+        ctx.moveTo(i * 46 - 22, ramp.h * 0.3);
+        ctx.lineTo(i * 46 + 22, -ramp.h * 0.3);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = "rgba(255,255,255,0.95)";
+      ctx.beginPath();
+      ctx.moveTo(ramp.w * 0.28, 0);
+      ctx.lineTo(ramp.w * 0.14, -18);
+      ctx.lineTo(ramp.w * 0.14, 18);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawDebris(piece) {
+      ctx.save();
+      ctx.translate(piece.x, piece.y);
+      ctx.rotate(piece.rot);
+      ctx.fillStyle = "rgba(0,0,0,0.22)";
+      ctx.beginPath();
+      ctx.ellipse(0, piece.r * 0.7, piece.r * 1.05, 10, 0, 0, TAU);
+      ctx.fill();
+      ctx.shadowColor = "#ffd45a";
+      ctx.shadowBlur = 16;
+      ctx.fillStyle = "#5d6b80";
+      ctx.strokeStyle = "#b8c6d8";
+      ctx.lineWidth = 3;
+      roundRect(ctx, -piece.r, -piece.r, piece.r * 2, piece.r * 2, 6);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.moveTo(-piece.r * 0.4, -piece.r);
+      ctx.lineTo(piece.r * 0.1, piece.r * 0.2);
+      ctx.lineTo(piece.r * 0.6, piece.r);
+      ctx.strokeStyle = "rgba(0,0,0,0.35)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
       ctx.restore();
     }
 
@@ -1045,6 +1541,12 @@
       ctx.save();
       ctx.translate(gate.x, gate.y);
       ctx.rotate(gate.a);
+      ctx.fillStyle = "rgba(0,0,0,0.28)";
+      ctx.beginPath();
+      ctx.ellipse(6, gate.h * 0.55, gate.w * 0.46, 12, 0, 0, TAU);
+      ctx.fill();
+      ctx.shadowColor = gate.color;
+      ctx.shadowBlur = 22;
       const g = ctx.createLinearGradient(-gate.w / 2, 0, gate.w / 2, 0);
       g.addColorStop(0, "rgba(255,255,255,0.18)");
       g.addColorStop(0.48, gate.color);
@@ -1052,9 +1554,19 @@
       ctx.fillStyle = g;
       roundRect(ctx, -gate.w / 2, -gate.h / 2, gate.w, gate.h, 8);
       ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,0.45)";
+      ctx.strokeStyle = "rgba(255,255,255,0.7)";
       ctx.lineWidth = 3;
       ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      for (let i = -1; i <= 1; i += 1) {
+        ctx.beginPath();
+        ctx.moveTo(i * 46 + 12, -12);
+        ctx.lineTo(i * 46, 0);
+        ctx.lineTo(i * 46 + 12, 12);
+        ctx.closePath();
+        ctx.fill();
+      }
       ctx.restore();
     }
 
@@ -1065,12 +1577,20 @@
       ctx.beginPath();
       ctx.ellipse(0, bumper.r * 0.58, bumper.r * 0.95, 14, 0, 0, TAU);
       ctx.fill();
+      ctx.shadowColor = bumper.color;
+      ctx.shadowBlur = 28;
       ctx.fillStyle = bumper.color;
       ctx.beginPath();
       ctx.arc(0, 0, bumper.r, 0, TAU);
       ctx.fill();
       ctx.strokeStyle = "rgba(255,255,255,0.65)";
       ctx.lineWidth = 5;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(255,255,255,0.85)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, bumper.r * 0.55, 0, TAU);
       ctx.stroke();
       ctx.restore();
     }
@@ -1109,12 +1629,32 @@
         ctx.restore();
       }
 
+      const punchT = top.impactTimer > 0 ? top.impactTimer / top.impactMax : 0;
+      const punchScale = 1 + top.impactAmount * punchT;
+      const airT = top.rampTimer > 0 ? top.rampTimer / 0.4 : 0;
+      const lift = Math.sin(airT * Math.PI) * 34;
+
       ctx.save();
       ctx.translate(top.x, top.y);
       ctx.fillStyle = "rgba(0,0,0,0.28)";
       ctx.beginPath();
-      ctx.ellipse(0, top.radius * 0.92, top.radius * 1.12, 12, 0, 0, TAU);
+      ctx.ellipse(0, top.radius * 0.92 + lift * 0.5, top.radius * (1.12 - airT * 0.35), 12 * (1 - airT * 0.4), 0, 0, TAU);
       ctx.fill();
+      if (punchT > 0) {
+        ctx.globalAlpha = punchT * 0.6;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(0, 0, top.radius * (1 + (1 - punchT) * 1.6), 0, TAU);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      ctx.translate(0, -lift);
+      if (airT > 0) {
+        ctx.shadowColor = top.def.accent;
+        ctx.shadowBlur = 20 * airT;
+      }
+      ctx.scale(punchScale * (1 + airT * 0.18), punchScale * (1 + airT * 0.18));
       if (top.pulse > 0) {
         ctx.globalAlpha = top.pulse * 1.5;
         ctx.strokeStyle = top.def.accent;
@@ -1170,6 +1710,25 @@
       }
     }
 
+    function drawPopups() {
+      for (const p of popups) {
+        const scale = p.life > 0.8 ? 1 + (1 - p.life) * 1.5 : 1;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, p.life * 1.4));
+        ctx.translate(p.x, p.y);
+        ctx.scale(scale, scale);
+        ctx.font = "900 26px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = "rgba(8,13,22,0.85)";
+        ctx.lineWidth = 6;
+        ctx.strokeText(p.text, 0, 0);
+        ctx.fillStyle = p.color;
+        ctx.fillText(p.text, 0, 0);
+        ctx.restore();
+      }
+    }
+
     function roundRect(c, x, y, w, h, r) {
       const rr = Math.min(r, w / 2, h / 2);
       c.beginPath();
@@ -1210,7 +1769,7 @@
       spinners.forEach((spinner, index) => {
         const button = document.createElement("button");
         button.className = "top-button" + (index === selected ? " active" : "");
-        button.innerHTML = "<strong>" + spinner.name + "</strong><span>" + spinner.trait + "</span>";
+        button.innerHTML = "<strong>" + spinner.name + "</strong><span>" + spinner.trait + "</span><span>" + spinner.powerName + "</span>";
         button.addEventListener("click", () => {
           selected = index;
           buildLoadout();
@@ -1221,8 +1780,13 @@
     }
 
     function loop(now) {
-      const dt = Math.min(0.033, (now - last) / 1000 || 0);
+      const rawDt = Math.min(0.033, (now - last) / 1000 || 0);
       last = now;
+      let dt = rawDt;
+      if (hitStop > 0) {
+        hitStop = Math.max(0, hitStop - rawDt);
+        dt = rawDt * 0.08;
+      }
       update(dt);
       draw();
       requestAnimationFrame(loop);
@@ -1231,18 +1795,20 @@
     window.addEventListener("resize", resize);
     window.addEventListener("keydown", (event) => {
       keys.add(event.code);
+      sounds.init();
       if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) event.preventDefault();
       if (!running && ["Space", "Enter"].includes(event.code)) launch();
       if (running && event.code === "Space") dash();
       if (running && event.code === "KeyE") pulse();
+      if (running && event.code === "KeyC") activatePower();
     });
     window.addEventListener("keyup", (event) => keys.delete(event.code));
     window.addEventListener("gamepadconnected", (event) => {
       pad.index = event.gamepad.index;
       pad.connected = true;
-      pad.name = event.gamepad.id || "שלט Xbox";
-      padText.textContent = "מוכן";
-      showToast("שלט Xbox חובר");
+      pad.name = event.gamepad.id || "שלט פלייסטיישן";
+      padText.textContent = "שלט פלייסטיישן מחובר";
+      showToast("שלט פלייסטיישן (DualShock/DualSense) חובר");
     });
     window.addEventListener("gamepaddisconnected", (event) => {
       if (pad.index === event.gamepad.index) {
@@ -1303,6 +1869,11 @@
       arenaSeed += 11;
       resetArena();
       showToast("הזירה התערבבה");
+    });
+    muteBtn.addEventListener("click", () => {
+      sounds.init();
+      sounds.enabled = !sounds.enabled;
+      muteBtn.textContent = sounds.enabled ? "🔊 צליל" : "🔇 מושתק";
     });
 
     buildLoadout();

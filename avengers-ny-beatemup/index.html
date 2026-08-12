@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>הנוקמים: סערה בניו יורק | Avengers NYC Beat 'Em Up Arcade</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@600;700&family=Rubik:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Canvas Game Layer -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Top Arcade HUD -->
+        <div id="hud">
+            <div class="hud-hero-card" id="hudHeroCard">
+                <div class="portrait-box" id="heroPortrait">
+                    <span id="heroIcon">🦾</span>
+                </div>
+                <div class="hero-stats">
+                    <div class="hero-name-row">
+                        <span id="heroName">איירון מן</span>
+                        <span class="hero-tag">P1</span>
+                    </div>
+                    <div class="bar-container health-bar-bg">
+                        <div class="bar-fill health-fill" id="healthFill" style="width: 100%;"></div>
+                        <span class="bar-text" id="healthText">100 / 100</span>
+                    </div>
+                    <div class="bar-container special-bar-bg">
+                        <div class="bar-fill special-fill" id="specialFill" style="width: 100%;"></div>
+                        <span class="bar-text" id="specialText">SPECIAL READY! (▲)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hud-center">
+                <div class="score-box">
+                    <span class="score-label">SCORE</span>
+                    <span id="scoreVal" class="score-val">000,000</span>
+                </div>
+                <div class="stage-badge" id="stageBadge">
+                    STAGE 1: רחובות טיימס סקוור
+                </div>
+            </div>
+
+            <div class="hud-right">
+                <!-- Gamepad Status Indicator -->
+                <div id="gamepadStatus" class="gamepad-status disconnected">
+                    <span class="controller-icon">🎮</span>
+                    <span id="gamepadText">שלט PS: לא מחובר (לחץ על כפתור בשלט)</span>
+                    <span class="pulse-dot"></span>
+                </div>
+                <button id="btnControllerHelp" class="btn-icon" title="מקשי שלט פלייסטיישן ומקלדת">🎮 מקשים</button>
+                <button id="btnSoundToggle" class="btn-icon">🔊 צליל</button>
+            </div>
+        </div>
+
+        <!-- Dynamic Combo HUD -->
+        <div id="comboBanner" class="combo-banner hidden">
+            <span id="comboCount" class="combo-num">3</span>
+            <div class="combo-text-group">
+                <span class="combo-title">HITS!</span>
+                <span id="comboRating" class="combo-rating">AWESOME!</span>
+            </div>
+        </div>
+
+        <!-- Boss Health Bar Overlay -->
+        <div id="bossBarContainer" class="boss-bar-container hidden">
+            <div class="boss-header">
+                <span id="bossName">אולטרון פריים</span>
+                <span class="boss-tag">WARNING! BOSS</span>
+            </div>
+            <div class="bar-container boss-bar-bg">
+                <div class="bar-fill boss-fill" id="bossHealthFill" style="width: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- Quick Switch Hero Radial / Dock Indicator -->
+        <div id="heroSwitchDock" class="hero-switch-dock">
+            <div class="switch-hint">L1 / R1 או לחץ להחלפה מהירה:</div>
+            <div class="hero-dock-items" id="heroDockItems">
+                <!-- JS populated hero icons -->
+            </div>
+        </div>
+
+        <!-- Touch / On-Screen Virtual Controls -->
+        <div id="virtualControls" class="virtual-controls">
+            <!-- D-Pad Directional -->
+            <div class="virtual-dpad">
+                <button class="v-btn v-up" id="vUp">▲</button>
+                <button class="v-btn v-left" id="vLeft">◀</button>
+                <button class="v-btn v-right" id="vRight">▶</button>
+                <button class="v-btn v-down" id="vDown">▼</button>
+            </div>
+            <!-- Action Buttons -->
+            <div class="virtual-actions">
+                <button class="v-btn v-attack square" id="vAttack">⏹<br><span>התקפה</span></button>
+                <button class="v-btn v-special triangle" id="vSpecial">▲<br><span>סופר</span></button>
+                <button class="v-btn v-jump cross" id="vJump">❌<br><span>קפיצה</span></button>
+                <button class="v-btn v-dodge circle" id="vDodge">🔴<br><span>דאג'</span></button>
+            </div>
+        </div>
+
+        <!-- Start / Character Select Screen Overlay -->
+        <div id="startOverlay" class="overlay-screen">
+            <div class="overlay-card arcade-glow">
+                <h1 class="game-title">הנוקמים <span class="accent-text">סערה בניו יורק</span></h1>
+                <p class="game-subtitle">Beat 'Em Up ארקייד בסגנון צבי הנינג'ה ניו יורק | תמיכה מלאה בשלט פלייסטיישן, מקלדת ומגע</p>
+                
+                <h2 class="section-heading">בחר את הגיבור שלך:</h2>
+                <div class="character-select-grid" id="charSelectGrid">
+                    <!-- Populated by JS -->
+                </div>
+
+                <div class="controls-preview">
+                    <div class="preview-col">
+                        <h3>🎮 שלט פלייסטיישן (DualShock / DualSense)</h3>
+                        <ul>
+                            <li><span class="key-tag ps-btn">Left Stick / D-Pad</span> תנועה ב-8 כיוונים (2.5D)</li>
+                            <li><span class="key-tag ps-btn square">⏹ מרובע</span> התקפה רגילה / קומבו</li>
+                            <li><span class="key-tag ps-btn triangle">▲ משולש</span> מתקפת סופר אולטימטיבית</li>
+                            <li><span class="key-tag ps-btn cross">❌ איקס</span> קפיצה / בעיטת אוויר</li>
+                            <li><span class="key-tag ps-btn circle">🔴 עיגול</span> דאג' / סלייד להתחמקות</li>
+                            <li><span class="key-tag ps-btn bump">L1 / R1</span> החלפת גיבור חיה בלחיצה!</li>
+                        </ul>
+                    </div>
+                    <div class="preview-col">
+                        <h3>⌨️ מקלדת / מסך מגע</h3>
+                        <ul>
+                            <li><span class="key-tag">WASD / חצים</span> תנועה ברחוב</li>
+                            <li><span class="key-tag">J / Z</span> התקפה רגילה</li>
+                            <li><span class="key-tag">K / X</span> מתקפת סופר</li>
+                            <li><span class="key-tag">רווח</span> קפיצה</li>
+                            <li><span class="key-tag">L / Shift</span> דאג' / החלקה</li>
+                            <li><span class="key-tag">1 - 5</span> החלפת גיבורים מהירה</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="action-btn-row">
+                    <button id="btnStartGame" class="btn-arcade-start">🚀 התחל משחק (START)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controller Mapping Help Modal -->
+        <div id="modalGamepadHelp" class="modal-screen hidden">
+            <div class="modal-card">
+                <button id="btnCloseModal" class="btn-close">&times;</button>
+                <h2>🎮 מדריך שלט פלייסטיישן (PlayStation Controller)</h2>
+                <div class="ps-controller-diagram">
+                    <div class="ps-button-map">
+                        <div class="map-item"><strong>ג'ויסטיק שמאלי (Left Stick)</strong>: תנועה בכל המרחב (כולל קדימה, אחורה, עומק)</div>
+                        <div class="map-item"><strong>⏹ מרובע (Square)</strong>: אגרופים וקומבו מהיר</div>
+                        <div class="map-item"><strong>▲ משולש (Triangle)</strong>: מתקפת סופר הרסנית (דורש מד סופר מלא)</div>
+                        <div class="map-item"><strong>❌ איקס (Cross / X)</strong>: קפיצה</div>
+                        <div class="map-item"><strong>🔴 עיגול (Circle)</strong>: דאג' וסלייד חמקני</div>
+                        <div class="map-item"><strong>L1 / R1</strong>: החלפה מיידית בין הגיבורים (Iron Man, Cap, Hulk, Thor, Spidey)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pause / Game Over Modal -->
+        <div id="gameOverOverlay" class="overlay-screen hidden">
+            <div class="overlay-card gameover-card">
+                <h1 id="endTitle" class="game-title glow-red">GAME OVER</h1>
+                <p id="endSubtitle">האויבים כבשו את ניו יורק!</p>
+                <div class="end-stats">
+                    <div>ניקוד סופי: <span id="finalScore">0</span></div>
+                    <div>אויבים שחוסלו: <span id="finalKills">0</span></div>
+                    <div>קומבו שיא: <span id="finalMaxCombo">0</span></div>
+                </div>
+                <button id="btnRestart" class="btn-arcade-start">🔄 נסה שוב</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>

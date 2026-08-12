@@ -1,0 +1,2322 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta name="theme-color" content="#f59e0b">
+  <title>איירון מן 1 — טיסת מבחן במדבר</title>
+  <style>
+    :root {
+      --amber: #f59e0b;
+      --cyan: #38bdf8;
+      --gold: #fbbf24;
+      --red: #ef4444;
+      --iron-gray: #94a3b8;
+      --ink: #0b0f19;
+      --glass: rgba(15, 23, 42, 0.75);
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--ink);
+      color: white;
+      font-family: 'Segoe UI', system-ui, Arial, sans-serif;
+      touch-action: none;
+    }
+    canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 1;
+    }
+    .hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: 16px;
+      z-index: 2;
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      direction: ltr;
+    }
+    .panel {
+      min-width: 150px;
+      padding: 12px 16px;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      background: var(--glass);
+      clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+      backdrop-filter: blur(8px);
+      transition: border-color 0.3s;
+    }
+    .panel.suit-cyan {
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+    .panel.right {
+      text-align: right;
+      direction: rtl;
+      border-right: 3px solid var(--amber);
+    }
+    .panel.right.suit-cyan {
+      border-right-color: var(--cyan);
+    }
+    .panel.left {
+      text-align: left;
+      border-left: 3px solid var(--amber);
+    }
+    .panel.left.suit-cyan {
+      border-left-color: var(--cyan);
+    }
+    .label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .value {
+      font-size: clamp(20px, 3.5vw, 30px);
+      font-weight: 900;
+      line-height: 1.1;
+      color: white;
+      font-variant-numeric: tabular-nums;
+    }
+    .value small {
+      font-size: 11px;
+      color: var(--gold);
+    }
+    .meter {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      margin-top: 8px;
+      overflow: hidden;
+      border-radius: 3px;
+    }
+    .meter i {
+      display: block;
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, var(--amber), var(--gold));
+      box-shadow: 0 0 10px var(--amber);
+      transition: width 0.1s;
+    }
+    .meter.suit-cyan i {
+      background: linear-gradient(90deg, var(--cyan), #fff);
+      box-shadow: 0 0 10px var(--cyan);
+    }
+    .objective {
+      align-self: start;
+      justify-self: center;
+      text-align: center;
+      margin-top: 10px;
+      padding: 8px 24px;
+      background: var(--glass);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      backdrop-filter: blur(8px);
+      font-weight: 800;
+      font-size: clamp(12px, 1.8vw, 15px);
+      color: #fff;
+    }
+    .objective b {
+      color: var(--gold);
+    }
+    .bottom {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      direction: ltr;
+      gap: 12px;
+    }
+    .controls {
+      direction: rtl;
+      font-size: 11px;
+      line-height: 1.6;
+      color: #ffe0b2;
+      max-width: 450px;
+      background: rgba(15, 23, 42, 0.8);
+      padding: 8px 12px;
+      border-right: 3px solid var(--amber);
+      border-radius: 4px;
+      pointer-events: auto;
+    }
+    .controls.suit-cyan {
+      border-right-color: var(--cyan);
+      color: #e0f7fa;
+    }
+    .key {
+      display: inline-block;
+      min-width: 22px;
+      padding: 1px 6px;
+      margin: 0 2px;
+      border: 1px solid rgba(255,255,255,0.4);
+      background: rgba(255,255,255,0.1);
+      text-align: center;
+      color: white;
+      border-radius: 3px;
+      font-weight: 800;
+    }
+    .status {
+      font: 700 10px monospace;
+      letter-spacing: 1px;
+      color: #ffe0b2;
+      background: rgba(15, 23, 42, 0.8);
+      padding: 7px 12px;
+      border-left: 3px solid var(--amber);
+      border-radius: 4px;
+    }
+    .status.suit-cyan {
+      border-left-color: var(--cyan);
+      color: #e0f7fa;
+    }
+    .status i {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      background: #78909c;
+    }
+    .status.connected i {
+      background: #4caf50;
+      box-shadow: 0 0 8px #4caf50;
+    }
+    .toast {
+      position: fixed;
+      left: 50%;
+      top: 25%;
+      transform: translate(-50%, -50%) scale(0.7);
+      z-index: 4;
+      text-align: center;
+      font-size: clamp(24px, 5vw, 48px);
+      font-weight: 900;
+      font-style: italic;
+      color: white;
+      text-shadow: 0 4px 10px rgba(0,0,0,0.8), 0 0 20px var(--amber);
+      opacity: 0;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    .toast.suit-cyan {
+      text-shadow: 0 4px 10px rgba(0,0,0,0.8), 0 0 20px var(--cyan);
+    }
+    .toast small {
+      display: block;
+      font-size: 0.35em;
+      letter-spacing: 2px;
+      color: var(--gold);
+      text-shadow: none;
+      margin-top: 4px;
+    }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 50% 40%, rgba(20,15,5,0.85), #050811f5);
+      backdrop-filter: blur(6px);
+      padding: 20px;
+      transition: opacity 0.3s, transform 0.3s, visibility 0.3s;
+    }
+    .overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(1.05);
+    }
+    .card {
+      position: relative;
+      width: min(650px, 94vw);
+      padding: clamp(20px, 5vw, 40px);
+      text-align: center;
+      background: linear-gradient(145deg, rgba(20,15,10,0.95), rgba(5,10,20,0.9));
+      border: 2px solid var(--amber);
+      box-shadow: 0 30px 90px rgba(0,0,0,0.8), inset 0 0 40px rgba(245,158,11,0.15);
+      clip-path: polygon(30px 0, calc(100% - 30px) 0, 100% 30px, 100% calc(100% - 30px), calc(100% - 30px) 100%, 30px 100%, 0 calc(100% - 30px), 0 30px);
+      transition: border-color 0.3s;
+    }
+    .card.suit-cyan {
+      border-color: var(--cyan);
+      box-shadow: 0 30px 90px rgba(0,0,0,0.8), inset 0 0 40px rgba(56,189,248,0.15);
+    }
+    .arc-reactor {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      margin: 0 auto 18px;
+      border: 8px solid rgba(255,255,255,0.9);
+      background: #e0f7fa;
+      box-shadow: 0 0 20px #fff, 0 0 40px var(--cyan), inset 0 0 15px rgba(0,0,0,0.2);
+      animation: pulse 1.8s ease-in-out infinite alternate;
+      cursor: pointer;
+    }
+    @keyframes pulse {
+      to {
+        box-shadow: 0 0 30px #fff, 0 0 60px var(--cyan), inset 0 0 20px var(--cyan);
+        transform: scale(1.05);
+      }
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(34px, 7vw, 64px);
+      line-height: 0.9;
+      letter-spacing: -2px;
+      font-style: italic;
+      font-weight: 900;
+      color: white;
+    }
+    h1 span {
+      color: var(--amber);
+      transition: color 0.3s;
+    }
+    h1 span.suit-cyan {
+      color: var(--cyan);
+    }
+    .subtitle {
+      margin: 14px auto 20px;
+      color: #ffcc80;
+      font-weight: 700;
+      font-size: 14px;
+      line-height: 1.5;
+      max-width: 480px;
+      transition: color 0.3s;
+    }
+    .subtitle.suit-cyan {
+      color: #b2ebf2;
+    }
+    
+    /* Suit selector grid */
+    .suit-select-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin: 20px 0 26px;
+    }
+    .suit-btn {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 12px 6px;
+      cursor: pointer;
+      color: white;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .suit-btn:hover {
+      background: rgba(255,255,255,0.1);
+      transform: translateY(-2px);
+    }
+    .suit-btn.active {
+      background: rgba(245,158,11,0.15);
+      border-color: var(--amber);
+      box-shadow: 0 0 15px rgba(245,158,11,0.25);
+    }
+    .suit-btn.active.suit-cyan {
+      background: rgba(56,189,248,0.15);
+      border-color: var(--cyan);
+      box-shadow: 0 0 15px rgba(56,189,248,0.25);
+    }
+    .suit-btn-icon {
+      font-size: 24px;
+    }
+    .suit-btn-name {
+      font-weight: 800;
+      font-size: 12px;
+    }
+    .suit-btn-desc {
+      font-size: 9px;
+      opacity: 0.7;
+    }
+
+    button.action-btn {
+      font: 900 16px Arial, sans-serif;
+      color: #0b0f19;
+      background: linear-gradient(#fff, var(--amber));
+      border: 0;
+      padding: 12px 36px;
+      clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(245,158,11,0.4);
+      transition: all 0.15s;
+    }
+    button.action-btn.suit-cyan {
+      background: linear-gradient(#fff, var(--cyan));
+      box-shadow: 0 6px 20px rgba(56,189,248,0.4);
+    }
+    button.action-btn:hover {
+      transform: scale(1.05);
+      filter: brightness(1.15);
+    }
+    .tiny {
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: rgba(255, 255, 255, 0.4);
+      margin-top: 14px;
+    }
+    .pause-title {
+      font-size: 32px;
+      font-weight: 900;
+      margin-bottom: 20px;
+      color: white;
+    }
+
+    /* Mobile Controls overlay */
+    .touch {
+      display: none;
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 7;
+      direction: ltr;
+    }
+    .stick {
+      position: absolute;
+      left: 20px;
+      bottom: 20px;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.25);
+      background: rgba(15, 23, 42, 0.5);
+      pointer-events: auto;
+    }
+    .nub {
+      position: absolute;
+      left: 30px;
+      top: 30px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.6);
+      border: 2px solid white;
+      transform: translate(0, 0);
+    }
+    .touch-actions {
+      position: absolute;
+      right: 20px;
+      bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .touch-btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      background: rgba(15, 23, 42, 0.7);
+      color: white;
+      font-weight: 800;
+      font-size: 11px;
+      cursor: pointer;
+      pointer-events: auto;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      display: grid;
+      place-items: center;
+    }
+    .touch-btn.boost {
+      width: 74px;
+      height: 74px;
+      background: rgba(239, 68, 68, 0.85);
+      border-color: var(--gold);
+      font-size: 13px;
+    }
+    
+    /* Suit schematics indicator */
+    .schematic-box {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      width: 90px;
+      height: 120px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      color: var(--amber);
+      font-size: 9px;
+      font-weight: 800;
+    }
+    .schematic-box.suit-cyan {
+      color: var(--cyan);
+    }
+    .schematic-svg {
+      width: 60px;
+      height: 80px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.5;
+      opacity: 0.85;
+    }
+
+    .tony-face-box {
+      position: absolute;
+      top: 16px;
+      right: 180px;
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      border: 2px solid var(--amber);
+      background: radial-gradient(circle, rgba(15, 23, 42, 0.9), rgba(5, 8, 17, 0.95));
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.3), inset 0 0 15px rgba(56, 189, 248, 0.2);
+      backdrop-filter: blur(6px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 5;
+      transition: all 0.3s;
+    }
+    .tony-face-box.suit-cyan {
+      border-color: var(--cyan);
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.4), inset 0 0 15px rgba(56, 189, 248, 0.3);
+    }
+    .tony-face-svg {
+      width: 72px;
+      height: 72px;
+      animation: visorPulse 3s ease-in-out infinite alternate;
+    }
+    @keyframes visorPulse {
+      0% { transform: scale(0.98); }
+      100% { transform: scale(1.02); }
+    }
+    .tony-status-text {
+      position: absolute;
+      bottom: -18px;
+      font-size: 8px;
+      font-weight: 900;
+      color: var(--gold);
+      letter-spacing: 1px;
+      white-space: nowrap;
+      background: rgba(15,23,42,0.85);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+
+    @media(pointer:coarse), (max-width:768px) {
+      .touch { display: block; }
+      .controls { display: none; }
+      .hud { padding: 10px; }
+      .panel { min-width: 110px; padding: 6px 10px; }
+      .label { font-size: 8px; }
+      .value { font-size: 18px; }
+      .bottom { padding-bottom: 120px; }
+      .objective { margin-top: 4px; font-size: 11px; }
+      .status { font-size: 8px; }
+      .toast { top: 22%; }
+      .schematic-box, .tony-face-box { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="משחק טיסת מבחן במדבר"></canvas>
+  
+  <div class="hud">
+    <div class="top">
+      <div class="panel left" id="scorePanel">
+        <div class="label">ניקוד טיסה</div>
+        <div class="value" id="score">000000</div>
+        <div class="meter" id="boostContainer"><i id="boostMeter"></i></div>
+      </div>
+      <div class="panel right" id="altPanel">
+        <div class="label">חלקי טכנולוגיה</div>
+        <div class="value"><span id="combo">0</span> <small>יחידות</small></div>
+        <div class="label" id="altitude">גובה 180 מ׳</div>
+      </div>
+    </div>
+    <div class="objective" id="objective">משימה: <b>אספו 5 חלקי Stark Tech</b> · 0/5</div>
+    
+    <div class="bottom">
+      <div class="status" id="padStatus"><i></i><span>חיפוש שלט...</span></div>
+      <div class="controls" id="controlsGuide">
+        <span class="key">חצים / WASD</span> היגוי · 
+        <span class="key">רווח</span> בוסטר · 
+        <span class="key">Shift</span> פעולת חליפה · 
+        <span class="key">V</span> החלפת חליפה · 
+        <span class="key">Esc</span> עצירה
+      </div>
+    </div>
+  </div>
+
+  <!-- Tony Stark Visor Cam HUD -->
+  <div class="tony-face-box" id="tonyFaceBox">
+    <div class="tony-face-ring"></div>
+    <svg class="tony-face-svg" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="46" stroke="#38bdf8" stroke-width="1" fill="none" opacity="0.4"/>
+      <circle cx="50" cy="50" r="42" stroke="#fbbf24" stroke-width="1" stroke-dasharray="4,4" fill="none" opacity="0.6"/>
+      <path d="M30 45 C30 25, 70 25, 70 45 C70 65, 60 78, 50 78 C40 78, 30 65, 30 45 Z" fill="#d97706" opacity="0.25" stroke="#fbbf24" stroke-width="1.5"/>
+      <path d="M30 38 Q50 18 70 38 Q65 24 50 26 Q35 24 30 38 Z" fill="#451a03"/>
+      <ellipse cx="40" cy="46" rx="4" ry="2.5" fill="#38bdf8"/>
+      <ellipse cx="60" cy="46" rx="4" ry="2.5" fill="#38bdf8"/>
+      <line x1="34" y1="42" x2="46" y2="42" stroke="#38bdf8" stroke-width="1.5"/>
+      <line x1="54" y1="42" x2="66" y2="42" stroke="#38bdf8" stroke-width="1.5"/>
+      <path d="M44 62 L56 62 L54 70 Q50 74 46 70 Z" fill="#451a03" stroke="#fbbf24" stroke-width="1"/>
+      <path d="M42 56 Q50 59 58 56" stroke="#451a03" stroke-width="2" fill="none"/>
+      <circle cx="40" cy="46" r="7" stroke="#38bdf8" stroke-width="0.8" fill="none"/>
+      <circle cx="60" cy="46" r="7" stroke="#38bdf8" stroke-width="0.8" fill="none"/>
+    </svg>
+    <div class="tony-status-text" id="tonyStatus">TONY STARK: READY</div>
+  </div>
+
+  <!-- Suit schematic illustration (pure vector/inline) -->
+  <div class="schematic-box" id="schematic">
+    <svg class="schematic-svg" viewBox="0 0 40 60">
+      <!-- Head -->
+      <rect x="16" y="4" width="8" height="8" rx="2" />
+      <line x1="18" y1="8" x2="22" y2="8" />
+      <!-- Torso -->
+      <path d="M12 14 L28 14 L26 34 L14 34 Z" />
+      <!-- Arc Reactor Core -->
+      <circle cx="20" cy="20" r="3" />
+      <!-- Arms -->
+      <path d="M10 14 L6 30 L8 32 L11 18" />
+      <path d="M30 14 L34 30 L32 32 L29 18" />
+      <!-- Legs -->
+      <path d="M15 34 L13 54 L17 54 L18 34" />
+      <path d="M25 34 L27 54 L23 54 L22 34" />
+    </svg>
+    <span id="schematicName">MARK I</span>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Start Overlay -->
+  <div class="overlay" id="start">
+    <div class="card" id="startCard">
+      <div class="arc-reactor" id="menuReactor"></div>
+      <h1>איירון מן <span>1</span></h1>
+      <div class="subtitle" id="menuSubtitle">טיסת ניסוי במדבר גולמירה. בחרו חליפת סטארק והמריאו.</div>
+      
+      <div class="suit-select-grid">
+        <div class="suit-btn active" data-suit="mark50">
+          <span class="suit-btn-icon">💎</span>
+          <span class="suit-btn-name">MARK 50</span>
+          <span class="suit-btn-desc">ננו-טק (X)</span>
+        </div>
+        <div class="suit-btn" data-suit="mark33">
+          <span class="suit-btn-icon">🗡️</span>
+          <span class="suit-btn-name">MARK 33</span>
+          <span class="suit-btn-desc">סילבר (ריבוע)</span>
+        </div>
+        <div class="suit-btn" data-suit="mark34">
+          <span class="suit-btn-icon">🥊</span>
+          <span class="suit-btn-name">MARK 34</span>
+          <span class="suit-btn-desc">סאות'פרו (עיגול)</span>
+        </div>
+        <div class="suit-btn" data-suit="mark42">
+          <span class="suit-btn-icon">⚡</span>
+          <span class="suit-btn-name">MARK 42</span>
+          <span class="suit-btn-desc">הרכבה עצמית</span>
+        </div>
+        <div class="suit-btn" data-suit="mark1">
+          <span class="suit-btn-icon">🦾</span>
+          <span class="suit-btn-name">MARK 1</span>
+          <span class="suit-btn-desc">מערה</span>
+        </div>
+      </div>
+
+      <button class="action-btn" id="startBtn">הפעל חליפה 🚀</button>
+      <div class="tiny">מקלדת · מגע · שלט Xbox / PlayStation</div>
+    </div>
+  </div>
+
+  <!-- Pause Overlay -->
+  <div class="overlay hidden" id="pause">
+    <div class="card" id="pauseCard">
+      <div class="pause-title">הדמיית טיסה מושהית</div>
+      <div style="display:flex; flex-direction:column; gap:10px; align-items:center; margin-bottom: 20px;">
+        <button class="action-btn" id="resumeBtn" style="width: 100%; max-width: 250px;">חזרה לטיסה ✈️</button>
+        <button class="action-btn" id="changeSuitPauseBtn" style="width: 100%; max-width: 250px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.3); box-shadow: none;">החלפת חליפה ⚙️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Touch Overlay -->
+  <div class="touch">
+    <div class="stick" id="stick"><div class="nub" id="nub"></div></div>
+    <div class="touch-actions">
+      <button class="touch-btn boost" id="touchBoostBtn">בוסט</button>
+      <button class="touch-btn" id="touchActionBtn">כוח</button>
+      <button class="touch-btn" id="touchSuitBtn" style="font-size: 9px;">חליפה</button>
+    </div>
+  </div>
+
+  <script>
+  (() => {
+    'use strict';
+    
+    // UI Selectors
+    const canvas = document.querySelector('#game'), ctx = canvas.getContext('2d');
+    const $ = s => document.querySelector(s);
+    const ui = {
+      score: $('#score'),
+      combo: $('#combo'),
+      boost: $('#boostMeter'),
+      boostContainer: $('#boostContainer'),
+      alt: $('#altitude'),
+      objective: $('#objective'),
+      toast: $('#toast'),
+      pad: $('#padStatus'),
+      start: $('#start'),
+      pause: $('#pause'),
+      startCard: $('#startCard'),
+      pauseCard: $('#pauseCard'),
+      menuReactor: $('#menuReactor'),
+      menuSubtitle: $('#menuSubtitle'),
+      startBtn: $('#startBtn'),
+      resumeBtn: $('#resumeBtn'),
+      changeSuitPauseBtn: $('#changeSuitPauseBtn'),
+      schematic: $('#schematic'),
+      schematicName: $('#schematicName'),
+      scorePanel: $('#scorePanel'),
+      altPanel: $('#altPanel'),
+      controlsGuide: $('#controlsGuide')
+    };
+
+    // Game variables
+    let W=0, H=0, DPR=1, running=false, paused=false, last=0;
+    let score=0, techCollected=0, boost=100, speed=150, altitude=180;
+    let cameraX=0, cameraY=0, targetCameraY=0, roll=0, rollVelocity=0, shake=0;
+    
+    // Objective
+    let objLevel=1, objProgress=0, objTarget=5;
+    
+    // Controls State
+    const keys = {};
+    const touch = { x: 0, y: 0, active: false, boost: false, action: false };
+    
+    // Game Entities
+    const particles = [];
+    const stars = []; // represent atmospheric dust and stars
+    const landscape = []; // terrain elements (canyons, stones, etc)
+    const collectibles = []; // Stark Tech parts
+    
+    // Suit configurations
+    const SUITS = {
+      mark50: {
+        name: 'MARK 50',
+        icon: '💎',
+        color: '#ef4444',
+        colorUI: 'cyan',
+        desc: 'חליפת הננו-טכנולוגיה המתקדמת ביותר! ירי לייזרים ומגני ננו (מקש X / Cross)',
+        mass: 0.95,
+        maxSpeed: 520,
+        boostAccel: 350,
+        handling: 1.25,
+        enginePitch: 0.75,
+        trailColor: '#00f0ff'
+      },
+      mark33: {
+        name: 'MARK 33',
+        icon: '🗡️',
+        color: '#dc2626',
+        colorUI: 'amber',
+        desc: 'Silver Centurion! חליפת תקיפה מוזהבת-כסופה (מקש ריבוע / Square)',
+        mass: 1.2,
+        maxSpeed: 410,
+        boostAccel: 250,
+        handling: 1.0,
+        enginePitch: 0.58,
+        trailColor: '#e2e8f0'
+      },
+      mark34: {
+        name: 'MARK 34',
+        icon: '🥊',
+        color: '#0284c7',
+        colorUI: 'cyan',
+        desc: 'Southpaw! חליפת אב-טיפוס כחולה מתקדמת (מקש עיגול / Circle)',
+        mass: 1.1,
+        maxSpeed: 430,
+        boostAccel: 280,
+        handling: 1.05,
+        enginePitch: 0.62,
+        trailColor: '#38bdf8'
+      },
+      mark42: {
+        name: 'MARK 42',
+        icon: '⚡',
+        color: '#f59e0b',
+        colorUI: 'amber',
+        desc: 'חליפת חלקים מעופפים עצמאיים בהרכבה ממוחשבת!',
+        mass: 1.28,
+        maxSpeed: 440,
+        boostAccel: 270,
+        handling: 1.1,
+        enginePitch: 0.65,
+        trailColor: '#fbbf24'
+      },
+      mark1: {
+        name: 'MARK I',
+        icon: '🦾',
+        color: '#94a3b8',
+        colorUI: 'amber',
+        desc: 'חליפת פלדה כבדה מהמערה באפגניסטן.',
+        mass: 2.2,
+        maxSpeed: 290,
+        boostAccel: 150,
+        handling: 0.65,
+        enginePitch: 0.35,
+        trailColor: '#ff7700'
+      }
+    };
+    
+    let currentSuitKey = 'mark1';
+    let currentSuit = SUITS[currentSuitKey];
+    
+    // Audio Context (Procedural sound effects)
+    let audioCtx = null;
+    let engineOsc = null;
+    let engineGain = null;
+    let noiseFilter = null;
+    
+    function initAudio() {
+      if (audioCtx) return;
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContextClass();
+        
+        // Setup engine sound generator (humming sound)
+        engineOsc = audioCtx.createOscillator();
+        engineGain = audioCtx.createGain();
+        
+        engineOsc.type = 'sawtooth';
+        engineOsc.frequency.setValueAtTime(80, audioCtx.currentTime);
+        
+        // Low pass filter to make it sound rumbling and mechanical
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(currentSuitKey === 'mark1' ? 120 : 250, audioCtx.currentTime);
+        
+        engineOsc.connect(filter);
+        filter.connect(engineGain);
+        engineGain.connect(audioCtx.destination);
+        
+        engineGain.gain.setValueAtTime(0.01, audioCtx.currentTime);
+        engineOsc.start();
+        
+        // Resume context on first interaction
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+      } catch(e) {
+        console.warn('Audio not supported', e);
+      }
+    }
+    
+    function playBeep(freq, duration, type = 'sine', volume = 0.05) {
+      if (!audioCtx) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        
+        gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch(e) {}
+    }
+    
+    function playNoise(duration, lowFreq, volume = 0.08) {
+      if (!audioCtx) return;
+      try {
+        const bufferSize = audioCtx.sampleRate * duration;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+        
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(lowFreq, audioCtx.currentTime);
+        
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        noise.start();
+        noise.stop(audioCtx.currentTime + duration);
+      } catch(e) {}
+    }
+
+    // Set suit function
+    function selectSuit(key) {
+      if (currentSuitKey !== key) {
+        prevSuitKey = currentSuitKey;
+        transAnimTimer = 1.2; // 1.2 second transformation sequence
+        
+        // Mechanical transformation sounds
+        playBeep(300, 0.1, 'sawtooth', 0.08);
+        setTimeout(() => playBeep(600, 0.15, 'sine', 0.1), 80);
+        setTimeout(() => playBeep(1200, 0.25, 'triangle', 0.1), 160);
+      }
+      
+      currentSuitKey = key;
+      currentSuit = SUITS[key];
+      
+      // Update UI color themes
+      const isCyan = currentSuit.colorUI === 'cyan';
+      
+      const panels = [ui.scorePanel, ui.altPanel, ui.controlsGuide, ui.status, ui.schematic];
+      panels.forEach(p => {
+        if (p) {
+          if (isCyan) p.classList.add('suit-cyan');
+          else p.classList.remove('suit-cyan');
+        }
+      });
+      
+      if (isCyan) {
+        ui.boostContainer.classList.add('suit-cyan');
+        ui.startCard.classList.add('suit-cyan');
+        ui.pauseCard.classList.add('suit-cyan');
+        ui.startBtn.classList.add('suit-cyan');
+        ui.toast.classList.add('suit-cyan');
+        document.documentElement.style.setProperty('--amber', 'var(--cyan)');
+        document.documentElement.style.setProperty('--gold', '#e0f7fa');
+      } else {
+        ui.boostContainer.classList.remove('suit-cyan');
+        ui.startCard.classList.remove('suit-cyan');
+        ui.pauseCard.classList.remove('suit-cyan');
+        ui.startBtn.classList.remove('suit-cyan');
+        ui.toast.classList.remove('suit-cyan');
+        document.documentElement.style.setProperty('--amber', '#f59e0b');
+        document.documentElement.style.setProperty('--gold', '#fbbf24');
+      }
+      
+      ui.schematicName.textContent = currentSuit.name;
+      
+      // Dynamic engine adjustments
+      if (audioCtx && engineOsc) {
+        engineOsc.frequency.setValueAtTime(45 + currentSuit.enginePitch * 80, audioCtx.currentTime);
+      }
+      
+      // Trigger suit select sound
+      playBeep(220, 0.15, 'triangle', 0.08);
+      setTimeout(() => playBeep(440, 0.25, 'sine', 0.08), 80);
+    }
+    
+    // Add Suit select button handlers
+    document.querySelectorAll('.suit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.suit-btn').forEach(b => b.classList.remove('active', 'suit-cyan'));
+        const suit = btn.dataset.suit;
+        const colorUI = SUITS[suit].colorUI;
+        btn.classList.add('active');
+        if (colorUI === 'cyan') btn.classList.add('suit-cyan');
+        selectSuit(suit);
+        
+        ui.menuSubtitle.textContent = currentSuit.desc;
+      });
+    });
+
+    // Resize screen
+    function resize() {
+      DPR = Math.min(2, window.devicePixelRatio || 1);
+      W = window.innerWidth;
+      H = window.innerHeight;
+      canvas.width = W * DPR;
+      canvas.height = H * DPR;
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Spawn pattern helpers
+    function rand(a, b) { return a + Math.random() * (b - a); }
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+    
+    // Pseudo 3D perspective projection
+    function project(x, y, z) {
+      const horizon = H * 0.45;
+      const fov = Math.min(W, H) * 1.0;
+      const scale = fov / Math.max(10, z);
+      return {
+        x: W / 2 + (x - cameraX) * scale,
+        y: horizon + (y - cameraY) * scale,
+        scale: scale,
+        z: z
+      };
+    }
+    
+    // Reset or populate entities
+    function initGameEntities() {
+      landscape.length = 0;
+      collectibles.length = 0;
+      particles.length = 0;
+      stars.length = 0;
+      
+      // Infinite Star dust/sandstorm background
+      for (let i = 0; i < 120; i++) {
+        stars.push({
+          x: rand(-1000, 1000),
+          y: rand(-500, 300),
+          z: rand(50, 2000),
+          r: rand(1, 3),
+          alpha: rand(0.3, 0.9)
+        });
+      }
+      
+      // Populate initial path landscape (canyons, arches, tech crates)
+      for (let z = 300; z < 4000; z += 180) {
+        spawnLandscapeAtZ(z);
+      }
+    }
+    
+    function spawnLandscapeAtZ(z) {
+      // Left and right canyon pillars
+      const canyonWidth = rand(350, 500);
+      const height = rand(250, 500);
+      
+      // Left wall
+      landscape.push({
+        type: 'rock',
+        x: -canyonWidth - rand(50, 200),
+        y: 200 - height / 2,
+        z: z,
+        w: 250,
+        h: height,
+        color: `hsl(${22 + rand(-3,3)}, ${55 + rand(-5,5)}%, ${28 + rand(-8,8)}%)`
+      });
+      // Right wall
+      landscape.push({
+        type: 'rock',
+        x: canyonWidth + rand(50, 200),
+        y: 200 - height / 2,
+        z: z,
+        w: 250,
+        h: height,
+        color: `hsl(${22 + rand(-3,3)}, ${55 + rand(-5,5)}%, ${28 + rand(-8,8)}%)`
+      });
+      
+      // Occasional rock bridge / cave arch
+      if (z % 720 === 0) {
+        landscape.push({
+          type: 'arch',
+          x: rand(-80, 80),
+          y: -120,
+          z: z,
+          w: rand(500, 700),
+          h: 220,
+          color: '#3d2b1f'
+        });
+      }
+      
+      // Add collectible tech cores / rings
+      if (Math.random() < 0.75) {
+        const numItems = Math.floor(rand(1, 4));
+        const pattern = Math.random();
+        const baseX = rand(-180, 180);
+        const baseY = rand(-80, 60);
+        
+        for (let i = 0; i < numItems; i++) {
+          let cx = baseX, cy = baseY;
+          if (pattern < 0.3) {
+            cx += i * 35; // horizontal line
+          } else if (pattern < 0.6) {
+            cy += i * 30; // vertical line
+          } else {
+            cx += Math.sin(i) * 40; // curved
+            cy += Math.cos(i) * 30;
+          }
+          
+          collectibles.push({
+            x: cx,
+            y: cy,
+            z: z + i * 45,
+            collected: false,
+            spin: rand(0, Math.PI * 2),
+            type: Math.random() < 0.3 ? 'core' : 'crate' // Arc Reactor Core or Stark Tech Crate
+          });
+        }
+      }
+    }
+    
+    // Inputs polling
+    function updateControls() {
+      // Keyboard
+      let x = (keys.ArrowRight || keys.KeyD ? 1 : 0) - (keys.ArrowLeft || keys.KeyA ? 1 : 0);
+      let y = (keys.ArrowDown || keys.KeyS ? 1 : 0) - (keys.ArrowUp || keys.KeyW ? 1 : 0);
+      let boostPressed = !!(keys.Space || touch.boost);
+      let actionPressed = !!(keys.ShiftLeft || keys.ShiftRight || touch.action);
+      
+      // Touch joystick
+      x += touch.x;
+      y += touch.y;
+      
+      // Gamepad support
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      let activeGp = null;
+      for (const gp of gamepads) {
+        if (gp) {
+          activeGp = gp;
+          break;
+        }
+      }
+      
+      if (activeGp) {
+        ui.pad.classList.add('connected');
+        ui.pad.querySelector('span').textContent = 'שלט מחובר: ' + activeGp.id.substring(0, 12);
+        
+        // Deadzone check
+        const deadzone = 0.15;
+        const applyDeadzone = (val) => {
+          if (Math.abs(val) < deadzone) return 0;
+          return (Math.abs(val) - deadzone) / (1 - deadzone) * Math.sign(val);
+        };
+        
+        x += applyDeadzone(activeGp.axes[0] || 0);
+        y += applyDeadzone(activeGp.axes[1] || 0);
+        
+        // Support D-pad buttons
+        if (activeGp.buttons[14]?.pressed) x -= 1.0; // Left
+        if (activeGp.buttons[15]?.pressed) x += 1.0; // Right
+        if (activeGp.buttons[12]?.pressed) y -= 1.0; // Up
+        if (activeGp.buttons[13]?.pressed) y += 1.0; // Down
+        
+        // Boost on RT (7) or R1 (5)
+        boostPressed ||= activeGp.buttons[7]?.value > 0.2 || activeGp.buttons[5]?.pressed;
+        // Action on LT (6) or L1 (4)
+        actionPressed ||= activeGp.buttons[6]?.value > 0.2 || activeGp.buttons[4]?.pressed;
+        
+        // Switch to MARK 50 on Cross / A (0) & Robot Assembly
+        if (activeGp.buttons[0]?.pressed && !activeGp.crossLatch) {
+          activeGp.crossLatch = true;
+          if (isWorkshopMode) {
+            startRobotAssembly();
+          } else {
+            selectSuit('mark50');
+            showToast('חליפת ננו-טק! MARK 50', 'כור הקשת פועל');
+          }
+        } else if (!activeGp.buttons[0]?.pressed) {
+          activeGp.crossLatch = false;
+        }
+
+        // Switch to MARK 34 / 42 on Circle / B (1)
+        if (activeGp.buttons[1]?.pressed && !activeGp.circleLatch) {
+          activeGp.circleLatch = true;
+          if (currentSuitKey === 'mark34') selectSuit('mark42');
+          else selectSuit('mark34');
+          showToast('חליפה הוחלפה!', currentSuit.name + ' - ' + currentSuit.icon);
+        } else if (!activeGp.buttons[1]?.pressed) {
+          activeGp.circleLatch = false;
+        }
+
+        // Switch to MARK 33 / Return to HQ on Square / X (2)
+        if (activeGp.buttons[2]?.pressed && !activeGp.squareLatch) {
+          activeGp.squareLatch = true;
+          if (currentSuitKey === 'mark33') {
+            returnToWorkshop();
+          } else {
+            selectSuit('mark33');
+            showToast('Silver Centurion! MARK 33', 'מערכות מוכנות');
+          }
+        } else if (!activeGp.buttons[2]?.pressed) {
+          activeGp.squareLatch = false;
+        }
+
+        // Super Flight Aerobatic Stunt Mode on Triangle / Y (3)
+        if (activeGp.buttons[3]?.pressed && !activeGp.triangleLatch) {
+          activeGp.triangleLatch = true;
+          triggerSuperFlight();
+        } else if (!activeGp.buttons[3]?.pressed) {
+          activeGp.triangleLatch = false;
+        }
+        
+        // Pause button Start
+        if (activeGp.buttons[9]?.pressed && !activeGp.startLatch) {
+          activeGp.startLatch = true;
+          togglePause();
+        } else if (!activeGp.buttons[9]?.pressed) {
+          activeGp.startLatch = false;
+        }
+      } else {
+        ui.pad.classList.remove('connected');
+        ui.pad.querySelector('span').textContent = 'חיפוש שלט...';
+      }
+      
+      // Suit swap keyboard latch
+      if (keys.KeyV && !keys.vLatch) {
+        keys.vLatch = true;
+        cycleSuit();
+      } else if (!keys.KeyV) {
+        keys.vLatch = false;
+      }
+      
+      // Esc latch
+      if (keys.Escape && !keys.escLatch) {
+        keys.escLatch = true;
+        togglePause();
+      } else if (!keys.Escape) {
+        keys.escLatch = false;
+      }
+      
+      const m = Math.max(1, Math.hypot(x, y));
+      return {
+        x: clamp(x / m, -1, 1),
+        y: clamp(y / m, -1, 1),
+        boost: boostPressed,
+        action: actionPressed
+      };
+    }
+    
+    function cycleSuit() {
+      const keysList = Object.keys(SUITS);
+      const nextIndex = (keysList.indexOf(currentSuitKey) + 1) % keysList.length;
+      selectSuit(keysList[nextIndex]);
+      showToast('חליפה הוחלפה!', currentSuit.name + ' - ' + currentSuit.icon);
+    }
+    
+    // Actions Execution based on suit
+    let actionCooldown = 0;
+    let flareCooldown = 0;
+    let isIced = 0; // percentage of screen iced up
+    
+    function performSpecialAction(ctrl) {
+      if (actionCooldown > 0) return;
+      
+      if (currentSuitKey === 'mark1') {
+        // Flamethrower
+        playNoise(0.4, 300, 0.15);
+        for (let i = 0; i < 25; i++) {
+          particles.push({
+            type: 'fire',
+            x: rand(-15, 15),
+            y: rand(20, 35),
+            z: rand(40, 80),
+            vx: rand(-180, 180) + cameraX * 0.1,
+            vy: rand(-100, 50) + cameraY * 0.1,
+            vz: speed * 0.8 + rand(100, 300),
+            size: rand(10, 22),
+            life: rand(0.3, 0.6),
+            maxLife: 0.6
+          });
+        }
+        actionCooldown = 0.08; // continuous stream
+      } 
+      else if (currentSuitKey === 'mark2') {
+        // Sonic Boost dash
+        if (boost > 20) {
+          boost = Math.max(0, boost - 18);
+          speed = currentSuit.maxSpeed * 1.4;
+          playBeep(400, 0.1, 'sawtooth', 0.05);
+          setTimeout(() => playBeep(800, 0.2, 'sine', 0.06), 40);
+          shake = 12;
+          actionCooldown = 0.5;
+          
+          // Sonic shockwave particles
+          for (let a = 0; a < Math.PI * 2; a += 0.25) {
+            particles.push({
+              type: 'sparks',
+              x: Math.cos(a) * 30,
+              y: Math.sin(a) * 30,
+              z: 50,
+              vx: Math.cos(a) * 450,
+              vy: Math.sin(a) * 450,
+              vz: -100,
+              size: rand(4, 8),
+              color: '#a5f3fc',
+              life: 0.4,
+              maxLife: 0.4
+            });
+          }
+          showToast('SONIC BOOST!', 'מחסום הקול נשבר');
+        } else {
+          playBeep(180, 0.15, 'triangle', 0.05);
+          showToast('עוצמה נמוכה', 'המתן להטענת כור הקשת');
+          actionCooldown = 0.4;
+        }
+      } 
+      else if (currentSuitKey === 'mark3') {
+        // Repulsor blast
+        playBeep(900, 0.06, 'sawtooth', 0.1);
+        playBeep(1500, 0.12, 'sine', 0.08);
+        shake = 8;
+        actionCooldown = 0.35;
+        
+        // Repulsor laser beam graphic particles
+        for (let i = 0; i < 20; i++) {
+          particles.push({
+            type: 'repulsor',
+            x: rand(-80, 80),
+            y: rand(-50, 50),
+            z: rand(100, 800),
+            vx: 0,
+            vy: 0,
+            vz: -300,
+            size: rand(3, 8),
+            life: 0.15,
+            maxLife: 0.15
+          });
+        }
+        
+        // Deploy flare check (if they hold down or press secondary buttons, or automatically sometimes)
+        if (flareCooldown <= 0) {
+          deployFlares();
+        }
+      }
+      else if (currentSuitKey === 'mark6') {
+        // Triangular Unibeam laser
+        playBeep(700, 0.15, 'sawtooth', 0.12);
+        playBeep(1100, 0.3, 'sine', 0.08);
+        shake = 6;
+        actionCooldown = 0.12;
+        
+        // Draw triangular laser array
+        for (let i = 0; i < 30; i++) {
+          const angle = (i / 30) * Math.PI * 2;
+          const r = rand(2, 35);
+          particles.push({
+            type: 'repulsor',
+            x: Math.cos(angle) * r,
+            y: Math.sin(angle) * r,
+            z: rand(80, 1000),
+            vx: Math.cos(angle) * 5,
+            vy: Math.sin(angle) * 5,
+            vz: -450,
+            size: rand(4, 9),
+            life: 0.12,
+            maxLife: 0.12
+          });
+        }
+      }
+      else if (currentSuitKey === 'mark8') {
+        // Micro-missiles
+        playNoise(0.2, 500, 0.1);
+        playBeep(330, 0.15, 'sawtooth', 0.05);
+        shake = 10;
+        actionCooldown = 0.5;
+        
+        // Launch 4 micro-missiles from shoulders
+        const offsets = [-25, -15, 15, 25];
+        offsets.forEach((ox, idx) => {
+          setTimeout(() => {
+            playBeep(440 + idx * 80, 0.1, 'sine', 0.04);
+            // Spawn missile particle that moves away
+            particles.push({
+              type: 'flare',
+              x: ox,
+              y: -15,
+              z: 40,
+              vx: ox * 2 + rand(-30, 30),
+              vy: -100 + rand(-20, 20),
+              vz: 600 + rand(100, 350),
+              size: 5,
+              color: '#ef4444',
+              life: 0.8,
+              maxLife: 0.8
+            });
+          }, idx * 60);
+        });
+      }
+    }
+    
+    function deployFlares() {
+      flareCooldown = 2.0;
+      playBeep(320, 0.08, 'triangle', 0.05);
+      showToast('נורי הטעייה שוחררו', 'FLARES DEPLOYED');
+      
+      const numFlares = 10;
+      for (let i = 0; i < numFlares; i++) {
+        const side = i % 2 === 0 ? -1 : 1;
+        particles.push({
+          type: 'flare',
+          x: side * 30,
+          y: 20,
+          z: 30,
+          vx: side * rand(200, 400),
+          vy: rand(50, 150),
+          vz: -150 - rand(0, 100),
+          size: rand(6, 12),
+          life: rand(1.0, 1.6),
+          maxLife: 1.6,
+          color: i % 2 === 0 ? '#ffcc00' : '#ff3300'
+        });
+      }
+    }
+
+    // Engine loop updates
+    function update(dt) {
+      if (!running || paused) return;
+      
+      actionCooldown = Math.max(0, actionCooldown - dt);
+      flareCooldown = Math.max(0, flareCooldown - dt);
+      
+      const ctrl = updateControls();
+      
+      // Speed dynamics (Mass & acceleration)
+      const targetSpeed = ctrl.boost && boost > 0 ? currentSuit.maxSpeed : (currentSuit.maxSpeed * 0.55);
+      const accelRate = ctrl.boost && boost > 0 ? (currentSuit.boostAccel / currentSuit.mass) : 100;
+      
+      speed += (targetSpeed - speed) * Math.min(1.0, dt * (accelRate / 100));
+      
+      // Energy depletion / regeneration
+      if (ctrl.boost && boost > 0) {
+        boost = Math.max(0, boost - dt * 26);
+        shake = Math.max(shake, 1.8);
+        if (Math.random() < 0.6) {
+          spawnThrusterParticle(true);
+        }
+      } else {
+        boost = Math.min(100, boost + dt * 10);
+      }
+      
+      // Action handle
+      if (ctrl.action) {
+        performSpecialAction(ctrl);
+      }
+      
+      // Movement handling (influences speed & tilt)
+      const moveSpeedX = (150 + speed * 0.15) * currentSuit.handling;
+      const moveSpeedY = (110 + speed * 0.1) * currentSuit.handling;
+      
+      cameraX += ctrl.x * dt * moveSpeedX;
+      cameraY += ctrl.y * dt * moveSpeedY;
+      
+      // Clamps for desert canyon boundary limits
+      cameraX = clamp(cameraX, -380, 380);
+      cameraY = clamp(cameraY, -250, 180); // altitude limit
+      
+      // Auto return centering
+      cameraX *= Math.pow(0.992, dt * 60);
+      
+      // Altitude text logic
+      altitude = Math.round(180 - cameraY * 3);
+      
+      // Mark 2 Icing hazard logic
+      if (currentSuitKey === 'mark2' && altitude > 650) {
+        const iceSeverity = clamp((altitude - 650) / 250, 0, 1.0);
+        isIced += (iceSeverity - isIced) * dt * 2.0;
+        
+        if (isIced > 0.4 && Math.random() < dt * 2) {
+          playBeep(880, 0.12, 'square', 0.05);
+          setTimeout(() => playBeep(880, 0.12, 'square', 0.05), 180);
+          showToast('אזהרת התקרחות! רד נמוך', 'ICING WARNING - DIVE');
+        }
+        // Force speed reduction if heavily iced
+        if (isIced > 0.8) {
+          speed = Math.max(120, speed - dt * 180);
+        }
+      } else {
+        isIced = Math.max(0, isIced - dt * 1.5);
+      }
+      
+      // Roll dynamics
+      if (ctrl.x !== 0) {
+        rollVelocity = ctrl.x * 0.4;
+      } else {
+        rollVelocity *= Math.pow(0.85, dt * 60);
+      }
+      roll += rollVelocity * dt;
+      roll *= Math.pow(0.9, dt * 60);
+      
+      // Camera shake recovery
+      shake *= Math.pow(0.85, dt * 60);
+      
+      // Audio pitch updates based on speed/boost
+      if (audioCtx && engineOsc && engineGain) {
+        const speedRatio = speed / currentSuit.maxSpeed;
+        engineOsc.frequency.setValueAtTime((40 + currentSuit.enginePitch * 70) + speedRatio * 85, audioCtx.currentTime);
+        engineGain.gain.setValueAtTime(0.04 + speedRatio * 0.06, audioCtx.currentTime);
+      }
+      
+      // Update backgrounds and stars
+      for (const s of stars) {
+        s.z -= speed * dt * 0.8;
+        if (s.z < 10) {
+          s.z = 2000;
+          s.x = rand(-1000, 1000);
+          s.y = rand(-500, 300);
+        }
+      }
+      
+      // Update landscape elements
+      for (const l of landscape) {
+        l.z -= speed * dt;
+        
+        // Simple collision detection (No fail/Unloseable)
+        if (l.z < 60 && l.z > -10) {
+          const projectedL = project(l.x, l.y, l.z);
+          // Check collision with player box
+          const relativeX = l.x - cameraX;
+          const relativeY = l.y - cameraY;
+          
+          if (Math.abs(relativeX) < l.w * 0.6 && Math.abs(relativeY) < l.h * 0.6 && !l.collided) {
+            l.collided = true;
+            triggerObstacleCollision();
+          }
+        }
+      }
+      
+      // Filter out passed landscape & spawn new
+      let maxZ = 0;
+      for (const l of landscape) {
+        maxZ = Math.max(maxZ, l.z);
+      }
+      for (let i = landscape.length - 1; i >= 0; i--) {
+        if (landscape[i].z < -100) {
+          landscape.splice(i, 1);
+        }
+      }
+      if (maxZ < 3000) {
+        spawnLandscapeAtZ(maxZ + 180);
+      }
+      
+      // Update collectibles
+      for (const c of collectibles) {
+        c.z -= speed * dt;
+        c.spin += dt * 2.0;
+        
+        // Collection trigger check
+        if (!c.collected && c.z < 70 && c.z > -20) {
+          const dist = Math.hypot(c.x - cameraX, c.y - cameraY);
+          if (dist < 40) {
+            collectItem(c);
+          }
+        }
+      }
+      for (let i = collectibles.length - 1; i >= 0; i--) {
+        if (collectibles[i].z < -50 || collectibles[i].collected) {
+          collectibles.splice(i, 1);
+        }
+      }
+      
+      // Update particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life -= dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.z -= (speed - (p.vz || 0)) * dt;
+        
+        if (p.type === 'fire') {
+          p.size += dt * 25; // flames expand
+        }
+        
+        if (p.life <= 0 || p.z < -20) {
+          particles.splice(i, 1);
+        }
+      }
+      
+      // Spawn engine thruster particles
+      if (Math.random() < 0.25) {
+        spawnThrusterParticle(false);
+      }
+      
+      // Increment continuous flight score
+      score += dt * speed * 0.05;
+      
+      // UI updates
+      ui.score.textContent = Math.floor(score).toString().padStart(6, '0');
+      ui.boost.style.width = boost + '%';
+      ui.alt.textContent = `גובה: ${altitude.toLocaleString('he-IL')} מ׳`;
+    }
+    
+    function triggerObstacleCollision() {
+      shake = 16;
+      speed = Math.max(50, speed * 0.4); // sudden deceleration
+      boost = Math.max(0, boost - 25);
+      
+      playBeep(120, 0.35, 'sawtooth', 0.15);
+      showToast('פגיעה במכשול! ייצוב מערכות', 'SUIT COLLISION DETECTED');
+      
+      // Spark shower particles
+      for (let i = 0; i < 30; i++) {
+        particles.push({
+          type: 'sparks',
+          x: rand(-40, 40),
+          y: rand(-30, 30),
+          z: 35,
+          vx: rand(-300, 300),
+          vy: rand(-300, 300),
+          vz: -120,
+          size: rand(2, 5),
+          color: currentSuitKey === 'mark1' ? '#ff9900' : '#45e2ff',
+          life: rand(0.4, 0.8),
+          maxLife: 0.8
+        });
+      }
+    }
+    
+    function collectItem(item) {
+      item.collected = true;
+      techCollected++;
+      objProgress++;
+      
+      boost = Math.min(100, boost + 15);
+      score += 150;
+      
+      // Collection audio feedback
+      playBeep(523.25, 0.08, 'sine', 0.06); // C5
+      setTimeout(() => playBeep(659.25, 0.12, 'sine', 0.06), 70); // E5
+      
+      // Sparkles
+      for (let i = 0; i < 15; i++) {
+        particles.push({
+          type: 'sparks',
+          x: item.x - cameraX,
+          y: item.y - cameraY,
+          z: 50,
+          vx: rand(-150, 150),
+          vy: rand(-150, 150),
+          vz: 0,
+          size: rand(3, 6),
+          color: item.type === 'core' ? '#38bdf8' : '#fbbf24',
+          life: rand(0.3, 0.6),
+          maxLife: 0.6
+        });
+      }
+      
+      ui.combo.textContent = techCollected;
+      
+      // Objective progress check
+      if (objProgress >= objTarget) {
+        score += 1500;
+        boost = 100;
+        showToast('משימה הושלמה! 🌟', '+1,500 נקודות · כור הקשת נטען');
+        playBeep(880, 0.15, 'sine', 0.08);
+        setTimeout(() => playBeep(1320, 0.3, 'sine', 0.08), 120);
+        
+        objLevel++;
+        objProgress = 0;
+        objTarget = 5 + objLevel * 2;
+        
+        // Spawn automatic celebration flares for Mark III
+        if (currentSuitKey === 'mark3') {
+          deployFlares();
+        }
+      }
+      
+      updateObjectiveUI();
+    }
+    
+    function updateObjectiveUI() {
+      ui.objective.innerHTML = `משימה: <b>אספו ${objTarget} חלקי Stark Tech</b> · ${objProgress}/${objTarget}`;
+    }
+    
+    function spawnThrusterParticle(hot) {
+      const sideOffset = 14;
+      // Spawn on left and right boot jets
+      const offsets = [-sideOffset, sideOffset];
+      offsets.forEach(ox => {
+        particles.push({
+          type: 'thruster',
+          x: ox + rand(-4, 4),
+          y: 22 + rand(4, 10),
+          z: 32,
+          vx: rand(-20, 20) + (rollVelocity * -15),
+          vy: rand(50, hot ? 180 : 100),
+          vz: -150,
+          size: rand(3, hot ? 9 : 5),
+          life: rand(0.15, 0.35),
+          maxLife: 0.35,
+          color: hot ? '#ff3700' : currentSuit.trailColor
+        });
+      });
+    }
+
+    // DRAWING
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      
+      // Add camera shake effect offset
+      let sx = 0, sy = 0;
+      if (shake > 0) {
+        sx = rand(-shake, shake);
+        sy = rand(-shake, shake);
+        ctx.translate(sx, sy);
+      }
+      
+      // Draw Sky Gradient (desert sun warm dust colors)
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, '#100c08'); // high atmosphere
+      grad.addColorStop(0.35, '#5c3d24'); // warm dust layer
+      grad.addColorStop(0.7, '#a76a38'); // horizon sun orange
+      grad.addColorStop(1, '#d9b48f'); // warm sand glow
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+      
+      // Draw stars / atmosphere dust particles
+      ctx.fillStyle = 'rgba(255, 243, 224, 0.7)';
+      for (const s of stars) {
+        const p = project(s.x, s.y, s.z);
+        if (p.x > 0 && p.x < W && p.y > 0 && p.y < H) {
+          ctx.globalAlpha = s.alpha * (1.0 - s.z / 2000);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, s.r * p.scale * 0.05, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 1.0;
+      
+      // Draw Desert Horizon Mountains
+      ctx.fillStyle = '#6b4528';
+      ctx.beginPath();
+      ctx.moveTo(0, H * 0.45);
+      for (let x = 0; x <= W; x += 40) {
+        const height = Math.sin(x * 0.004) * 35 + Math.cos(x * 0.01) * 12 + (cameraY * 0.15);
+        ctx.lineTo(x, H * 0.45 + height);
+      }
+      ctx.lineTo(W, H);
+      ctx.lineTo(0, H);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Ground plane grid (sand lines)
+      ctx.strokeStyle = 'rgba(230, 185, 130, 0.12)';
+      ctx.lineWidth = 1.5;
+      const horizonY = H * 0.45;
+      const numLines = 14;
+      for (let i = 0; i < numLines; i++) {
+        const lineZ = 50 + i * 220 - (speed * last * 0.001) % 220;
+        const p1 = project(-1000, 200, lineZ);
+        const p2 = project(1000, 200, lineZ);
+        if (p1.y > horizonY && p1.y < H) {
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+        }
+      }
+      
+      // Draw Landscape elements sorted back-to-front (depth sorting)
+      const sortedEntities = [
+        ...landscape.map(item => ({ ...item, renderType: 'landscape' })),
+        ...collectibles.map(item => ({ ...item, renderType: 'collectible' })),
+        ...particles.map(item => ({ ...item, renderType: 'particle' }))
+      ].sort((a, b) => b.z - a.z);
+      
+      for (const item of sortedEntities) {
+        const p = project(item.x, item.y, item.z);
+        if (p.z < 20 || p.x < -200 || p.x > W + 200 || p.y < -200 || p.y > H + 200) {
+          continue;
+        }
+        
+        ctx.globalAlpha = clamp(1.0 - (item.z / 3200), 0.1, 1.0);
+        
+        if (item.renderType === 'landscape') {
+          if (item.type === 'rock') {
+            const rw = item.w * p.scale * 0.05;
+            const rh = item.h * p.scale * 0.05;
+            ctx.fillStyle = item.color;
+            ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            // Irregular rock polygons
+            ctx.moveTo(p.x - rw / 2, p.y + rh / 2);
+            ctx.lineTo(p.x - rw / 2 + rw * 0.1, p.y - rh / 2 + rh * 0.1);
+            ctx.lineTo(p.x + rw / 4, p.y - rh / 2);
+            ctx.lineTo(p.x + rw / 2, p.y - rh / 3);
+            ctx.lineTo(p.x + rw / 2, p.y + rh / 2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            
+            // Collided glow
+            if (item.collided) {
+              ctx.strokeStyle = '#ff3300';
+              ctx.lineWidth = 4;
+              ctx.stroke();
+            }
+          } 
+          else if (item.type === 'arch') {
+            const aw = item.w * p.scale * 0.05;
+            const ah = item.h * p.scale * 0.05;
+            ctx.strokeStyle = item.color;
+            ctx.lineWidth = aw * 0.18;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y + ah / 2, aw * 0.45, Math.PI, 0, false);
+            ctx.stroke();
+          }
+        } 
+        else if (item.renderType === 'collectible') {
+          const size = (item.type === 'core' ? 14 : 16) * p.scale * 0.05;
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(item.spin);
+          
+          if (item.type === 'core') {
+            // Arc Reactor Core item (glowing cyan triangle inside circle)
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#00f0ff';
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.9)';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            
+            // Ring
+            ctx.beginPath();
+            ctx.arc(0, 0, size, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fill();
+            
+            // Core triangle
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(0, -size * 0.6);
+            ctx.lineTo(size * 0.5, size * 0.35);
+            ctx.lineTo(-size * 0.5, size * 0.35);
+            ctx.closePath();
+            ctx.fill();
+          } 
+          else {
+            // Stark Industries Tech Crate
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#fbbf24';
+            ctx.fillStyle = '#27272a';
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 2;
+            
+            // Draw box
+            ctx.beginPath();
+            ctx.rect(-size * 0.7, -size * 0.7, size * 1.4, size * 1.4);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Draw logo "S" inside
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = `bold ${Math.round(size)}px monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('S', 0, 0);
+          }
+          ctx.restore();
+        } 
+        else if (item.renderType === 'particle') {
+          const psize = item.size * p.scale * 0.05;
+          
+          if (item.type === 'thruster') {
+            ctx.fillStyle = item.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, psize, 0, Math.PI * 2);
+            ctx.fill();
+          } 
+          else if (item.type === 'sparks') {
+            ctx.fillStyle = item.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, psize, 0, Math.PI * 2);
+            ctx.fill();
+          } 
+          else if (item.type === 'fire') {
+            // Expand, fade and color transition (yellow/orange/gray)
+            const ratio = item.life / item.maxLife;
+            ctx.fillStyle = `rgba(${Math.round(255 * ratio + 100 * (1-ratio))}, ${Math.round(140 * ratio + 20 * (1-ratio))}, ${Math.round(30 * ratio + 30 * (1-ratio))}, ${ratio * 0.8})`;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, psize, 0, Math.PI * 2);
+            ctx.fill();
+          } 
+          else if (item.type === 'flare') {
+            // Pulsing bright flare trail
+            const ratio = item.life / item.maxLife;
+            ctx.fillStyle = item.color;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = item.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, psize * ratio, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Tail sparks
+            if (Math.random() < 0.15) {
+              particles.push({
+                type: 'sparks',
+                x: item.x + rand(-5, 5),
+                y: item.y + rand(-5, 5),
+                z: item.z,
+                vx: rand(-30, 30),
+                vy: rand(20, 80),
+                vz: 0,
+                size: 2,
+                color: item.color,
+                life: 0.3,
+                maxLife: 0.3
+              });
+            }
+          }
+          else if (item.type === 'repulsor') {
+            // Draw laser cylinder beam
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = psize;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#38bdf8';
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p.x + (item.vx || 0), p.y + (item.vy || 0));
+            ctx.stroke();
+          }
+        }
+      }
+      
+      ctx.globalAlpha = 1.0;
+      ctx.shadowBlur = 0;
+      
+      // Draw 3rd Person Iron Man Suit Model & Suit Transformation Effect
+      draw3rdPersonSuit();
+      
+      // Draw Iron Man schematic HUD / crosshair overlay
+      drawIronManCrosshair();
+      
+      // Reset translation if shaken
+      if (shake > 0) {
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      }
+      
+      // Draw Icing screen overlay effect if iced up
+      if (isIced > 0) {
+        drawIcingOverlay();
+      }
+    }
+
+    // 3rd Person Iron Man Suit Renderer & Suit Transformations
+    let transAnimTimer = 0;
+    let prevSuitKey = '';
+
+    function draw3rdPersonSuit() {
+      const cx = W / 2 + (cameraX * 0.1);
+      const cy = H * 0.65 + (cameraY * 0.15);
+      const scale = Math.min(W, H) * 0.0018;
+      
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(roll * 0.5);
+      ctx.scale(scale, scale);
+      
+      // Lean forward when boosting
+      const isBoosting = speed > currentSuit.maxSpeed * 0.7;
+      if (isBoosting) {
+        ctx.scale(1.0, 0.9);
+      }
+      
+      // 1. Boot Thruster Flames (under boots)
+      const flameLen = isBoosting ? rand(70, 110) : rand(30, 50);
+      const thrusterColor = currentSuit.trailColor;
+      
+      // Left and Right boot flames
+      [-22, 22].forEach(bx => {
+        ctx.fillStyle = thrusterColor;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = thrusterColor;
+        ctx.beginPath();
+        ctx.moveTo(bx - 10, 60);
+        ctx.lineTo(bx + 10, 60);
+        ctx.lineTo(bx, 60 + flameLen);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Inner white hot core
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(bx - 5, 60);
+        ctx.lineTo(bx + 5, 60);
+        ctx.lineTo(bx, 60 + flameLen * 0.5);
+        ctx.closePath();
+        ctx.fill();
+      });
+      ctx.shadowBlur = 0;
+      
+      // 2. Legs & Boots
+      ctx.fillStyle = currentSuit.color;
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 3;
+      
+      // Left leg
+      ctx.beginPath();
+      ctx.rect(-32, 10, 18, 50);
+      ctx.fill(); ctx.stroke();
+      // Right leg
+      ctx.beginPath();
+      ctx.rect(14, 10, 18, 50);
+      ctx.fill(); ctx.stroke();
+      
+      // Gold/Silver Knee highlights
+      ctx.fillStyle = currentSuit.colorUI === 'cyan' ? '#e2e8f0' : '#fbbf24';
+      ctx.fillRect(-30, 25, 14, 10);
+      ctx.fillRect(16, 25, 14, 10);
+      
+      // 3. Main Torso Armor
+      ctx.fillStyle = currentSuit.color;
+      ctx.beginPath();
+      ctx.moveTo(-45, -50);
+      ctx.lineTo(45, -50);
+      ctx.lineTo(32, 15);
+      ctx.lineTo(-32, 15);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      
+      // Chest / Spine Gold Plate
+      ctx.fillStyle = currentSuit.colorUI === 'cyan' ? '#94a3b8' : '#d97706';
+      ctx.beginPath();
+      ctx.moveTo(-25, -45);
+      ctx.lineTo(25, -45);
+      ctx.lineTo(18, 0);
+      ctx.lineTo(-18, 0);
+      ctx.closePath();
+      ctx.fill();
+      
+      // 4. Arc Reactor Core (Center back glow)
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowBlur = 25;
+      ctx.shadowColor = currentSuit.colorUI === 'cyan' ? '#00f0ff' : '#fbbf24';
+      
+      ctx.beginPath();
+      if (currentSuitKey === 'mark6') {
+        // Triangle reactor
+        ctx.moveTo(0, -32);
+        ctx.lineTo(12, -14);
+        ctx.lineTo(-12, -14);
+        ctx.closePath();
+      } else {
+        // Circle reactor
+        ctx.arc(0, -22, 12, 0, Math.PI * 2);
+      }
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      
+      // 5. Shoulder Pads & Arms
+      ctx.fillStyle = currentSuit.color;
+      // Left Shoulder
+      ctx.beginPath();
+      ctx.ellipse(-52, -45, 14, 18, -0.2, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      // Right Shoulder
+      ctx.beginPath();
+      ctx.ellipse(52, -45, 14, 18, 0.2, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      
+      // Arms
+      ctx.fillRect(-62, -35, 16, 45);
+      ctx.strokeRect(-62, -35, 16, 45);
+      ctx.fillRect(46, -35, 16, 45);
+      ctx.strokeRect(46, -35, 16, 45);
+      
+      // 6. Helmet (3rd person rear-quarter view)
+      ctx.fillStyle = currentSuit.color;
+      ctx.beginPath();
+      ctx.arc(0, -68, 22, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      
+      // Faceplate Gold Rim
+      ctx.fillStyle = currentSuit.colorUI === 'cyan' ? '#cbd5e1' : '#fbbf24';
+      ctx.beginPath();
+      ctx.arc(0, -70, 16, 0.2, Math.PI - 0.2);
+      ctx.fill();
+      
+      // Glowing Eye Slits (blue HUD reflection)
+      ctx.fillStyle = '#38bdf8';
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#38bdf8';
+      ctx.fillRect(-10, -72, 6, 2.5);
+      ctx.fillRect(4, -72, 6, 2.5);
+      ctx.shadowBlur = 0;
+      
+      // 7. TRANSFORMATION ANIMATION OVERLAY (Nanites & Armor Plates Shift)
+      if (transAnimTimer > 0) {
+        const pRatio = transAnimTimer / 1.2;
+        
+        // Expanding Suit Shift Energy Ring
+        ctx.strokeStyle = currentSuit.colorUI === 'cyan' ? '#00f0ff' : '#fbbf24';
+        ctx.lineWidth = 6 * pRatio;
+        ctx.shadowBlur = 25;
+        ctx.shadowColor = ctx.strokeStyle;
+        
+        ctx.beginPath();
+        ctx.arc(0, -20, 85 * (1.2 - pRatio), 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Nanite Hexagon Mesh Overlay
+        ctx.fillStyle = `rgba(255, 255, 255, ${pRatio * 0.4})`;
+        ctx.beginPath();
+        ctx.arc(0, -20, 75, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.shadowBlur = 0;
+      }
+      
+      ctx.restore();
+    }
+    
+    function drawIronManCrosshair() {
+      const cx = W / 2;
+      const cy = H * 0.52;
+      
+      ctx.strokeStyle = currentSuit.colorUI === 'cyan' ? 'rgba(56, 189, 248, 0.45)' : 'rgba(245, 158, 11, 0.45)';
+      ctx.lineWidth = 1.5;
+      
+      // Suit Roll tilt angle representation
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(roll * 0.7);
+      
+      // Circular scopes
+      ctx.beginPath();
+      ctx.arc(0, 0, 70, -0.4, 0.4, true);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, 70, Math.PI - 0.4, Math.PI + 0.4, true);
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.arc(0, 0, 95, -Math.PI/2 - 0.5, -Math.PI/2 + 0.5);
+      ctx.stroke();
+      
+      // Inner cross bracket
+      ctx.beginPath();
+      ctx.moveTo(-15, 0); ctx.lineTo(-8, 0);
+      ctx.moveTo(15, 0); ctx.lineTo(8, 0);
+      ctx.moveTo(0, -15); ctx.lineTo(0, -8);
+      ctx.stroke();
+      
+      ctx.restore();
+      
+      // Horizon stabilizer lines
+      ctx.beginPath();
+      ctx.moveTo(cx - 150, cy);
+      ctx.lineTo(cx - 100, cy);
+      ctx.lineTo(cx - 90, cy + 10);
+      
+      ctx.moveTo(cx + 150, cy);
+      ctx.lineTo(cx + 100, cy);
+      ctx.lineTo(cx + 90, cy + 10);
+      ctx.stroke();
+    }
+    
+    function drawIcingOverlay() {
+      // Ice crystals drawing around the borders
+      const gradient = ctx.createRadialGradient(W/2, H/2, Math.min(W, H) * 0.4, W/2, H/2, Math.max(W, H) * 0.85);
+      gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+      gradient.addColorStop(0.5, `rgba(165, 243, 252, ${isIced * 0.15})`);
+      gradient.addColorStop(0.8, `rgba(224, 247, 250, ${isIced * 0.55})`);
+      gradient.addColorStop(1, `rgba(255, 255, 255, ${isIced * 0.85})`);
+      
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, W, H);
+      
+      // Draw small ice cracks or warning at extreme levels
+      if (isIced > 0.6) {
+        ctx.fillStyle = 'rgba(255, 87, 34, 0.8)';
+        ctx.font = '900 13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('WARNING: ICING RISK // סכנת קפיאה - צלול מטה', W / 2, H * 0.22);
+      }
+    }
+
+    // Game loop timing
+    function loop(timestamp) {
+      if (!last) last = timestamp;
+      let dt = (timestamp - last) * 0.001;
+      
+      // Caps DT for smooth rendering even during drops
+      if (dt > 0.1) dt = 0.1;
+      last = timestamp;
+      
+      update(dt);
+      draw();
+      
+      if (running) {
+        requestAnimationFrame(loop);
+      }
+    }
+    
+    // UI Helpers
+    function showToast(main, small = '') {
+      ui.toast.innerHTML = main + (small ? `<small>${small}</small>` : '');
+      ui.toast.classList.add('show');
+      clearTimeout(ui.toast.timer);
+      ui.toast.timer = setTimeout(() => ui.toast.classList.remove('show'), 1600);
+    }
+
+    function togglePause() {
+      if (!running) return;
+      paused = !paused;
+      
+      if (paused) {
+        ui.pause.classList.remove('hidden');
+        if (audioCtx) audioCtx.suspend();
+        playBeep(220, 0.1, 'sine', 0.05);
+      } else {
+        ui.pause.classList.add('hidden');
+        if (audioCtx) audioCtx.resume();
+        playBeep(440, 0.1, 'sine', 0.05);
+        last = performance.now();
+      }
+    }
+
+    // Event Listeners
+    window.addEventListener('keydown', e => {
+      keys[e.code] = true;
+      
+      // Stop page scrolling for space/arrows
+      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+        e.preventDefault();
+      }
+
+      // Keyboard suit hotkeys
+      if (running && !paused) {
+        if (e.code === 'Digit1' || e.code === 'Numpad1') {
+          selectSuit('mark1');
+          showToast('חליפה הוחלפה!', SUITS.mark1.name + ' - ' + SUITS.mark1.icon);
+        }
+        else if (e.code === 'Digit2' || e.code === 'Numpad2') {
+          selectSuit('mark2');
+          showToast('חליפה הוחלפה!', SUITS.mark2.name + ' - ' + SUITS.mark2.icon);
+        }
+        else if (e.code === 'Digit3' || e.code === 'Numpad3') {
+          selectSuit('mark3');
+          showToast('חליפה הוחלפה!', SUITS.mark3.name + ' - ' + SUITS.mark3.icon);
+        }
+        else if (e.code === 'Digit6' || e.code === 'Numpad6') {
+          selectSuit('mark6');
+          showToast('חליפה הוחלפה!', SUITS.mark6.name + ' - ' + SUITS.mark6.icon);
+        }
+        else if (e.code === 'Digit8' || e.code === 'Numpad8') {
+          selectSuit('mark8');
+          showToast('חליפה הוחלפה!', SUITS.mark8.name + ' - ' + SUITS.mark8.icon);
+        }
+      }
+    });
+    window.addEventListener('keyup', e => {
+      keys[e.code] = false;
+    });
+
+    // Button interactions
+    ui.startBtn.addEventListener('click', () => {
+      initAudio();
+      initGameEntities();
+      ui.start.classList.add('hidden');
+      
+      running = true;
+      paused = false;
+      last = performance.now();
+      
+      // Select the suit that was active in the start screen
+      const activeBtn = $('.suit-btn.active');
+      if (activeBtn) {
+        selectSuit(activeBtn.dataset.suit);
+      }
+      
+      updateObjectiveUI();
+      showToast('מערכות הופעלו! 🚀', 'טיסה נעימה, טוני');
+      requestAnimationFrame(loop);
+    });
+
+    ui.resumeBtn.addEventListener('click', () => {
+      togglePause();
+    });
+
+    ui.changeSuitPauseBtn.addEventListener('click', () => {
+      ui.pause.classList.add('hidden');
+      ui.start.classList.remove('hidden');
+      running = false;
+      paused = false;
+      if (audioCtx && engineGain) {
+        engineGain.gain.setValueAtTime(0, audioCtx.currentTime);
+      }
+    });
+
+    // Touch support (virtual joystick)
+    const stick = $('#stick');
+    const nub = $('#nub');
+    let stickActive = false, stickStartX = 0, stickStartY = 0;
+    
+    stick.addEventListener('touchstart', e => {
+      stickActive = true;
+      const t = e.touches[0];
+      stickStartX = t.clientX;
+      stickStartY = t.clientY;
+      initAudio();
+    });
+    window.addEventListener('touchmove', e => {
+      if (!stickActive) return;
+      const t = e.touches[0];
+      const dx = t.clientX - stickStartX;
+      const dy = t.clientY - stickStartY;
+      const limit = 40;
+      const dist = Math.hypot(dx, dy);
+      
+      const angle = Math.atan2(dy, dx);
+      const moveX = dist > limit ? Math.cos(angle) * limit : dx;
+      const moveY = dist > limit ? Math.sin(angle) * limit : dy;
+      
+      nub.style.transform = `translate(${moveX}px, ${moveY}px)`;
+      
+      touch.x = moveX / limit;
+      touch.y = moveY / limit;
+    });
+    window.addEventListener('touchend', () => {
+      if (!stickActive) return;
+      stickActive = false;
+      nub.style.transform = 'translate(0px, 0px)';
+      touch.x = 0;
+      touch.y = 0;
+    });
+
+    // Action buttons touch
+    $('#touchBoostBtn').addEventListener('touchstart', e => {
+      e.preventDefault();
+      touch.boost = true;
+      initAudio();
+    });
+    $('#touchBoostBtn').addEventListener('touchend', () => {
+      touch.boost = false;
+    });
+    
+    $('#touchActionBtn').addEventListener('touchstart', e => {
+      e.preventDefault();
+      touch.action = true;
+      initAudio();
+    });
+    $('#touchActionBtn').addEventListener('touchend', () => {
+      touch.action = false;
+    });
+    
+    $('#touchSuitBtn').addEventListener('click', e => {
+      e.preventDefault();
+      cycleSuit();
+      initAudio();
+    });
+
+  })();
+  </script>
+</body>
+</html>

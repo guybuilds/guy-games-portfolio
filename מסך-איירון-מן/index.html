@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iron Man - Deep Space Visor</title>
+    <title>Iron Man - Repulsor Light</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap');
 
         :root {
-            --hud-primary: #38bdf8;
-            --hud-secondary: #f87171;
-            --hud-accent: #fbbf24;
-            --bg-dark: #020617;
-            --space-nebula: radial-gradient(circle at 20% 30%, rgba(30, 58, 138, 0.3) 0%, transparent 50%),
-                            radial-gradient(circle at 80% 70%, rgba(76, 29, 149, 0.2) 0%, transparent 40%),
-                            radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 1) 0%, #020617 100%);
-            --glass: rgba(15, 23, 42, 0.4);
+            --hud-primary: #0284c7;
+            --hud-secondary: #dc2626;
+            --hud-accent: #d97706;
+            --bg-dark: #eef6ff;
+            --space-nebula: radial-gradient(circle at 20% 30%, rgba(56, 189, 248, 0.35) 0%, transparent 50%),
+                            radial-gradient(circle at 80% 70%, rgba(251, 191, 36, 0.25) 0%, transparent 40%),
+                            radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 1) 0%, #eef6ff 100%);
+            --glass: rgba(255, 255, 255, 0.55);
         }
 
         body, html {
@@ -92,6 +92,56 @@
 
         .hud-bottom { align-items: flex-end; }
 
+        .combo-text {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1);
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--hud-accent);
+            text-shadow: 0 0 20px var(--hud-accent);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s, transform 0.15s;
+            white-space: nowrap;
+        }
+        .combo-text.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.15);
+        }
+
+        .ability-hint {
+            position: absolute;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.65rem;
+            letter-spacing: 1px;
+            opacity: 0.5;
+            text-align: center;
+        }
+
+        .ability-charge-wrap {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .ability-charge {
+            width: 50px; height: 5px;
+            background: rgba(0,0,0,0.12);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .ability-charge > div {
+            height: 100%;
+            width: 100%;
+            transition: width 0.15s linear, background 0.2s;
+        }
+        #repulse-charge > div { background: var(--hud-secondary); }
+        #attract-charge > div { background: var(--hud-primary); }
+
         .hud-panel {
             background: var(--glass);
             border: 1px solid var(--hud-primary);
@@ -121,8 +171,8 @@
         .stat-value {
             font-family: 'Share Tech Mono', monospace;
             font-size: 1.5rem;
-            color: #fff;
-            text-shadow: 0 0 10px var(--hud-primary);
+            color: #0f172a;
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
         }
 
         .stat-label {
@@ -308,12 +358,20 @@
                 <div class="stat-label">Orbital Track</div>
                 <div class="stat-value" id="coords">Az: 142.1° El: 12.4°</div>
             </div>
+            <div class="hud-panel" style="text-align: left;">
+                <div class="stat-label">Debris Cleared</div>
+                <div class="stat-value" id="score">0</div>
+            </div>
         </div>
+
+        <div class="combo-text" id="combo-text"></div>
 
         <div class="reticle" id="reticle">
             <div class="circle-outer"></div>
             <div class="circle-inner"></div>
         </div>
+
+        <div class="ability-hint">REPULSOR: Left Click / RT &nbsp;·&nbsp; ATTRACTOR: Right Click / LT &nbsp;·&nbsp; Gamepad Stick to Aim</div>
 
         <div class="side-bars left">
             <div class="line-segment"></div>
@@ -341,6 +399,10 @@
                 <div class="stat-value" id="power">100%</div>
                 <div style="width: 120px; height: 6px; background: rgba(255,255,255,0.1); margin-top: 8px; border-radius: 3px; overflow: hidden;">
                     <div id="power-bar" style="width: 100%; height: 100%; background: var(--hud-accent); transition: width 0.3s;"></div>
+                </div>
+                <div class="ability-charge-wrap">
+                    <div class="ability-charge" id="repulse-charge"><div></div></div>
+                    <div class="ability-charge" id="attract-charge"><div></div></div>
                 </div>
             </div>
             <div class="hud-panel" style="text-align: left;">
@@ -376,6 +438,20 @@
         const mouse = { x: -100, y: -100, vx: 0, vy: 0, lastX: 0, lastY: 0 };
         const gravityCenter = { x: 0, y: 0 };
 
+        const scoreEl = document.getElementById('score');
+        const comboTextEl = document.getElementById('combo-text');
+        const repulseChargeEl = document.querySelector('#repulse-charge > div');
+        const attractChargeEl = document.querySelector('#attract-charge > div');
+
+        let score = 0;
+        let combo = 0;
+        let comboFadeTimeout = null;
+        let repulseCharge = 100;
+        let attractCharge = 100;
+        let mouseAttracting = false;
+        let gamepadAttracting = false;
+        let prevRepulseButton = false;
+
         function resize() {
             width = canvas.width = window.innerWidth;
             height = canvas.height = window.innerHeight;
@@ -383,6 +459,7 @@
             centerY = height / 2;
             gravityCenter.x = centerX;
             gravityCenter.y = centerY;
+            if (mouse.x < 0) { mouse.x = centerX; mouse.y = centerY; }
             initSpace();
         }
 
@@ -396,7 +473,7 @@
                 this.z = Math.random() * width;
                 this.pz = this.z; // Previous Z for trail
                 
-                const colors = ['#ffffff', '#38bdf8', '#fbbf24', '#f87171'];
+                const colors = ['#1e293b', '#0284c7', '#d97706', '#dc2626'];
                 this.color = colors[Math.floor(Math.random() * colors.length)];
             }
             update() {
@@ -431,7 +508,7 @@
 
                 // Bright core for stars close to viewer
                 if (this.z < width / 3) {
-                    ctx.fillStyle = '#fff';
+                    ctx.fillStyle = '#0f172a';
                     ctx.beginPath();
                     ctx.arc(sx, sy, ctx.lineWidth / 2, 0, Math.PI * 2);
                     ctx.fill();
@@ -510,16 +587,6 @@
                     this.points.push({x: Math.cos(angle)*r, y: Math.sin(angle)*r});
                 }
             }
-            shatter() {
-                // Create particles at asteroid location
-                for(let i=0; i<15; i++) {
-                    const p = new Particle();
-                    p.reset(this.x, this.y, (Math.random()-0.5)*10, (Math.random()-0.5)*10);
-                    p.color = '#94a3b8'; // Rock color
-                    particles.push(p);
-                }
-                this.reset();
-            }
             update() {
                 if (mouse.x > 0) {
                     const dx = mouse.x - this.x;
@@ -544,8 +611,8 @@
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.rotation);
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-                ctx.fillStyle = 'rgba(30, 41, 59, 0.6)';
+                ctx.strokeStyle = 'rgba(15, 23, 42, 0.45)';
+                ctx.fillStyle = 'rgba(30, 41, 59, 0.55)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.moveTo(this.points[0].x, this.points[0].y);
@@ -582,9 +649,135 @@
             for (let i = 0; i < asteroidCount; i++) asteroids.push(new Asteroid());
         }
 
+        function addScore(points) {
+            combo++;
+            score += points * combo;
+            scoreEl.innerText = score;
+            comboTextEl.innerText = combo > 1 ? `SMASH x${combo}` : 'SMASH';
+            comboTextEl.classList.add('show');
+            clearTimeout(comboFadeTimeout);
+            comboFadeTimeout = setTimeout(() => {
+                comboTextEl.classList.remove('show');
+                combo = 0;
+            }, 1200);
+        }
+
+        function shatterAt(x, y, count, color) {
+            for (let i = 0; i < count; i++) {
+                const p = new Particle();
+                p.reset(x, y, (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10);
+                p.color = color;
+                particles.push(p);
+            }
+        }
+
+        // Repulsor: instant outward blast from a point - pushes debris away, shatters what's close.
+        function doRepulse(x, y) {
+            const power = 0.4 + (repulseCharge / 100) * 0.6;
+            repulseCharge = Math.max(0, repulseCharge - 22);
+
+            shieldOverlay.classList.add('active');
+            setTimeout(() => shieldOverlay.classList.remove('active'), 400);
+
+            let hit = false;
+            asteroids.forEach(a => {
+                const dx = a.x - x;
+                const dy = a.y - y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < a.size + 30) {
+                    shatterAt(a.x, a.y, 15, '#94a3b8');
+                    addScore(10);
+                    a.reset();
+                    hit = true;
+                } else if (dist < 450) {
+                    const force = (450 - dist) / 60 * power;
+                    a.vx += (dx / dist) * force;
+                    a.vy += (dy / dist) * force;
+                }
+            });
+
+            particles.forEach(p => {
+                const dx = p.x - x;
+                const dy = p.y - y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 300) {
+                    const force = (300 - dist) / 40 * power;
+                    p.vx += dx * force * 0.1;
+                    p.vy += dy * force * 0.1;
+                    p.color = hit ? '#fbbf24' : '#f87171';
+                    setTimeout(() => p.color = Math.random() > 0.2 ? '#38bdf8' : '#fbbf24', 600);
+                }
+            });
+        }
+
+        // Attractor: continuous pull toward a point while held - drags debris into each other.
+        function doAttract(x, y) {
+            attractCharge = Math.max(0, attractCharge - 0.5);
+            const power = 0.5 + (attractCharge / 100) * 0.5;
+
+            asteroids.forEach(a => {
+                const dx = x - a.x;
+                const dy = y - a.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                if (dist < 700) {
+                    const force = (700 - dist) / 4000 * power;
+                    a.vx += dx * force;
+                    a.vy += dy * force;
+                }
+            });
+
+            // Smash any two asteroids that collide while being reeled in.
+            for (let i = 0; i < asteroids.length; i++) {
+                for (let j = i + 1; j < asteroids.length; j++) {
+                    const a = asteroids[i], b = asteroids[j];
+                    const dx = a.x - b.x, dy = a.y - b.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < (a.size + b.size) * 0.55) {
+                        shatterAt((a.x + b.x) / 2, (a.y + b.y) / 2, 24, '#fbbf24');
+                        addScore(25);
+                        a.reset();
+                        b.reset();
+                    }
+                }
+            }
+        }
+
+        function pollGamepad() {
+            if (!navigator.getGamepads) return;
+            const pads = navigator.getGamepads();
+            const gp = pads[0];
+            if (!gp) { gamepadAttracting = false; return; }
+
+            const dead = 0.18;
+            let ax = gp.axes[0] || 0;
+            let ay = gp.axes[1] || 0;
+            if (Math.abs(ax) < dead) ax = 0;
+            if (Math.abs(ay) < dead) ay = 0;
+            if (ax !== 0 || ay !== 0) {
+                mouse.x = Math.min(width, Math.max(0, mouse.x + ax * 16));
+                mouse.y = Math.min(height, Math.max(0, mouse.y + ay * 16));
+            }
+
+            const repulseButton = !!(gp.buttons[7]?.pressed || gp.buttons[0]?.pressed);
+            const attractButton = !!(gp.buttons[6]?.pressed || gp.buttons[1]?.pressed);
+
+            if (repulseButton && !prevRepulseButton) doRepulse(mouse.x, mouse.y);
+            prevRepulseButton = repulseButton;
+            gamepadAttracting = attractButton;
+        }
+
         function animate() {
             ctx.clearRect(0, 0, width, height);
-            
+
+            pollGamepad();
+            if (mouseAttracting || gamepadAttracting) {
+                doAttract(mouse.x, mouse.y);
+            } else if (attractCharge < 100) {
+                attractCharge = Math.min(100, attractCharge + 0.4);
+            }
+            repulseChargeEl.style.width = repulseCharge + '%';
+            attractChargeEl.style.width = attractCharge + '%';
+
             stars.forEach(s => { s.update(); s.draw(); });
             asteroids.forEach(a => { a.update(); a.draw(); });
             particles.forEach((p, idx) => { 
@@ -622,49 +815,27 @@
             mouse.lastY = e.clientY;
         });
 
+        interactionLayer.addEventListener('contextmenu', (e) => e.preventDefault());
+
         interactionLayer.addEventListener('mousedown', (e) => {
-            shieldOverlay.classList.add('active');
-            setTimeout(() => shieldOverlay.classList.remove('active'), 400);
-
-            let hit = false;
-            asteroids.forEach(a => {
-                const dx = a.x - e.clientX;
-                const dy = a.y - e.clientY;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist < a.size + 20) {
-                    a.shatter();
-                    hit = true;
-                } else if (dist < 400) {
-                    const force = (400 - dist) / 100;
-                    a.vx += dx * force * 0.05;
-                    a.vy += dy * force * 0.05;
-                }
-            });
-
-            particles.forEach(p => {
-                const dx = p.x - e.clientX;
-                const dy = p.y - e.clientY;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist < 300) {
-                    const force = (300 - dist) / 50;
-                    p.vx += dx * force;
-                    p.vy += dy * force;
-                    p.color = hit ? '#fbbf24' : '#f87171';
-                    setTimeout(() => p.color = Math.random() > 0.2 ? '#38bdf8' : '#fbbf24', 600);
-                }
-            });
-
-            let pVal = parseInt(powerDisplay.innerText);
-            if (pVal > 15) {
-                pVal -= hit ? 20 : 12; // More power for a hit
-                powerDisplay.innerText = Math.max(0, pVal) + '%';
-                powerBar.style.width = powerDisplay.innerText;
-                powerBar.style.backgroundColor = '#f87171';
-                setTimeout(() => powerBar.style.backgroundColor = '#fbbf24', 200);
+            if (e.button === 2) {
+                mouseAttracting = true;
+            } else {
+                doRepulse(e.clientX, e.clientY);
             }
         });
 
+        interactionLayer.addEventListener('mouseup', (e) => {
+            if (e.button === 2) mouseAttracting = false;
+        });
+
+        interactionLayer.addEventListener('mouseleave', () => {
+            mouseAttracting = false;
+        });
+
         setInterval(() => {
+            if (repulseCharge < 100) repulseCharge = Math.min(100, repulseCharge + 4);
+
             let pVal = parseInt(powerDisplay.innerText);
             if (pVal < 100) {
                 pVal += 2;

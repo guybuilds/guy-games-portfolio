@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>האלק חופשי: זעם ללא גבולות 3D</title>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700;800&family=Outfit:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --hulk-green: #39ff14;
+            --hulk-dark: #123806;
+            --gamma-glow: #76ff03;
+            --abom-orange: #ff6b00;
+            --ui-bg: rgba(10, 15, 24, 0.85);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #050811;
+            font-family: 'Assistant', sans-serif;
+            color: #fff;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* UI overlay */
+        .hud {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            left: 15px;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .hud-card {
+            background: rgba(7, 12, 20, 0.78);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+            border-radius: 10px;
+            padding: 9px 11px;
+            backdrop-filter: blur(8px);
+            pointer-events: auto;
+        }
+
+        .main-panel {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: min(360px, calc(100vw - 30px));
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            border-right: 3px solid var(--hulk-green);
+        }
+
+        .title-badge {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 900;
+            color: var(--hulk-green);
+            text-shadow: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+
+        .badge-mode {
+            background: rgba(239, 68, 68, .18);
+            color: #fca5a5;
+            border: 1px solid rgba(248, 113, 113, .35);
+            font-family: 'Assistant', sans-serif;
+            font-size: .63rem;
+            padding: 1px 6px;
+            border-radius: 999px;
+            letter-spacing: 0;
+        }
+
+        .panel-actions {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .character-switch {
+            min-width: 0;
+            border: 1px solid rgba(57, 255, 20, .4);
+            background: rgba(57, 255, 20, .1);
+            color: #dcfce7;
+            padding: 5px 8px;
+            border-radius: 7px;
+            font: 800 .72rem 'Assistant', sans-serif;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .character-switch:hover {
+            background: rgba(57, 255, 20, .18);
+        }
+
+        .gamepad-indicator {
+            min-width: 0;
+            color: #cbd5e1;
+            background: rgba(255,255,255,.04);
+            padding: 5px 7px;
+            border-radius: 7px;
+            font-size: .67rem;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .stats-group {
+            position: absolute;
+            top: 48px;
+            left: 0;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 6px 10px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 900;
+            color: #fff;
+            line-height: 1;
+        }
+
+        .stat-lbl {
+            font-size: 0.62rem;
+            color: #a0aec0;
+        }
+
+        /* Rage Bar */
+        .rage-container {
+            margin-top: 1px;
+            width: 100%;
+            height: 9px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 999px;
+            overflow: hidden;
+            border: 1px solid rgba(57, 255, 20, 0.5);
+            position: relative;
+        }
+
+        .rage-bar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #1f7f3a, var(--hulk-green), #a6ff00);
+            box-shadow: none;
+            transition: width 0.2s ease;
+        }
+
+        .rage-text {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            font-weight: 800;
+            color: rgba(0,0,0,.82);
+            text-transform: uppercase;
+        }
+
+        /* Controls Help Box */
+        .controls-box {
+            position: absolute;
+            bottom: 14px;
+            right: 14px;
+            z-index: 10;
+            background: rgba(7, 12, 20, .7);
+            border: 1px solid rgba(148, 163, 184, .2);
+            border-radius: 9px;
+            padding: 8px 10px;
+            backdrop-filter: blur(8px);
+            max-width: 290px;
+            opacity: .72;
+            transition: opacity .2s ease;
+        }
+
+        .controls-box:hover { opacity: 1; }
+
+        .controls-title {
+            font-weight: 800;
+            color: var(--hulk-green);
+            margin-bottom: 4px;
+            font-size: 0.78rem;
+        }
+
+        .key-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            margin-bottom: 2px;
+            color: #cbd5e1;
+        }
+
+        .key {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: #fff;
+        }
+
+        /* Mobile Controls */
+        .mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 15;
+            display: none;
+            justify-content: space-between;
+            align-items: flex-end;
+            pointer-events: none;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-controls { display: flex; }
+            .controls-box { display: none; }
+            .hud { top: 56px; }
+            .main-panel { width: 100%; }
+            .main-panel .rage-container { width: 100%; }
+            .stats-group { top: 112px; left: auto; right: 0; }
+            #banner { top: 205px; }
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            pointer-events: auto;
+        }
+
+        .touch-btn {
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            background: var(--ui-bg);
+            border: 2px solid var(--hulk-green);
+            color: #fff;
+            font-weight: 800;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .touch-btn:active { transform: scale(0.92); }
+
+        .btn-smash { background: rgba(57, 255, 20, 0.25); border-color: var(--hulk-green); }
+        .btn-jump { background: rgba(166, 255, 0, 0.25); border-color: #a6ff00; }
+        .btn-roar { background: rgba(255, 45, 45, 0.25); border-color: #ff2d2d; }
+        .btn-throw { background: rgba(56, 189, 248, 0.25); border-color: #38bdf8; }
+
+        /* Floating Combo Text */
+        .combo-popup {
+            position: absolute;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 900;
+            font-size: 2.5rem;
+            color: var(--hulk-green);
+            text-shadow: 0 0 20px #000, 0 0 10px var(--hulk-green);
+            pointer-events: none;
+            animation: floatUp 0.8s ease-out forwards;
+            z-index: 20;
+        }
+
+        @keyframes floatUp {
+            0% { transform: scale(0.5) translateY(0); opacity: 1; }
+            50% { transform: scale(1.3) translateY(-30px); }
+            100% { transform: scale(1) translateY(-60px); opacity: 0; }
+        }
+
+        /* Top Notification */
+        #banner {
+            position: absolute;
+            top: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 43, 43, 0.9);
+            color: #fff;
+            padding: 8px 24px;
+            border-radius: 30px;
+            font-weight: 800;
+            font-size: 1.1rem;
+            box-shadow: 0 0 20px rgba(255, 43, 43, 0.6);
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            pointer-events: none;
+            letter-spacing: 1px;
+        }
+
+        .back-link {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 20;
+            background: rgba(7, 12, 20, .68);
+            border: 1px solid rgba(148,163,184,.2);
+            color: #fff;
+            text-decoration: none;
+            padding: 6px 10px;
+            border-radius: 7px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+        }
+        .back-link:hover {
+            border-color: var(--hulk-green);
+            color: var(--hulk-green);
+        }
+    </style>
+</head>
+<body>
+
+    <a href="../index.html" class="back-link">➔ חזרה לפורטפוליו</a>
+
+    <div class="hud">
+        <div class="hud-card main-panel">
+            <div class="title-badge">
+                האלק 3D <span class="badge-mode">חופשי ללא פסילות</span>
+            </div>
+            <div class="panel-actions">
+                <button id="btn-switch-char" class="character-switch">
+                    🔄 החלף דמות (האלק / אבומיניישן) [C / 🔺]
+                </button>
+                <div id="gamepad-status" class="gamepad-indicator">
+                    🎮 שלט לא מחובר
+                </div>
+            </div>
+            <div class="rage-container">
+                <div class="rage-bar" id="rage-bar"></div>
+                <div class="rage-text">זעם גאמה אינסופי</div>
+            </div>
+            <div class="rage-container" style="border-color: rgba(255,107,0,.55);">
+                <div class="rage-bar" id="rival-health-bar" style="background: linear-gradient(90deg,#7c2d12,#f97316,#facc15);"></div>
+                <div class="rage-text" id="rival-health-text">בריאות היריב</div>
+            </div>
+        </div>
+
+        <div class="hud-card stats-group">
+            <div class="stat-item">
+                <div class="stat-val" id="score-val">0</div>
+                <div class="stat-lbl">ניקוד הרס</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val" id="abom-val">0</div>
+                <div class="stat-lbl">יריבים חוסלו</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="banner">אבומיניישן הופיע בעיר!</div>
+
+    <div class="controls-box">
+        <div class="controls-title">מקשי שליטה ושלט פלייסטיישן 🎮</div>
+        <div class="key-row"><span>תנועה:</span> <span><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> / סטיק שמאל 🕹️</span></div>
+        <div class="key-row"><span>אגרוף זעם:</span> <span><span class="key">רווח</span> / מקש ✖ (איקס)</span></div>
+        <div class="key-row"><span>קפיצת ענק:</span> <span><span class="key">E</span> / מקש 🔴 (עיגול)</span></div>
+        <div class="key-row"><span>שאגת גאמה:</span> <span><span class="key">Q</span> / מקש ⬛ (ריבוע)</span></div>
+        <div class="key-row"><span>הרמת/זריקת מכונית:</span> <span><span class="key">F</span> / מקש R1 / R2</span></div>
+        <div class="key-row"><span>החלפת דמות:</span> <span><span class="key">C</span> / מקש 🔺 (משולש)</span></div>
+    </div>
+
+    <!-- Mobile Touch Controls -->
+    <div class="mobile-controls">
+        <div class="btn-group">
+            <div class="touch-btn btn-smash" id="m-smash">אגרוף</div>
+            <div class="touch-btn btn-jump" id="m-jump">קפיצה</div>
+            <div class="touch-btn btn-roar" id="m-roar">שאגה</div>
+            <div class="touch-btn btn-throw" id="m-throw">זריקה</div>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <!-- Three.js CDN with Fallback -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        if (typeof THREE === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"><\/script>');
+        }
+    </script>
+
+    <script>
+        // --- GAME ENGINE & SETUP ---
+        const container = document.getElementById('canvas-container');
+        let scene, camera, renderer;
+        let clock;
+
+        // Fallback check if Three.js failed entirely
+        window.addEventListener('DOMContentLoaded', () => {
+            if (typeof THREE === 'undefined') {
+                const errDiv = document.createElement('div');
+                errDiv.style.position = 'fixed';
+                errDiv.style.inset = '0';
+                errDiv.style.background = '#050811';
+                errDiv.style.color = '#39ff14';
+                errDiv.style.display = 'flex';
+                errDiv.style.flexDirection = 'column';
+                errDiv.style.justifyContent = 'center';
+                errDiv.style.alignItems = 'center';
+                errDiv.style.zIndex = '99999';
+                errDiv.style.fontSize = '1.5rem';
+                errDiv.style.textAlign = 'center';
+                errDiv.style.padding = '20px';
+                errDiv.innerHTML = '<h2>טוען את מנוע ה-3D...</h2><p style="color:#a0aec0; font-size:1rem;">אם המשחק לא נטען, אנא בדוק את החיבור לרשת ורענן את הדף.</p>';
+                document.body.appendChild(errDiv);
+            }
+        });
+
+
+        // Game State
+        let score = 0;
+        let abominationKills = 0;
+        let rage = 100;
+        let keys = {};
+        let mouseX = 0, mouseY = 0;
+
+        // Entities
+        let hulk, hulkGroup;
+        let abomination = null;
+        let buildings = [];
+        let cars = [];
+        let planters = [];
+        let enemies = [];
+        let helicopters = [];
+        let particles = [];
+        let heldCar = null;
+
+        // Player Motion Physics
+        // Created only after Three.js is available. Keeping these null here also
+        // lets the page display a useful error instead of failing to a black screen.
+        let hulkPos = null;
+        let hulkVelocity = null;
+        let isGrounded = true;
+        let hulkRotation = 0;
+        let cameraAngle = 0;
+        let cameraPitch = 0.3;
+
+        // Initialize Scene
+        function init() {
+            if (typeof THREE === 'undefined') return;
+            try {
+            clock = new THREE.Clock();
+            hulkPos = new THREE.Vector3(0, 0, 0);
+            hulkVelocity = new THREE.Vector3(0, 0, 0);
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x080d1a);
+            scene.fog = new THREE.FogExp2(0x080d1a, 0.015);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            
+            const targetContainer = document.getElementById('canvas-container') || document.body;
+            targetContainer.appendChild(renderer.domElement);
+            renderer.domElement.style.width = '100%';
+            renderer.domElement.style.height = '100%';
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xddeeff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xfffaed, 1.2);
+            dirLight.position.set(50, 100, 40);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.near = 0.5;
+            dirLight.shadow.camera.far = 250;
+            const d = 80;
+            dirLight.shadow.camera.left = -d;
+            dirLight.shadow.camera.right = d;
+            dirLight.shadow.camera.top = d;
+            dirLight.shadow.camera.bottom = -d;
+            scene.add(dirLight);
+
+            // Green Gamma Atmosphere Light
+            const gammaLight = new THREE.PointLight(0x39ff14, 1.5, 60);
+            gammaLight.position.set(0, 5, 0);
+            scene.add(gammaLight);
+
+            // Build World
+            createGround();
+            createCity();
+            createHulk();
+            spawnAbomination();
+            spawnHelicopters();
+            spawnEnemies(8);
+
+            // Events
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('keydown', e => {
+                keys[e.code] = true;
+                if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+            });
+            document.addEventListener('keyup', e => keys[e.code] = false);
+            window.addEventListener('blur', () => { keys = {}; });
+
+            document.addEventListener('mousemove', (e) => {
+                if (document.pointerLockElement === document.body || e.buttons === 1) {
+                    cameraAngle -= e.movementX * 0.004;
+                    cameraPitch = Math.max(0.1, Math.min(1.2, cameraPitch + e.movementY * 0.003));
+                }
+            });
+
+            // Mobile Listeners (safe check)
+            const btnSmash = document.getElementById('m-smash');
+            if (btnSmash) btnSmash.addEventListener('touchstart', (e) => { e.preventDefault(); doSmash(); });
+            const btnJump = document.getElementById('m-jump');
+            if (btnJump) btnJump.addEventListener('touchstart', (e) => { e.preventDefault(); doMegaJump(); });
+            const btnRoar = document.getElementById('m-roar');
+            if (btnRoar) btnRoar.addEventListener('touchstart', (e) => { e.preventDefault(); doGammaRoar(); });
+            const btnThrow = document.getElementById('m-throw');
+            if (btnThrow) btnThrow.addEventListener('touchstart', (e) => { e.preventDefault(); interactCar(); });
+
+            // Key press action listeners
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'Space') doSmash();
+                if (e.code === 'KeyE') doMegaJump();
+                if (e.code === 'KeyQ') doGammaRoar();
+                if (e.code === 'KeyF') interactCar();
+                if (e.code === 'KeyC' && !e.repeat) switchCharacter();
+            });
+
+            animate();
+            } catch (error) {
+                console.error('Hulk game failed to start:', error);
+                showFatalError('המשחק לא הצליח להתחיל', error);
+            }
+        }
+
+        function showFatalError(title, error) {
+            const old = document.getElementById('game-error');
+            if (old) old.remove();
+            const box = document.createElement('div');
+            box.id = 'game-error';
+            box.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#050811;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;font-family:Assistant,sans-serif';
+            const safeMessage = error && error.message ? error.message : 'שגיאה לא ידועה';
+            box.innerHTML = `<h2 style="color:#39ff14;margin:0 0 10px">${title}</h2><p style="color:#cbd5e1">${safeMessage}</p><button onclick="location.reload()" style="border:0;border-radius:999px;padding:10px 22px;background:#39ff14;font-weight:900;cursor:pointer">נסה שוב</button>`;
+            document.body.appendChild(box);
+        }
+
+        // --- ENVIRONMENT CREATION ---
+        function createGround() {
+            // Main City Floor
+            const groundGeo = new THREE.PlaneGeometry(300, 300);
+            const groundMat = new THREE.MeshStandardMaterial({
+                color: 0x1a202c,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Grid Roads
+            const grid = new THREE.GridHelper(300, 30, 0x39ff14, 0x2d3748);
+            grid.position.y = 0.05;
+            scene.add(grid);
+        }
+
+        function createCity() {
+            const buildingColors = [0x2d3748, 0x1a202c, 0x334155, 0x0f172a];
+
+            // Create Grid Buildings
+            for (let x = -120; x <= 120; x += 40) {
+                for (let z = -120; z <= 120; z += 40) {
+                    if (Math.abs(x) < 20 && Math.abs(z) < 20) continue; // Center Plaza Open
+
+                    const height = 20 + Math.random() * 45;
+                    const width = 18 + Math.random() * 6;
+                    const depth = 18 + Math.random() * 6;
+
+                    const geo = new THREE.BoxGeometry(width, height, depth);
+                    const mat = new THREE.MeshStandardMaterial({
+                        color: buildingColors[Math.floor(Math.random() * buildingColors.length)],
+                        roughness: 0.4,
+                        metalness: 0.5
+                    });
+
+                    const bld = new THREE.Mesh(geo, mat);
+                    bld.position.set(x + (Math.random() * 6 - 3), height / 2, z + (Math.random() * 6 - 3));
+                    bld.castShadow = true;
+                    bld.receiveShadow = true;
+                    bld.userData = { isBuilding: true, hp: 100, maxH: height };
+                    scene.add(bld);
+                    buildings.push(bld);
+
+                    // Add Windows Glowing Effect
+                    createWindows(bld, width, height, depth);
+                }
+            }
+
+            // Spawn Cars around streets
+            for (let i = 0; i < 20; i++) {
+                spawnCar(
+                    (Math.random() - 0.5) * 220,
+                    (Math.random() - 0.5) * 220
+                );
+            }
+
+            createPlanters();
+        }
+
+        function createPlanters() {
+            const potMaterial = new THREE.MeshStandardMaterial({ color: 0x9a4f2f, roughness: .9 });
+            const rimMaterial = new THREE.MeshStandardMaterial({ color: 0xc56b3f, roughness: .8 });
+            const soilMaterial = new THREE.MeshStandardMaterial({ color: 0x2c160c, roughness: 1 });
+            const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 1 });
+            const leafMaterials = [
+                new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: .75 }),
+                new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: .7 }),
+                new THREE.MeshStandardMaterial({ color: 0x65a30d, roughness: .8 })
+            ];
+
+            const positions = [];
+            // A welcoming ring of greenery around the central combat plaza.
+            for (let i = 0; i < 10; i++) {
+                const angle = (i / 10) * Math.PI * 2;
+                positions.push([Math.cos(angle) * 15, Math.sin(angle) * 15]);
+            }
+            // Extra sidewalk planters leading into the surrounding streets.
+            [-90, -60, 60, 90].forEach(value => {
+                positions.push([value, -15], [value, 15], [-15, value], [15, value]);
+            });
+
+            positions.forEach(([x, z], index) => {
+                const planter = new THREE.Group();
+                const pot = new THREE.Mesh(new THREE.BoxGeometry(2.7, 1.45, 2.7), potMaterial);
+                pot.position.y = .72;
+                const rim = new THREE.Mesh(new THREE.BoxGeometry(3.05, .3, 3.05), rimMaterial);
+                rim.position.y = 1.45;
+                const soil = new THREE.Mesh(new THREE.BoxGeometry(2.45, .16, 2.45), soilMaterial);
+                soil.position.y = 1.63;
+                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.18, .25, 2.25, 8), trunkMaterial);
+                trunk.position.y = 2.7;
+                planter.add(pot, rim, soil, trunk);
+
+                const leafMaterial = leafMaterials[index % leafMaterials.length];
+                const crown = new THREE.Mesh(new THREE.SphereGeometry(1.15, 10, 8), leafMaterial);
+                crown.scale.set(1.1, 1.35, 1.1);
+                crown.position.y = 4.15;
+                const leafLeft = new THREE.Mesh(new THREE.SphereGeometry(.72, 9, 7), leafMaterial);
+                leafLeft.position.set(-.75, 3.75, 0);
+                const leafRight = new THREE.Mesh(new THREE.SphereGeometry(.72, 9, 7), leafMaterial);
+                leafRight.position.set(.75, 3.8, .1);
+                planter.add(crown, leafLeft, leafRight);
+                planter.position.set(x, 0, z);
+                planter.rotation.y = (index % 4) * Math.PI / 2;
+                planter.userData.isPlanter = true;
+                setObjectShadows(planter);
+                scene.add(planter);
+                planters.push(planter);
+            });
+        }
+
+        function createWindows(building, w, h, d) {
+            const winGeo = new THREE.PlaneGeometry(1.2, 1.8);
+            const winMat = new THREE.MeshBasicMaterial({ color: 0xffea00 });
+
+            for (let y = 4; y < h - 4; y += 5) {
+                for (let x = -w / 2 + 3; x < w / 2 - 2; x += 4) {
+                    if (Math.random() > 0.3) {
+                        const win = new THREE.Mesh(winGeo, winMat);
+                        win.position.set(x, y - h / 2, d / 2 + 0.1);
+                        building.add(win);
+                    }
+                }
+            }
+        }
+
+        function spawnCar(x, z) {
+            const carGroup = new THREE.Group();
+            const bodyGeo = new THREE.BoxGeometry(4, 1.6, 7);
+            const carColors = [0xe11d48, 0x0284c7, 0xeab308, 0x475569];
+            const bodyMat = new THREE.MeshStandardMaterial({
+                color: carColors[Math.floor(Math.random() * carColors.length)],
+                roughness: 0.3,
+                metalness: 0.8
+            });
+
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 1;
+            body.castShadow = true;
+            carGroup.add(body);
+
+            // Roof
+            const topGeo = new THREE.BoxGeometry(3.4, 1.2, 3.8);
+            const topMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.1 });
+            const top = new THREE.Mesh(topGeo, topMat);
+            top.position.set(0, 2.2, -0.2);
+            carGroup.add(top);
+
+            carGroup.position.set(x, 0, z);
+            carGroup.rotation.y = Math.random() * Math.PI * 2;
+            carGroup.userData = { isCar: true, thrown: false, velocity: new THREE.Vector3() };
+
+            scene.add(carGroup);
+            cars.push(carGroup);
+        }
+
+        // --- WORLD ACTORS & GAMEPLAY ---
+        function setObjectShadows(object) {
+            object.traverse(child => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+        }
+
+        function spawnAbomination() {
+            if (abomination) scene.remove(abomination);
+            const rivalType = activeHero === 'hulk' ? 'abomination' : 'hulk';
+            abomination = buildCharacterMesh(rivalType);
+            abomination.position.set(hulkPos.x + 22, 0, hulkPos.z - 18);
+            abomination.userData.rivalType = rivalType;
+            abomination.userData.hp = 300;
+            abomination.userData.maxHp = 300;
+            abomination.userData.attackTimer = 0;
+            abomination.userData.stunTimer = 0;
+            setObjectShadows(abomination);
+            scene.add(abomination);
+            updateRivalHealth();
+        }
+
+        function spawnHelicopters() {
+            for (let i = 0; i < 3; i++) {
+                const group = new THREE.Group();
+                const body = new THREE.Mesh(
+                    new THREE.BoxGeometry(5, 2, 2.4),
+                    new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.65, roughness: 0.35 })
+                );
+                const tail = new THREE.Mesh(
+                    new THREE.BoxGeometry(1.2, 1, 5),
+                    new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.55 })
+                );
+                tail.position.z = 3;
+                const rotor = new THREE.Mesh(
+                    new THREE.BoxGeometry(10, 0.15, 0.28),
+                    new THREE.MeshBasicMaterial({ color: 0x94a3b8 })
+                );
+                rotor.position.y = 1.35;
+                group.add(body, tail, rotor);
+                group.position.set(-55 + i * 55, 25 + i * 5, -45 + i * 28);
+                group.userData = { rotor, angle: i * 2.1 };
+                setObjectShadows(group);
+                scene.add(group);
+                helicopters.push(group);
+            }
+        }
+
+        function spawnEnemies(count) {
+            const armor = new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.75 });
+            const visor = new THREE.MeshBasicMaterial({ color: 0x67e8f9 });
+            for (let i = 0; i < count; i++) {
+                const soldier = new THREE.Group();
+                const body = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.2, 1), armor);
+                body.position.y = 2.2;
+                const head = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), armor);
+                head.position.y = 3.8;
+                const face = new THREE.Mesh(new THREE.BoxGeometry(.7, .18, .08), visor);
+                face.position.set(0, 3.9, -.55);
+                soldier.add(body, head, face);
+                const angle = (i / count) * Math.PI * 2;
+                const radius = 30 + (i % 3) * 8;
+                soldier.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+                soldier.userData = { hp: 50, speed: 3.5 + Math.random() * 2, hitTimer: 0 };
+                setObjectShadows(soldier);
+                scene.add(soldier);
+                enemies.push(soldier);
+            }
+        }
+
+        function createParticles(position, color, count) {
+            if (!scene || !position) return;
+            const geometry = new THREE.BoxGeometry(.45, .45, .45);
+            const material = new THREE.MeshBasicMaterial({ color });
+            for (let i = 0; i < count; i++) {
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.copy(position);
+                mesh.position.y += 1 + Math.random() * 4;
+                const direction = new THREE.Vector3(
+                    Math.random() - .5,
+                    .3 + Math.random(),
+                    Math.random() - .5
+                ).normalize();
+                particles.push({ mesh, vel: direction.multiplyScalar(8 + Math.random() * 14), life: .6 + Math.random() * .65 });
+                scene.add(mesh);
+            }
+        }
+
+        function createSmashEffect(x, z) {
+            const ring = new THREE.Mesh(
+                new THREE.RingGeometry(1.5, 2.2, 32),
+                new THREE.MeshBasicMaterial({ color: activeHero === 'hulk' ? 0x39ff14 : 0xff6b00, transparent: true, opacity: .85, side: THREE.DoubleSide })
+            );
+            ring.rotation.x = -Math.PI / 2;
+            ring.position.set(x, .12, z);
+            scene.add(ring);
+            const started = performance.now();
+            (function expand(now) {
+                const progress = (now - started) / 500;
+                if (progress >= 1 || !ring.parent) { scene.remove(ring); return; }
+                ring.scale.setScalar(1 + progress * 6);
+                ring.material.opacity = 1 - progress;
+                requestAnimationFrame(expand);
+            })(started);
+            createParticles(new THREE.Vector3(x, 0, z), activeHero === 'hulk' ? 0x39ff14 : 0xff6b00, 20);
+        }
+
+        function createExplosion(position) {
+            createParticles(position, 0xff7a00, 28);
+            createParticles(position, 0xffe066, 12);
+        }
+
+        function showPopup(text, worldPosition) {
+            const popup = document.createElement('div');
+            popup.className = 'combo-popup';
+            popup.textContent = text;
+            let left = window.innerWidth / 2;
+            let top = window.innerHeight / 2;
+            if (worldPosition && camera) {
+                const projected = worldPosition.clone();
+                projected.y += 6;
+                projected.project(camera);
+                left = (projected.x * .5 + .5) * window.innerWidth;
+                top = (-projected.y * .5 + .5) * window.innerHeight;
+            }
+            popup.style.left = `${Math.max(20, Math.min(window.innerWidth - 220, left))}px`;
+            popup.style.top = `${Math.max(100, Math.min(window.innerHeight - 80, top))}px`;
+            document.body.appendChild(popup);
+            setTimeout(() => popup.remove(), 850);
+        }
+
+        let bannerTimer = 0;
+        function showBanner(text) {
+            const banner = document.getElementById('banner');
+            if (!banner) return;
+            banner.textContent = text;
+            banner.style.opacity = '1';
+            clearTimeout(bannerTimer);
+            bannerTimer = setTimeout(() => { banner.style.opacity = '0'; }, 2200);
+        }
+
+        function updateScore(points) {
+            score += points;
+            const scoreEl = document.getElementById('score-val');
+            if (scoreEl) scoreEl.textContent = score.toLocaleString('he-IL');
+        }
+
+        function updateRivalHealth() {
+            if (!abomination) return;
+            const percent = Math.max(0, abomination.userData.hp / abomination.userData.maxHp * 100);
+            const bar = document.getElementById('rival-health-bar');
+            const text = document.getElementById('rival-health-text');
+            if (bar) bar.style.width = `${percent}%`;
+            if (text) text.textContent = `${abomination.userData.rivalType === 'hulk' ? 'האלק' : 'אבומיניישן'} – ${Math.ceil(percent)}%`;
+        }
+
+        function damageAbomination(amount) {
+            if (!abomination || abomination.userData.hp <= 0) return;
+            abomination.userData.hp -= amount;
+            abomination.userData.stunTimer = .28;
+            createParticles(abomination.position, 0xff6b00, 12);
+            updateRivalHealth();
+            updateScore(amount * 10);
+            if (abomination.userData.hp <= 0) {
+                const defeated = abomination;
+                defeated.userData.hp = 0;
+                showPopup('K.O.!', defeated.position);
+                createExplosion(defeated.position);
+                scene.remove(defeated);
+                abomination = null;
+                abominationKills++;
+                const killsEl = document.getElementById('abom-val');
+                if (killsEl) killsEl.textContent = abominationKills;
+                showBanner('היריב הובס! יריב חדש מגיע...');
+                setTimeout(() => { if (scene && !abomination) spawnAbomination(); }, 1300);
+            }
+        }
+
+        function damageNearbyEnemies(origin, radius, damage, force) {
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                const distance = enemy.position.distanceTo(origin);
+                if (distance > radius) continue;
+                enemy.userData.hp -= damage;
+                const away = enemy.position.clone().sub(origin).setY(0).normalize();
+                enemy.position.addScaledVector(away, force);
+                createParticles(enemy.position, 0xff3344, 6);
+                if (enemy.userData.hp <= 0) {
+                    scene.remove(enemy);
+                    enemies.splice(i, 1);
+                    updateScore(250);
+                }
+            }
+        }
+
+        function damageNearbyBuildings(origin, radius, damage) {
+            buildings.forEach(building => {
+                if (!building.visible || building.position.distanceTo(origin) > radius) return;
+                building.userData.hp -= damage;
+                if (building.userData.hp <= 0) {
+                    building.visible = false;
+                    createExplosion(building.position);
+                    updateScore(1000);
+                    setTimeout(() => {
+                        building.userData.hp = 100;
+                        building.visible = true;
+                    }, 7000);
+                }
+            });
+        }
+
+        function doSmash() {
+            if (!hulkPos) return;
+            const now = performance.now();
+            if (now - lastSmashTime < 330) return;
+            lastSmashTime = now;
+            createSmashEffect(hulkPos.x, hulkPos.z);
+            damageNearbyEnemies(hulkPos, 9, 55, 5);
+            damageNearbyBuildings(hulkPos, 8, 35);
+            if (abomination && abomination.position.distanceTo(hulkPos) < 10) damageAbomination(35);
+            showPopup(activeHero === 'hulk' ? 'HULK SMASH!' : 'ABOMINATION SMASH!', hulkPos);
+        }
+
+        function doMegaJump() {
+            if (!isGrounded || !hulkVelocity) return;
+            const now = performance.now();
+            if (now - lastJumpTime < 350) return;
+            lastJumpTime = now;
+            hulkVelocity.y = activeHero === 'hulk' ? 34 : 30;
+            isGrounded = false;
+            createParticles(hulkPos, activeHero === 'hulk' ? 0x39ff14 : 0xff6b00, 10);
+        }
+
+        function doGammaRoar() {
+            if (!hulkPos) return;
+            const now = performance.now();
+            if (now - lastRoarTime < 900) return;
+            lastRoarTime = now;
+            createSmashEffect(hulkPos.x, hulkPos.z);
+            damageNearbyEnemies(hulkPos, 20, 80, 12);
+            damageNearbyBuildings(hulkPos, 15, 20);
+            if (abomination && abomination.position.distanceTo(hulkPos) < 20) damageAbomination(55);
+            showPopup('GAMMA ROAR!', hulkPos);
+        }
+
+        function interactCar() {
+            if (!hulkGroup || !hulkPos) return;
+            const now = performance.now();
+            if (now - lastInteractTime < 300) return;
+            lastInteractTime = now;
+            const isAbominationPlayer = activeHero === 'abomination';
+            const forward = new THREE.Vector3(-Math.sin(hulkRotation), 0, -Math.cos(hulkRotation));
+            if (heldCar) {
+                const car = heldCar;
+                const worldPos = new THREE.Vector3();
+                car.getWorldPosition(worldPos);
+                hulkGroup.remove(car);
+                scene.add(car);
+                car.position.copy(worldPos);
+                car.userData.thrown = true;
+                // Abomination's throw is deliberately stronger and travels farther.
+                car.userData.velocity.copy(forward.multiplyScalar(isAbominationPlayer ? 56 : 42));
+                car.userData.velocity.y = isAbominationPlayer ? 17 : 13;
+                heldCar = null;
+                showPopup(isAbominationPlayer ? 'ABOMINATION CAR THROW!' : 'CAR THROW!', hulkPos);
+                return;
+            }
+            let nearest = null;
+            // His larger arms make nearby cars easier to grab.
+            let nearestDistance = isAbominationPlayer ? 16 : 11;
+            cars.forEach(car => {
+                if (car.userData.thrown || car === heldCar) return;
+                const distance = car.position.distanceTo(hulkPos);
+                if (distance < nearestDistance) { nearest = car; nearestDistance = distance; }
+            });
+            if (!nearest) { showBanner('התקרב למכונית כדי להרים אותה'); return; }
+            scene.remove(nearest);
+            hulkGroup.add(nearest);
+            nearest.position.set(0, isAbominationPlayer ? 11 : 9, 0);
+            nearest.rotation.set(0, 0, Math.PI / 2);
+            heldCar = nearest;
+            showPopup(isAbominationPlayer ? 'ABOMINATION LIFT!' : 'CAR LIFT!', hulkPos);
+        }
+
+        // --- CHARACTERS CREATION ---
+        let activeHero = 'hulk'; // 'hulk' or 'abomination'
+        let lastGamepadSwitch = 0;
+
+        function buildCharacterMesh(heroType) {
+            const group = new THREE.Group();
+            if (heroType === 'hulk') {
+                const skinMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.5 });
+                const pantsMat = new THREE.MeshStandardMaterial({ color: 0x6b21a8, roughness: 0.8 });
+
+                const torso = new THREE.Mesh(new THREE.BoxGeometry(3.2, 3.6, 2.2), skinMat);
+                torso.position.y = 4.2; group.add(torso);
+                const chest = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.8, 1.2), skinMat);
+                chest.position.set(0, 4.8, 0.8); group.add(chest);
+                const head = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 1.6), skinMat);
+                head.position.set(0, 6.6, 0.2); group.add(head);
+                const hair = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.5, 1.7), new THREE.MeshBasicMaterial({ color: 0x052e16 }));
+                hair.position.set(0, 7.3, 0.2); group.add(hair);
+                const armGeo = new THREE.BoxGeometry(1.4, 3.4, 1.4);
+                const lArm = new THREE.Mesh(armGeo, skinMat); lArm.position.set(-2.4, 4.4, 0); group.add(lArm);
+                const rArm = new THREE.Mesh(armGeo, skinMat); rArm.position.set(2.4, 4.4, 0); group.add(rArm);
+                const legGeo = new THREE.BoxGeometry(1.4, 3.0, 1.4);
+                const lLeg = new THREE.Mesh(legGeo, pantsMat); lLeg.position.set(-1.0, 1.5, 0); group.add(lLeg);
+                const rLeg = new THREE.Mesh(legGeo, pantsMat); rLeg.position.set(1.0, 1.5, 0); group.add(rLeg);
+            } else {
+                // Abomination Model
+                const skinMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.6, metalness: 0.2 });
+                const torso = new THREE.Mesh(new THREE.BoxGeometry(4.0, 4.2, 2.8), skinMat);
+                torso.position.y = 4.8; group.add(torso);
+                for (let i = 0; i < 5; i++) {
+                    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.8, 4), skinMat);
+                    spike.position.set((Math.random() - 0.5) * 2, 4.5 + i * 0.5, -1.5);
+                    spike.rotation.x = -Math.PI / 3; group.add(spike);
+                }
+                const head = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.8, 1.8), skinMat);
+                head.position.set(0, 7.5, 0.4); group.add(head);
+                const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.2), eyeMat); eyeL.position.set(-0.5, 7.7, 1.3); group.add(eyeL);
+                const eyeR = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.2), eyeMat); eyeR.position.set(0.5, 7.7, 1.3); group.add(eyeR);
+                const armGeo = new THREE.BoxGeometry(1.7, 4.0, 1.7);
+                const lArm = new THREE.Mesh(armGeo, skinMat); lArm.position.set(-3.0, 4.8, 0); group.add(lArm);
+                const rArm = new THREE.Mesh(armGeo, skinMat); rArm.position.set(3.0, 4.8, 0); group.add(rArm);
+                const legGeo = new THREE.BoxGeometry(1.6, 3.2, 1.6);
+                const lLeg = new THREE.Mesh(legGeo, skinMat); lLeg.position.set(-1.2, 1.6, 0); group.add(lLeg);
+                const rLeg = new THREE.Mesh(legGeo, skinMat); rLeg.position.set(1.2, 1.6, 0); group.add(rLeg);
+            }
+            return group;
+        }
+
+        function createHulk() {
+            if (hulkGroup) scene.remove(hulkGroup);
+            hulkGroup = buildCharacterMesh(activeHero);
+            hulkGroup.position.copy(hulkPos);
+            setObjectShadows(hulkGroup);
+            scene.add(hulkGroup);
+            hulk = hulkGroup;
+        }
+
+        function switchCharacter() {
+            if (!scene || !hulkPos) return;
+            if (heldCar) {
+                const car = heldCar;
+                const worldPos = new THREE.Vector3();
+                car.getWorldPosition(worldPos);
+                hulkGroup.remove(car);
+                scene.add(car);
+                car.position.copy(worldPos);
+                car.userData.thrown = false;
+                heldCar = null;
+            }
+            activeHero = activeHero === 'hulk' ? 'abomination' : 'hulk';
+            createHulk();
+            spawnAbomination();
+            showBanner(activeHero === 'hulk' ? "עברת לשחק בתור האלק!" : "עברת לשחק בתור אבומיניישן!");
+        }
+
+        let lastSmashTime = 0;
+        let lastJumpTime = 0;
+        let lastRoarTime = 0;
+        let lastInteractTime = 0;
+        let activeGamepadIndex = null;
+        let previousGamepadButtons = [];
+
+        function buttonDown(pad, index) {
+            const button = pad.buttons && pad.buttons[index];
+            return !!button && (button.pressed || button.value > .45);
+        }
+
+        function pollGamepad() {
+            let gamepads = [];
+            try {
+                gamepads = navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads() : []);
+            } catch (error) {
+                gamepads = [];
+            }
+            let pad = null;
+            if (activeGamepadIndex !== null && gamepads[activeGamepadIndex] && gamepads[activeGamepadIndex].connected) {
+                pad = gamepads[activeGamepadIndex];
+            }
+            for (let i = 0; i < gamepads.length; i++) {
+                if (!pad && gamepads[i] && gamepads[i].connected) {
+                    pad = gamepads[i];
+                    break;
+                }
+            }
+
+            const statusEl = document.getElementById('gamepad-status');
+            if (!pad) {
+                if (statusEl) { statusEl.textContent = '🎮 לחץ מקש בשלט לחיבור'; statusEl.style.color = '#e2e8f0'; }
+                activeGamepadIndex = null;
+                previousGamepadButtons = [];
+                return { x: 0, z: 0 };
+            }
+            if (activeGamepadIndex !== pad.index) previousGamepadButtons = [];
+            activeGamepadIndex = pad.index;
+            if (statusEl) { statusEl.textContent = `🎮 שלט מחובר: ${pad.id.substring(0, 22)}`; statusEl.style.color = '#39ff14'; }
+
+            // Left Stick & Right Stick
+            const leftX = Number(pad.axes && pad.axes[0]) || 0;
+            const leftY = Number(pad.axes && pad.axes[1]) || 0;
+            const axisX = Math.abs(leftX) > 0.16 ? leftX : 0;
+            const axisZ = Math.abs(leftY) > 0.16 ? leftY : 0;
+
+            // Camera right stick
+            const rightX = Number(pad.axes && pad.axes[2]) || 0;
+            const rightY = Number(pad.axes && pad.axes[3]) || 0;
+            if (Math.abs(rightX) > 0.16) cameraAngle -= rightX * 0.035;
+            if (Math.abs(rightY) > 0.16) cameraPitch = Math.max(0.1, Math.min(1.2, cameraPitch + rightY * 0.025));
+
+            // D-PAD Override
+            let dX = 0, dZ = 0;
+            if (buttonDown(pad, 12)) dZ = -1;
+            if (buttonDown(pad, 13)) dZ = 1;
+            if (buttonDown(pad, 14)) dX = -1;
+            if (buttonDown(pad, 15)) dX = 1;
+
+            const pressedOnce = index => buttonDown(pad, index) && !previousGamepadButtons[index];
+
+            // Face Buttons (PS Controller: 0=Cross ✖, 1=Circle 🔴, 2=Square ⬛, 3=Triangle 🔺)
+            if (pressedOnce(0)) doSmash();
+            if (pressedOnce(1)) doMegaJump();
+            if (pressedOnce(2)) doGammaRoar();
+            if (pressedOnce(4) || pressedOnce(5) || pressedOnce(6) || pressedOnce(7)) interactCar();
+            if (pressedOnce(3)) switchCharacter();
+
+            previousGamepadButtons = Array.from(pad.buttons || [], (_, index) => buttonDown(pad, index));
+
+            return { x: axisX || dX, z: axisZ || dZ };
+        }
+
+        // Add Event Listener to Switch Button
+        window.addEventListener('DOMContentLoaded', () => {
+            const btnSwitch = document.getElementById('btn-switch-char');
+            if (btnSwitch) btnSwitch.addEventListener('click', switchCharacter);
+        });
+        window.addEventListener("gamepadconnected", (e) => {
+            activeGamepadIndex = e.gamepad.index;
+            previousGamepadButtons = [];
+            showBanner(`שלט ${e.gamepad.id.substring(0, 15)} התחבר בהצלחה!`);
+        });
+        window.addEventListener('gamepaddisconnected', (e) => {
+            if (activeGamepadIndex === e.gamepad.index) activeGamepadIndex = null;
+            previousGamepadButtons = [];
+            showBanner('השלט נותק');
+        });
+
+        // --- MAIN GAME LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+
+            // Poll Gamepad
+            const padInput = pollGamepad();
+
+            // --- Player Input Movement ---
+            let moveX = padInput.x, moveZ = padInput.z;
+            if (keys['KeyW'] || keys['ArrowUp']) moveZ -= 1;
+            if (keys['KeyS'] || keys['ArrowDown']) moveZ += 1;
+            if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 1;
+            if (keys['KeyD'] || keys['ArrowRight']) moveX += 1;
+            if (moveX !== 0 || moveZ !== 0) {
+                const moveVec = new THREE.Vector3(moveX, 0, moveZ).normalize();
+                moveVec.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraAngle);
+
+                const speed = 24;
+                hulkPos.x += moveVec.x * speed * delta;
+                hulkPos.z += moveVec.z * speed * delta;
+                hulkPos.x = Math.max(-145, Math.min(145, hulkPos.x));
+                hulkPos.z = Math.max(-145, Math.min(145, hulkPos.z));
+
+                hulkRotation = Math.atan2(-moveVec.x, -moveVec.z);
+                hulkGroup.rotation.y = hulkRotation;
+            }
+
+            // --- Gravity & Physics ---
+            hulkVelocity.y -= 70 * delta;
+            hulkPos.y += hulkVelocity.y * delta;
+
+            if (hulkPos.y <= 0) {
+                hulkPos.y = 0;
+                hulkVelocity.y = 0;
+                if (!isGrounded) {
+                    isGrounded = true;
+                    createSmashEffect(hulkPos.x, hulkPos.z);
+                }
+            }
+
+            hulkGroup.position.copy(hulkPos);
+
+            // --- Camera Orbit Control ---
+            const camDistance = 18;
+            camera.position.x = hulkPos.x + camDistance * Math.sin(cameraAngle) * Math.cos(cameraPitch);
+            camera.position.z = hulkPos.z + camDistance * Math.cos(cameraAngle) * Math.cos(cameraPitch);
+            camera.position.y = hulkPos.y + camDistance * Math.sin(cameraPitch) + 4;
+            camera.lookAt(hulkPos.x, hulkPos.y + 4, hulkPos.z);
+
+            // --- Rival AI (Abomination against Hulk, Hulk against Abomination) ---
+            if (abomination) {
+                const dist = abomination.position.distanceTo(hulkPos);
+                abomination.userData.stunTimer = Math.max(0, abomination.userData.stunTimer - delta);
+                if (dist > 5 && abomination.userData.stunTimer <= 0) {
+                    const dir = new THREE.Vector3().subVectors(hulkPos, abomination.position).normalize();
+                    const rivalSpeed = abomination.userData.rivalType === 'hulk' ? 10 : 8;
+                    abomination.position.x += dir.x * rivalSpeed * delta;
+                    abomination.position.z += dir.z * rivalSpeed * delta;
+                    abomination.rotation.y = Math.atan2(-dir.x, -dir.z);
+                } else {
+                    abomination.userData.attackTimer += delta;
+                    if (abomination.userData.attackTimer > 1.2) {
+                        abomination.userData.attackTimer = 0;
+                        createParticles(hulkPos, 0xff2d2d, 15);
+                        showPopup(abomination.userData.rivalType === 'hulk' ? 'HULK STRIKE!' : 'ABOMINATION STRIKE!', hulkPos);
+                    }
+                }
+            }
+
+            // --- Soldier AI ---
+            enemies.forEach(enemy => {
+                const toPlayer = new THREE.Vector3().subVectors(hulkPos, enemy.position);
+                const distance = toPlayer.length();
+                enemy.userData.hitTimer -= delta;
+                if (distance > 6) {
+                    toPlayer.normalize();
+                    enemy.position.addScaledVector(toPlayer, enemy.userData.speed * delta);
+                    enemy.rotation.y = Math.atan2(-toPlayer.x, -toPlayer.z);
+                } else if (enemy.userData.hitTimer <= 0) {
+                    enemy.userData.hitTimer = 1.8;
+                    createParticles(hulkPos, 0xff2d2d, 4);
+                }
+            });
+
+            // --- Helicopters Routine ---
+            helicopters.forEach(h => {
+                h.userData.rotor.rotation.y += 0.4;
+                h.userData.angle += 0.5 * delta;
+                h.position.x += Math.sin(h.userData.angle) * 0.2;
+                h.position.z += Math.cos(h.userData.angle) * 0.2;
+            });
+
+            // --- Thrown Cars Physics ---
+            cars.forEach(car => {
+                if (car.userData.thrown) {
+                    car.position.addScaledVector(car.userData.velocity, delta);
+                    car.userData.velocity.y -= 30 * delta; // Gravity
+                    car.rotation.x += 0.1;
+                    car.rotation.z += 0.1;
+
+                    if (car.position.y <= 1) {
+                        car.position.y = 1;
+                        car.userData.thrown = false;
+                        createExplosion(car.position);
+
+                        // Damage nearby enemies
+                        if (abomination && car.position.distanceTo(abomination.position) < 10) {
+                            damageAbomination(120);
+                            showPopup("DIRECT CAR HIT!!", car.position);
+                        }
+                    }
+                }
+            });
+
+            // --- Particles Update ---
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.mesh.position.addScaledVector(p.vel, delta);
+                p.vel.y -= 25 * delta;
+                p.life -= delta * 1.5;
+                p.mesh.scale.multiplyScalar(0.95);
+
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    particles.splice(i, 1);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
